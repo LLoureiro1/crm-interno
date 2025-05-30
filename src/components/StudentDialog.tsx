@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Tables } from '@/integrations/supabase/types';
+import type { Tables, Enums } from '@/integrations/supabase/types';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -39,8 +39,8 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   const { profile } = useAuth();
   const [comments, setComments] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
-  const [newStatus, setNewStatus] = useState(student.status);
-  const [dropoutReason, setDropoutReason] = useState<string>('');
+  const [newStatus, setNewStatus] = useState<Enums<'student_status'>>(student.status);
+  const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
@@ -338,7 +338,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               <CardContent className="space-y-3">
                 <div>
                   <Label htmlFor="status">Novo Status</Label>
-                  <Select value={newStatus} onValueChange={setNewStatus}>
+                  <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Enums<'student_status'>)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -360,7 +360,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 {newStatus === 'desistente' && (
                   <div>
                     <Label htmlFor="dropout-reason">Motivo da Desistência</Label>
-                    <Select value={dropoutReason} onValueChange={setDropoutReason}>
+                    <Select value={dropoutReason} onValueChange={(value) => setDropoutReason(value as Enums<'dropout_reason'>)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
