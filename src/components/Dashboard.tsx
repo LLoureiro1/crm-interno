@@ -22,32 +22,34 @@ export const Dashboard = () => {
       </div>
 
       <Tabs defaultValue="reports" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 bg-white">
-          <TabsTrigger value="reports" className="flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>Relatórios</span>
-          </TabsTrigger>
-          {canAccessAdvancedReports && (
-            <TabsTrigger value="advanced-reports" className="flex items-center space-x-2">
-              <TrendingUp className="h-4 w-4" />
-              <span>Relatórios Avançados</span>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-5">
+            <TabsTrigger value="reports" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
+              <BarChart3 className="h-4 w-4" />
+              <span>Relatórios</span>
             </TabsTrigger>
-          )}
-          <TabsTrigger value="students" className="flex items-center space-x-2">
-            <Users className="h-4 w-4" />
-            <span>Alunos</span>
-          </TabsTrigger>
-          <TabsTrigger value="appointments" className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4" />
-            <span>Agendamentos</span>
-          </TabsTrigger>
-          {canAccessConfig && (
-            <TabsTrigger value="config" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span>Configurações</span>
+            {canAccessAdvancedReports && (
+              <TabsTrigger value="advanced-reports" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
+                <TrendingUp className="h-4 w-4" />
+                <span>Relatórios Avançados</span>
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="students" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
+              <Users className="h-4 w-4" />
+              <span>Alunos</span>
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="appointments" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
+              <Calendar className="h-4 w-4" />
+              <span>Agendamentos</span>
+            </TabsTrigger>
+            {canAccessConfig && (
+              <TabsTrigger value="config" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
+                <Settings className="h-4 w-4" />
+                <span>Configurações</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="reports" className="space-y-4">
           <ReportsTab />
