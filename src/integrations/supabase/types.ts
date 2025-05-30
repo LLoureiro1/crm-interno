@@ -9,16 +9,514 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          attended: boolean | null
+          comments: string | null
+          created_at: string
+          discount_percentage: number | null
+          id: string
+          interviewer_id: string | null
+          status: string
+          student_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          attended?: boolean | null
+          comments?: string | null
+          created_at?: string
+          discount_percentage?: number | null
+          id?: string
+          interviewer_id?: string | null
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          attended?: boolean | null
+          comments?: string | null
+          created_at?: string
+          discount_percentage?: number | null
+          id?: string
+          interviewer_id?: string | null
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cities: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      classes: {
+        Row: {
+          created_at: string
+          has_exam: boolean
+          id: string
+          monthly_fee: number
+          name: string
+          series_id: string
+          unit_id: string
+        }
+        Insert: {
+          created_at?: string
+          has_exam?: boolean
+          id?: string
+          monthly_fee: number
+          name: string
+          series_id: string
+          unit_id: string
+        }
+        Update: {
+          created_at?: string
+          has_exam?: boolean
+          id?: string
+          monthly_fee?: number
+          name?: string
+          series_id?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_units: {
+        Row: {
+          created_at: string
+          exam_id: string | null
+          id: string
+          unit_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          unit_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          exam_id?: string | null
+          id?: string
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_units_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_units_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          exam_date: string
+          exam_time: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_date: string
+          exam_time: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          exam_date?: string
+          exam_time?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      interviewer_availability: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string
+          id: string
+          interviewer_id: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time: string
+          id?: string
+          interviewer_id?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string
+          id?: string
+          interviewer_id?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviewer_availability_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interviewer_courses: {
+        Row: {
+          created_at: string
+          id: string
+          interviewer_id: string | null
+          series_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interviewer_id?: string | null
+          series_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interviewer_id?: string | null
+          series_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviewer_courses_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviewer_courses_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          profile: Database["public"]["Enums"]["user_profile"]
+          unit_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          profile?: Database["public"]["Enums"]["user_profile"]
+          unit_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          profile?: Database["public"]["Enums"]["user_profile"]
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      series: {
+        Row: {
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["education_level"]
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level: Database["public"]["Enums"]["education_level"]
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["education_level"]
+          name?: string
+        }
+        Relationships: []
+      }
+      student_interactions: {
+        Row: {
+          comments: string | null
+          created_at: string
+          id: string
+          interaction_type: string
+          student_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          student_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          student_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_interactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          birth_date: string
+          city_id: string
+          class_id: string
+          code: string | null
+          created_at: string
+          discount_percentage: number | null
+          dropout_reason: Database["public"]["Enums"]["dropout_reason"] | null
+          email: string
+          exam_date: string | null
+          id: string
+          math_grade: number | null
+          neighborhood: string
+          origin_school: string
+          phone: string
+          portuguese_grade: number | null
+          responsible_name: string
+          status: Database["public"]["Enums"]["student_status"]
+          student_name: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          birth_date: string
+          city_id: string
+          class_id: string
+          code?: string | null
+          created_at?: string
+          discount_percentage?: number | null
+          dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          email: string
+          exam_date?: string | null
+          id?: string
+          math_grade?: number | null
+          neighborhood: string
+          origin_school: string
+          phone: string
+          portuguese_grade?: number | null
+          responsible_name: string
+          status?: Database["public"]["Enums"]["student_status"]
+          student_name: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string
+          city_id?: string
+          class_id?: string
+          code?: string | null
+          created_at?: string
+          discount_percentage?: number | null
+          dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          email?: string
+          exam_date?: string | null
+          id?: string
+          math_grade?: number | null
+          neighborhood?: string
+          origin_school?: string
+          phone?: string
+          portuguese_grade?: number | null
+          responsible_name?: string
+          status?: Database["public"]["Enums"]["student_status"]
+          student_name?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      units: {
+        Row: {
+          address: string
+          city_id: string
+          created_at: string
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          address: string
+          city_id: string
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+        }
+        Update: {
+          address?: string
+          city_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_student_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      dropout_reason:
+        | "impossibilidade_contato"
+        | "cadastro_duplicado"
+        | "matriculou_outra_escola"
+        | "motivos_financeiros"
+        | "falta_vaga"
+        | "outro"
+      education_level:
+        | "educacao_infantil"
+        | "fundamental_i"
+        | "fundamental_ii"
+        | "medio"
+        | "cursos_livres"
+      student_status:
+        | "nao_confirmado"
+        | "confirmado"
+        | "presente"
+        | "nenhum_agendamento"
+        | "atendimento_agendado"
+        | "atendimento_recentemente"
+        | "atendimento_ha_mais_de_uma_semana"
+        | "faltou_ao_atendimento"
+        | "desistente"
+        | "matriculado"
+      user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +631,35 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      dropout_reason: [
+        "impossibilidade_contato",
+        "cadastro_duplicado",
+        "matriculou_outra_escola",
+        "motivos_financeiros",
+        "falta_vaga",
+        "outro",
+      ],
+      education_level: [
+        "educacao_infantil",
+        "fundamental_i",
+        "fundamental_ii",
+        "medio",
+        "cursos_livres",
+      ],
+      student_status: [
+        "nao_confirmado",
+        "confirmado",
+        "presente",
+        "nenhum_agendamento",
+        "atendimento_agendado",
+        "atendimento_recentemente",
+        "atendimento_ha_mais_de_uma_semana",
+        "faltou_ao_atendimento",
+        "desistente",
+        "matriculado",
+      ],
+      user_profile: ["admin", "direcao", "entrevistador", "padrao"],
+    },
   },
 } as const
