@@ -208,12 +208,12 @@ export const RegistrationForm = () => {
         origin_school: formData.originSchool,
         class_id: formData.classId,
         unit_id: selectedClass?.unit_id,
-        status: selectedClass?.has_exam ? 'nao_confirmado' : 'nenhum_agendamento'
+        status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
       const { error } = await supabase
         .from('students')
-        .insert([studentData]);
+        .insert(studentData);
 
       if (error) throw error;
 
