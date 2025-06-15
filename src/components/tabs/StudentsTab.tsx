@@ -1,5 +1,5 @@
-
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Download, Eye } from 'lucide-react';
-import { StudentDialog } from '@/components/StudentDialog';
 import * as XLSX from 'xlsx';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -20,13 +19,13 @@ type Student = Tables<'students'> & {
 };
 
 export const StudentsTab = () => {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
   const [seriesFilter, setSeriesFilter] = useState('all');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
 
@@ -235,7 +234,7 @@ export const StudentsTab = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedStudent(student)}
+                  onClick={() => navigate(`/student/${student.id}`)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Ver Detalhes
@@ -245,15 +244,6 @@ export const StudentsTab = () => {
           </div>
         </CardContent>
       </Card>
-
-      {selectedStudent && (
-        <StudentDialog
-          student={selectedStudent}
-          open={!!selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-          onUpdate={fetchStudents}
-        />
-      )}
     </div>
   );
 };

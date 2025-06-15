@@ -417,13 +417,13 @@ export const RegistrationForm = () => {
 
                 {formData.seriesId && (
                   <div>
-                    <Label htmlFor="unit">Unidade *</Label>
+                    <Label htmlFor="unit">Unidade</Label>
                     <Select value={formData.unitId} onValueChange={(value) => handleInputChange('unitId', value === 'none' ? '' : value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione a unidade" />
+                        <SelectValue placeholder="Selecione a unidade (opcional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Nenhuma unidade</SelectItem>
+                        <SelectItem value="none">Nenhuma unidade específica</SelectItem>
                         {availableUnits.map((unit) => (
                           <SelectItem key={unit.id} value={unit.id}>
                             {unit.name}
@@ -434,7 +434,7 @@ export const RegistrationForm = () => {
                   </div>
                 )}
 
-                {formData.unitId && (
+                {(formData.unitId || formData.seriesId) && (
                   <div>
                     <Label htmlFor="class">Turma *</Label>
                     <Select value={formData.classId} onValueChange={(value) => handleInputChange('classId', value)}>
