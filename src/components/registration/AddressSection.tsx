@@ -65,19 +65,18 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
       <h3 className="text-lg font-semibold text-gray-800">Endereço</h3>
       
       <div className="relative">
-        <Label htmlFor="city" className={fieldErrors.cityId ? 'text-red-600' : ''}>
-          Cidade *
+        <Label htmlFor="city" className={fieldErrors.cityName ? 'text-red-600' : ''}>
+          Cidade
         </Label>
         <Input
           id="city"
           value={formData.cityName}
           onChange={(e) => handleCitySearch(e.target.value)}
-          placeholder="Digite pelo menos 2 letras da cidade"
-          className={fieldErrors.cityId ? 'border-red-500 focus:border-red-500' : ''}
-          required
+          placeholder="Digite o nome da cidade (opcional)"
+          className={fieldErrors.cityName ? 'border-red-500 focus:border-red-500' : ''}
         />
-        {fieldErrors.cityId && (
-          <p className="text-red-600 text-sm mt-1">{fieldErrors.cityId}</p>
+        {fieldErrors.cityName && (
+          <p className="text-red-600 text-sm mt-1">{fieldErrors.cityName}</p>
         )}
         {showCityDropdown && filteredCities.length > 0 && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-auto">

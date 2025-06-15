@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -13,7 +12,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'> & {
-  cities: { name: string };
+  cities?: { name: string } | null;
 };
 type City = Tables<'cities'>;
 
@@ -23,11 +22,14 @@ export const UnitManagement = () => {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
+  const [filteredCities, setFilteredCities] = useState<City[]>([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     phone: '',
-    city_id: ''
+    city_id: '',
+    city_name: ''
   });
 
   useEffect(() => {
@@ -66,11 +68,65 @@ export const UnitManagement = () => {
     setCities(data || []);
   };
 
+  const handleCitySearch = (value: string) => {
+    setFormData(prev => ({ ...prev, city_name: value, city_id: '' }));
+    
+    if (value.length >= 2) {
+      const searchTerm = value.toLowerCase().trim();
+      const filtered = cities.filter(city => {
+        const cityName = city.name.toLowerCase();
+        return cityName.startsWith(searchTerm) || cityName.includes(searchTerm);
+      })
+      .sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        
+        const aStarts = aName.startsWith(searchLower);
+        const bStarts = bName.startsWith(searchLower);
+        
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 50);
+      
+      setFilteredCities(filtered);
+      setShowCityDropdown(true);
+    } else {
+      setShowCityDropdown(false);
+      setFilteredCities([]);
+    }
+  };
+
+  const selectCity = (city: City) => {
+    setFormData(prev => ({ ...prev, city_id: city.id, city_name: city.name }));
+    setShowCityDropdown(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Criar ou obter cidade se não existir
+      let cityId = formData.city_id;
+      if (formData.city_name && !formData.city_id) {
+        const { data: cityData, error: cityError } = await supabase
+          .from('cities')
+          .insert({ name: formData.city_name })
+          .select()
+          .single();
+        
+        if (cityError) {
+          console.error('Erro ao criar cidade:', cityError);
+          cityId = '';
+        } else {
+          cityId = cityData.id;
+        }
+      }
+
       if (editingUnit) {
         const { error } = await supabase
           .from('units')
@@ -78,7 +134,7 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city_id: formData.city_id
+            city_id: cityId || null
           })
           .eq('id', editingUnit.id);
 
@@ -91,7 +147,7 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city_id: formData.city_id
+            city_id: cityId || null
           });
 
         if (error) throw error;
@@ -115,7 +171,8 @@ export const UnitManagement = () => {
       name: unit.name,
       address: unit.address,
       phone: unit.phone,
-      city_id: unit.city_id
+      city_id: unit.city_id || '',
+      city_name: unit.cities?.name || ''
     });
     setDialogOpen(true);
   };
@@ -143,9 +200,11 @@ export const UnitManagement = () => {
       name: '',
       address: '',
       phone: '',
-      city_id: ''
+      city_id: '',
+      city_name: ''
     });
     setEditingUnit(null);
+    setShowCityDropdown(false);
   };
 
   return (
@@ -193,20 +252,34 @@ export const UnitManagement = () => {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="city">Cidade *</Label>
-                <Select value={formData.city_id} onValueChange={(value) => setFormData(prev => ({ ...prev, city_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a cidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((city) => (
-                      <SelectItem key={city.id} value={city.id}>
+              <div className="relative">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city_name}
+                  onChange={(e) => handleCitySearch(e.target.value)}
+                  placeholder="Digite o nome da cidade (opcional)"
+                />
+                {showCityDropdown && filteredCities.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-auto">
+                    {filteredCities.map((city) => (
+                      <div
+                        key={city.id}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => selectCity(city)}
+                      >
                         {city.name}
-                      </SelectItem>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
+                {showCityDropdown && filteredCities.length === 0 && formData.city_name.length >= 2 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    <div className="px-4 py-2 text-gray-500">
+                      Nenhuma cidade encontrada
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
@@ -242,7 +315,7 @@ export const UnitManagement = () => {
                   <TableCell>{unit.name}</TableCell>
                   <TableCell>{unit.address}</TableCell>
                   <TableCell>{unit.phone}</TableCell>
-                  <TableCell>{unit.cities.name}</TableCell>
+                  <TableCell>{unit.cities?.name || 'Não informado'}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

@@ -29,9 +29,7 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.email = 'E-mail deve ter um formato válido';
   }
   
-  if (!formData.cityId) {
-    errors.cityId = 'Cidade é obrigatória - digite pelo menos 3 letras e selecione uma opção';
-  }
+  // Cidade agora é opcional - não validar mais
   
   if (!formData.neighborhood.trim()) {
     errors.neighborhood = 'Bairro é obrigatório';

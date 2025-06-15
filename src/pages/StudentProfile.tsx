@@ -139,10 +139,10 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${new Date(interviewDate).toLocaleDateString('pt-BR')} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name}`
+          comments: `Entrevista agendada para ${new Date(interviewDate).toLocaleDateString('pt-BR')} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name}. Status automaticamente alterado para "Atendimento Agendado".`
         });
 
-      toast.success('Entrevista agendada com sucesso');
+      toast.success('Entrevista agendada com sucesso e status atualizado!');
       fetchStudent();
       fetchInteractions();
       setInterviewDate('');
@@ -347,7 +347,7 @@ const StudentProfile = () => {
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
                     <span className="font-medium">Cidade:</span>
-                    <p>{student.cities.name}</p>
+                    <p>{student.cities?.name || 'Não informado'}</p>
                   </div>
                   <div>
                     <span className="font-medium">Bairro:</span>

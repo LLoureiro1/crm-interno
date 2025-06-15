@@ -97,13 +97,32 @@ export const RegistrationForm = () => {
     try {
       const selectedClass = availableClasses.find(cls => cls.id === formData.classId);
       
+      // Criar ou obter cidade se não existir
+      let cityId = formData.cityId;
+      if (formData.cityName && !formData.cityId) {
+        // Criar nova cidade
+        const { data: cityData, error: cityError } = await supabase
+          .from('cities')
+          .insert({ name: formData.cityName })
+          .select()
+          .single();
+        
+        if (cityError) {
+          console.error('Erro ao criar cidade:', cityError);
+          // Continuar sem cidade se houver erro
+          cityId = '';
+        } else {
+          cityId = cityData.id;
+        }
+      }
+      
       const studentData = {
         student_name: formData.studentName,
         responsible_name: formData.responsibleName,
         birth_date: convertDateToISO(formData.birthDate),
         phone: formData.phone,
         email: formData.email,
-        city_id: formData.cityId,
+        city_id: cityId || null,
         neighborhood: formData.neighborhood,
         origin_school: formData.originSchool,
         class_id: formData.classId,
