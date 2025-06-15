@@ -1,0 +1,58 @@
+
+import { RegistrationFormData, ValidationErrors } from '@/types/registration';
+
+export const validateForm = (formData: RegistrationFormData): ValidationErrors => {
+  const errors: ValidationErrors = {};
+  
+  // Validar campos obrigatórios
+  if (!formData.studentName.trim()) {
+    errors.studentName = 'Nome do aluno é obrigatório';
+  }
+  
+  if (!formData.responsibleName.trim()) {
+    errors.responsibleName = 'Nome do responsável é obrigatório';
+  }
+  
+  if (!formData.birthDate || formData.birthDate.length !== 10) {
+    errors.birthDate = 'Data de nascimento válida é obrigatória (DD/MM/YYYY)';
+  }
+  
+  if (!formData.phone || formData.phone.replace(/\D/g, '').length !== 11) {
+    errors.phone = 'Telefone válido é obrigatório (11 dígitos com DDD)';
+  }
+  
+  // Validar formato do email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!formData.email.trim()) {
+    errors.email = 'E-mail é obrigatório';
+  } else if (!emailRegex.test(formData.email)) {
+    errors.email = 'E-mail deve ter um formato válido';
+  }
+  
+  if (!formData.cityId) {
+    errors.cityId = 'Cidade é obrigatória - digite pelo menos 3 letras e selecione uma opção';
+  }
+  
+  if (!formData.neighborhood.trim()) {
+    errors.neighborhood = 'Bairro é obrigatório';
+  }
+  
+  if (!formData.originSchool.trim()) {
+    errors.originSchool = 'Escola de origem é obrigatória';
+  }
+  
+  if (!formData.seriesId) {
+    errors.seriesId = 'Série é obrigatória';
+  }
+  
+  if (!formData.classId) {
+    errors.classId = 'Turma é obrigatória';
+  }
+
+  return errors;
+};
+
+export const convertDateToISO = (dateStr: string): string => {
+  const [day, month, year] = dateStr.split('/');
+  return `${year}-${month}-${day}`;
+};
