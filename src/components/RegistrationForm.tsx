@@ -40,6 +40,7 @@ export const RegistrationForm = () => {
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -117,10 +118,19 @@ export const RegistrationForm = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Limpar erro do campo quando ele for alterado
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   const handleCitySearch = (value: string) => {
     setFormData(prev => ({ ...prev, cityName: value, cityId: '' }));
+    
+    // Limpar erro do campo cidade
+    if (fieldErrors.cityId) {
+      setFieldErrors(prev => ({ ...prev, cityId: '' }));
+    }
     
     if (value.length >= 3) {
       const filtered = cities.filter(city => 
@@ -137,6 +147,10 @@ export const RegistrationForm = () => {
   const selectCity = (city: City) => {
     setFormData(prev => ({ ...prev, cityId: city.id, cityName: city.name }));
     setShowCityDropdown(false);
+    // Limpar erro do campo cidade
+    if (fieldErrors.cityId) {
+      setFieldErrors(prev => ({ ...prev, cityId: '' }));
+    }
   };
 
   const formatPhone = (value: string) => {
@@ -170,34 +184,57 @@ export const RegistrationForm = () => {
   };
 
   const validateForm = () => {
-    const required = [
-      'studentName', 'responsibleName', 'birthDate', 'phone', 
-      'email', 'cityId', 'neighborhood', 'originSchool', 'classId'
-    ];
-
-    for (const field of required) {
-      if (!formData[field as keyof typeof formData]) {
-        toast.error('Todos os campos obrigatórios devem ser preenchidos');
-        return false;
-      }
+    const errors: Record<string, string> = {};
+    
+    // Validar campos obrigatórios
+    if (!formData.studentName.trim()) {
+      errors.studentName = 'Nome do aluno é obrigatório';
     }
-
+    
+    if (!formData.responsibleName.trim()) {
+      errors.responsibleName = 'Nome do responsável é obrigatório';
+    }
+    
+    if (!formData.birthDate || formData.birthDate.length !== 10) {
+      errors.birthDate = 'Data de nascimento válida é obrigatória (DD/MM/YYYY)';
+    }
+    
+    if (!formData.phone || formData.phone.replace(/\D/g, '').length !== 11) {
+      errors.phone = 'Telefone válido é obrigatório (11 dígitos com DDD)';
+    }
+    
     // Validar formato do email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error('Por favor, insira um email válido');
-      return false;
+    if (!formData.email.trim()) {
+      errors.email = 'E-mail é obrigatório';
+    } else if (!emailRegex.test(formData.email)) {
+      errors.email = 'E-mail deve ter um formato válido';
+    }
+    
+    if (!formData.cityId) {
+      errors.cityId = 'Cidade é obrigatória - digite pelo menos 3 letras e selecione uma opção';
+    }
+    
+    if (!formData.neighborhood.trim()) {
+      errors.neighborhood = 'Bairro é obrigatório';
+    }
+    
+    if (!formData.originSchool.trim()) {
+      errors.originSchool = 'Escola de origem é obrigatória';
+    }
+    
+    if (!formData.seriesId) {
+      errors.seriesId = 'Série é obrigatória';
+    }
+    
+    if (!formData.classId) {
+      errors.classId = 'Turma é obrigatória';
     }
 
-    // Validar formato da data
-    if (formData.birthDate.length !== 10) {
-      toast.error('Por favor, insira uma data válida (DD/MM/YYYY)');
-      return false;
-    }
-
-    // Validar formato do telefone
-    if (formData.phone.replace(/\D/g, '').length !== 11) {
-      toast.error('Por favor, insira um telefone válido com DDD (11 dígitos)');
+    setFieldErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      toast.error('Por favor, corrija os campos destacados em vermelho');
       return false;
     }
 
@@ -256,6 +293,7 @@ export const RegistrationForm = () => {
         classId: '',
         unitId: ''
       });
+      setFieldErrors({});
 
     } catch (error) {
       console.error('Erro ao realizar inscrição:', error);
@@ -281,26 +319,38 @@ export const RegistrationForm = () => {
                 <h3 className="text-lg font-semibold text-gray-800">Dados do Aluno</h3>
                 
                 <div>
-                  <Label htmlFor="studentName">Nome Completo do Aluno *</Label>
+                  <Label htmlFor="studentName" className={fieldErrors.studentName ? 'text-red-600' : ''}>
+                    Nome Completo do Aluno *
+                  </Label>
                   <Input
                     id="studentName"
                     value={formData.studentName}
                     onChange={(e) => handleInputChange('studentName', e.target.value)}
                     placeholder="Digite o nome completo do aluno"
+                    className={fieldErrors.studentName ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.studentName && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.studentName}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="birthDate">Data de Nascimento *</Label>
+                  <Label htmlFor="birthDate" className={fieldErrors.birthDate ? 'text-red-600' : ''}>
+                    Data de Nascimento *
+                  </Label>
                   <Input
                     id="birthDate"
                     value={formData.birthDate}
                     onChange={(e) => handleDateChange(e.target.value)}
                     placeholder="DD/MM/YYYY"
                     maxLength={10}
+                    className={fieldErrors.birthDate ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.birthDate && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.birthDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -309,38 +359,56 @@ export const RegistrationForm = () => {
                 <h3 className="text-lg font-semibold text-gray-800">Dados do Responsável</h3>
                 
                 <div>
-                  <Label htmlFor="responsibleName">Nome Completo do Responsável *</Label>
+                  <Label htmlFor="responsibleName" className={fieldErrors.responsibleName ? 'text-red-600' : ''}>
+                    Nome Completo do Responsável *
+                  </Label>
                   <Input
                     id="responsibleName"
                     value={formData.responsibleName}
                     onChange={(e) => handleInputChange('responsibleName', e.target.value)}
                     placeholder="Digite o nome completo do responsável"
+                    className={fieldErrors.responsibleName ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.responsibleName && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.responsibleName}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="phone">Telefone *</Label>
+                  <Label htmlFor="phone" className={fieldErrors.phone ? 'text-red-600' : ''}>
+                    Telefone *
+                  </Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="(XX) XXXXX-XXXX"
                     maxLength={15}
+                    className={fieldErrors.phone ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.phone && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.phone}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="email">E-mail *</Label>
+                  <Label htmlFor="email" className={fieldErrors.email ? 'text-red-600' : ''}>
+                    E-mail *
+                  </Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="email@exemplo.com"
+                    className={fieldErrors.email ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.email}</p>
+                  )}
                 </div>
               </div>
 
@@ -349,20 +417,26 @@ export const RegistrationForm = () => {
                 <h3 className="text-lg font-semibold text-gray-800">Endereço</h3>
                 
                 <div className="relative">
-                  <Label htmlFor="city">Cidade *</Label>
+                  <Label htmlFor="city" className={fieldErrors.cityId ? 'text-red-600' : ''}>
+                    Cidade *
+                  </Label>
                   <Input
                     id="city"
                     value={formData.cityName}
                     onChange={(e) => handleCitySearch(e.target.value)}
                     placeholder="Digite pelo menos 3 letras da cidade"
+                    className={fieldErrors.cityId ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.cityId && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.cityId}</p>
+                  )}
                   {showCityDropdown && filteredCities.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                       {filteredCities.map((city) => (
                         <div
                           key={city.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                           onClick={() => selectCity(city)}
                         >
                           {city.name}
@@ -370,17 +444,30 @@ export const RegistrationForm = () => {
                       ))}
                     </div>
                   )}
+                  {showCityDropdown && filteredCities.length === 0 && formData.cityName.length >= 3 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                      <div className="px-4 py-2 text-gray-500">
+                        Nenhuma cidade encontrada
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="neighborhood">Bairro *</Label>
+                  <Label htmlFor="neighborhood" className={fieldErrors.neighborhood ? 'text-red-600' : ''}>
+                    Bairro *
+                  </Label>
                   <Input
                     id="neighborhood"
                     value={formData.neighborhood}
                     onChange={(e) => handleInputChange('neighborhood', e.target.value)}
                     placeholder="Digite o bairro"
+                    className={fieldErrors.neighborhood ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.neighborhood && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.neighborhood}</p>
+                  )}
                 </div>
               </div>
 
@@ -389,20 +476,28 @@ export const RegistrationForm = () => {
                 <h3 className="text-lg font-semibold text-gray-800">Dados Acadêmicos</h3>
                 
                 <div>
-                  <Label htmlFor="originSchool">Escola de Origem *</Label>
+                  <Label htmlFor="originSchool" className={fieldErrors.originSchool ? 'text-red-600' : ''}>
+                    Escola de Origem *
+                  </Label>
                   <Input
                     id="originSchool"
                     value={formData.originSchool}
                     onChange={(e) => handleInputChange('originSchool', e.target.value)}
                     placeholder="Digite a escola de origem"
+                    className={fieldErrors.originSchool ? 'border-red-500 focus:border-red-500' : ''}
                     required
                   />
+                  {fieldErrors.originSchool && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.originSchool}</p>
+                  )}
                 </div>
 
                 <div>
-                  <Label htmlFor="series">Série *</Label>
+                  <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>
+                    Série *
+                  </Label>
                   <Select value={formData.seriesId} onValueChange={(value) => handleInputChange('seriesId', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldErrors.seriesId ? 'border-red-500 focus:border-red-500' : ''}>
                       <SelectValue placeholder="Selecione a série" />
                     </SelectTrigger>
                     <SelectContent>
@@ -413,6 +508,9 @@ export const RegistrationForm = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors.seriesId && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.seriesId}</p>
+                  )}
                 </div>
 
                 {formData.seriesId && (
@@ -436,9 +534,11 @@ export const RegistrationForm = () => {
 
                 {(formData.unitId || formData.seriesId) && (
                   <div>
-                    <Label htmlFor="class">Turma *</Label>
+                    <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
+                      Turma *
+                    </Label>
                     <Select value={formData.classId} onValueChange={(value) => handleInputChange('classId', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className={fieldErrors.classId ? 'border-red-500 focus:border-red-500' : ''}>
                         <SelectValue placeholder="Selecione a turma" />
                       </SelectTrigger>
                       <SelectContent>
@@ -449,6 +549,9 @@ export const RegistrationForm = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldErrors.classId && (
+                      <p className="text-red-600 text-sm mt-1">{fieldErrors.classId}</p>
+                    )}
                   </div>
                 )}
               </div>
