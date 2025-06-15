@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, Calendar } from 'lucide-react';
+import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import type { Tables } from '@/integrations/supabase/types';
@@ -20,10 +20,15 @@ type Student = Tables<'students'> & {
   cities: Tables<'cities'>;
 };
 
+type ExamDate = Tables<'exam_dates'> & {
+  units: Tables<'units'>;
+};
+
 export const StudentsTab = () => {
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [examDates, setExamDates] = useState<ExamDate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -38,6 +43,7 @@ export const StudentsTab = () => {
     fetchStudents();
     fetchUnits();
     fetchSeries();
+    fetchExamDates();
   }, []);
 
   useEffect(() => {
@@ -76,6 +82,18 @@ export const StudentsTab = () => {
     if (data) setSeries(data);
   };
 
+  const fetchExamDates = async () => {
+    const { data } = await supabase
+      .from('exam_dates')
+      .select(`
+        *,
+        units(*)
+      `)
+      .order('exam_date', { ascending: true });
+    
+    if (data) setExamDates(data);
+  };
+
   const filterStudents = () => {
     let filtered = students;
 
@@ -99,27 +117,11 @@ export const StudentsTab = () => {
     }
 
     if (examDateFilter !== 'all') {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      
-      filtered = filtered.filter(student => {
-        if (!student.exam_date) return examDateFilter === 'sem_data';
-        
-        const examDate = student.exam_date;
-        
-        switch (examDateFilter) {
-          case 'hoje':
-            return examDate === todayStr;
-          case 'passadas':
-            return examDate < todayStr;
-          case 'futuras':
-            return examDate > todayStr;
-          case 'sem_data':
-            return false;
-          default:
-            return true;
-        }
-      });
+      if (examDateFilter === 'sem_data') {
+        filtered = filtered.filter(student => !student.exam_date);
+      } else {
+        filtered = filtered.filter(student => student.exam_date === examDateFilter);
+      }
     }
 
     setFilteredStudents(filtered);
@@ -140,6 +142,7 @@ export const StudentsTab = () => {
       'Unidade': student.classes.units.name,
       'Status': student.status,
       'Data da Prova': student.exam_date ? new Date(student.exam_date).toLocaleDateString('pt-BR') : '',
+      'Data da Entrevista': student.interview_date ? new Date(student.interview_date).toLocaleDateString('pt-BR') : '',
       'Nota Português': student.portuguese_grade || '',
       'Nota Matemática': student.math_grade || '',
       'Data de Inscrição': new Date(student.created_at).toLocaleDateString('pt-BR'),
@@ -174,6 +177,10 @@ export const StudentsTab = () => {
     setShowStudentDialog(true);
   };
 
+  const handleOpenStudentPage = (studentId: string) => {
+    window.open(`/student/${studentId}`, '_blank');
+  };
+
   const handleCloseDialog = () => {
     setShowStudentDialog(false);
     setSelectedStudent(null);
@@ -202,7 +209,7 @@ export const StudentsTab = () => {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -266,10 +273,12 @@ export const StudentsTab = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as datas</SelectItem>
-                <SelectItem value="hoje">Hoje</SelectItem>
-                <SelectItem value="futuras">Futuras</SelectItem>
-                <SelectItem value="passadas">Passadas</SelectItem>
                 <SelectItem value="sem_data">Sem data</SelectItem>
+                {examDates.map(examDate => (
+                  <SelectItem key={examDate.id} value={examDate.exam_date}>
+                    {new Date(examDate.exam_date).toLocaleDateString('pt-BR')} - {examDate.exam_time} ({examDate.units.name})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -299,7 +308,13 @@ export const StudentsTab = () => {
                       {student.exam_date && (
                         <p className="text-sm text-gray-600 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(student.exam_date).toLocaleDateString('pt-BR')}
+                          Prova: {new Date(student.exam_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                      {student.interview_date && (
+                        <p className="text-sm text-blue-600 flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Entrevista: {new Date(student.interview_date).toLocaleDateString('pt-BR')}
                         </p>
                       )}
                     </div>
@@ -308,14 +323,24 @@ export const StudentsTab = () => {
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleViewStudent(student)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver Detalhes
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewStudent(student)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver Detalhes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenStudentPage(student.id)}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Abrir Página
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

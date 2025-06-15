@@ -129,6 +129,41 @@ export type Database = {
           },
         ]
       }
+      exam_dates: {
+        Row: {
+          created_at: string
+          exam_date: string
+          exam_time: string
+          id: string
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exam_date: string
+          exam_time: string
+          id?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exam_date?: string
+          exam_time?: string
+          id?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_dates_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_units: {
         Row: {
           created_at: string
@@ -367,6 +402,7 @@ export type Database = {
           email: string
           exam_date: string | null
           id: string
+          interview_date: string | null
           math_grade: number | null
           neighborhood: string
           origin_school: string
@@ -389,6 +425,7 @@ export type Database = {
           email: string
           exam_date?: string | null
           id?: string
+          interview_date?: string | null
           math_grade?: number | null
           neighborhood: string
           origin_school: string
@@ -411,6 +448,7 @@ export type Database = {
           email?: string
           exam_date?: string | null
           id?: string
+          interview_date?: string | null
           math_grade?: number | null
           neighborhood?: string
           origin_school?: string

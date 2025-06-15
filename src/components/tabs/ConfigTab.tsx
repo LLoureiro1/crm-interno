@@ -1,47 +1,114 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserManagement } from '@/components/management/UserManagement';
 import { UnitManagement } from '@/components/management/UnitManagement';
 import { ClassManagement } from '@/components/management/ClassManagement';
-import { GradeUpload } from '@/components/management/GradeUpload';
 import { InterviewerAvailability } from '@/components/management/InterviewerAvailability';
+import { GradeUpload } from '@/components/management/GradeUpload';
+import { ExamDateManagement } from '@/components/management/ExamDateManagement';
 
 export const ConfigTab = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Configurações do Sistema</h2>
-        <p className="text-gray-600">Gerencie usuários, unidades, turmas e outras configurações</p>
+        <h2 className="text-xl font-semibold text-gray-900">Configurações</h2>
+        <p className="text-gray-600">Gerencie usuários, unidades, turmas e configurações do sistema</p>
       </div>
-
+      
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="users">Gestão de Usuários</TabsTrigger>
-          <TabsTrigger value="units">Gestão de Unidades</TabsTrigger>
-          <TabsTrigger value="classes">Gestão de Turmas</TabsTrigger>
-          <TabsTrigger value="grades">Upload de Notas</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="units">Unidades</TabsTrigger>
+          <TabsTrigger value="classes">Turmas</TabsTrigger>
+          <TabsTrigger value="exam-dates">Datas de Provas</TabsTrigger>
           <TabsTrigger value="availability">Disponibilidade</TabsTrigger>
+          <TabsTrigger value="grades">Notas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
-          <UserManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Usuários</CardTitle>
+              <CardDescription>
+                Adicione e gerencie usuários do sistema
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="units">
-          <UnitManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Unidades</CardTitle>
+              <CardDescription>
+                Cadastre e gerencie as unidades da escola
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UnitManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="classes">
-          <ClassManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciamento de Turmas</CardTitle>
+              <CardDescription>
+                Configure turmas, séries e mensalidades
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ClassManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="grades">
-          <GradeUpload />
+        <TabsContent value="exam-dates">
+          <Card>
+            <CardHeader>
+              <CardTitle>Datas de Provas</CardTitle>
+              <CardDescription>
+                Configure as datas, horários e unidades das provas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ExamDateManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="availability">
-          <InterviewerAvailability />
+          <Card>
+            <CardHeader>
+              <CardTitle>Disponibilidade de Entrevistadores</CardTitle>
+              <CardDescription>
+                Configure a disponibilidade dos entrevistadores
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InterviewerAvailability />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="grades">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload de Notas</CardTitle>
+              <CardDescription>
+                Faça upload das notas dos alunos via planilha
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GradeUpload />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

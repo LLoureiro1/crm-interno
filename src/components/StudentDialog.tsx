@@ -42,9 +42,14 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   const [newStatus, setNewStatus] = useState<Enums<'student_status'>>(student.status);
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
+  const [interviewDate, setInterviewDate] = useState(student.interview_date || '');
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
+  
+  // Verificar se hoje é o dia da entrevista
+  const today = new Date().toISOString().split('T')[0];
+  const isInterviewDay = student.interview_date === today;
 
   useEffect(() => {
     if (open) {
@@ -63,6 +68,39 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       .order('created_at', { ascending: false });
 
     if (data) setInteractions(data);
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!interviewDate) {
+      toast.error('Selecione a data da entrevista');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ interview_date: interviewDate })
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      // Add interaction
+      await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: student.id,
+          user_id: profile?.id,
+          interaction_type: 'agendamento_entrevista',
+          comments: `Entrevista agendada para ${new Date(interviewDate).toLocaleDateString('pt-BR')}`
+        });
+
+      toast.success('Entrevista agendada com sucesso');
+      onUpdate();
+      fetchInteractions();
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast.error('Erro ao agendar entrevista');
+    }
   };
 
   const handleAddInteraction = async () => {
@@ -287,12 +325,53 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <span className="font-medium">Data da Inscrição:</span>
                     <p>{new Date(student.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
+                  {student.exam_date && (
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span className="font-medium">Data da Prova:</span>
+                      <p>{new Date(student.exam_date).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                  )}
+                  {student.interview_date && (
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span className="font-medium">Data da Entrevista:</span>
+                      <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
+                        {new Date(student.interview_date).toLocaleDateString('pt-BR')}
+                        {isInterviewDay && ' (HOJE)'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Actions */}
-            {canRegisterAttendance && (
+            {/* Interview Scheduling */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Agendar Entrevista</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="interview-date">Data da Entrevista</Label>
+                  <Input
+                    id="interview-date"
+                    type="date"
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  onClick={handleScheduleInterview}
+                  className="w-full bg-blue-500 hover:bg-blue-600"
+                >
+                  Agendar Entrevista
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Actions - Only show Register Attendance if it's interview day */}
+            {canRegisterAttendance && isInterviewDay && (
               <Card>
                 <CardHeader>
                   <CardTitle>Registrar Atendimento</CardTitle>

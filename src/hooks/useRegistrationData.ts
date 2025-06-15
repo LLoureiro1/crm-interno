@@ -19,7 +19,7 @@ export const useRegistrationData = () => {
 
   const loadInitialData = async () => {
     try {
-      // Carregar todas as cidades (sem limite)
+      // Carregar todas as cidades (removido o limite)
       const { data: citiesData, error: citiesError } = await supabase
         .from('cities')
         .select('*')

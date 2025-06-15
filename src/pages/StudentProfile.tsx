@@ -50,6 +50,9 @@ export default function StudentProfile() {
     comments: '',
     discountPercentage: 0
   });
+  const [interviewDate, setInterviewDate] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (id) {
@@ -78,6 +81,7 @@ export default function StudentProfile() {
     }
 
     setStudent(data);
+    setInterviewDate(data.interview_date || '');
     setLoading(false);
   };
 
@@ -100,7 +104,6 @@ export default function StudentProfile() {
   };
 
   const fetchAvailabilities = async () => {
-    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('interviewer_availability')
       .select(`
@@ -116,6 +119,28 @@ export default function StudentProfile() {
     }
 
     setAvailabilities(data || []);
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!interviewDate) {
+      toast.error('Selecione a data da entrevista');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ interview_date: interviewDate })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Entrevista agendada com sucesso');
+      fetchStudentData();
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast.error('Erro ao agendar entrevista');
+    }
   };
 
   const handleScheduleAppointment = async (e: React.FormEvent) => {
@@ -173,7 +198,6 @@ export default function StudentProfile() {
   };
 
   const getTodayAppointments = () => {
-    const today = new Date().toISOString().split('T')[0];
     return appointments.filter(apt => apt.appointment_date === today && apt.status === 'agendado');
   };
 
@@ -208,6 +232,7 @@ export default function StudentProfile() {
   }
 
   const todayAppointments = getTodayAppointments();
+  const isInterviewDay = student.interview_date === today;
 
   return (
     <Layout>
@@ -307,10 +332,49 @@ export default function StudentProfile() {
                     <p className="font-medium">{student.portuguese_grade}</p>
                   </div>
                 )}
+                {student.interview_date && (
+                  <div>
+                    <Label>Data da Entrevista</Label>
+                    <p className={`font-medium ${isInterviewDay ? 'text-green-600' : ''}`}>
+                      {new Date(student.interview_date).toLocaleDateString('pt-BR')}
+                      {isInterviewDay && ' (HOJE)'}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Agendar Entrevista */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5" />
+              <span>Agendar Entrevista</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <Label htmlFor="interview-date">Data da Entrevista</Label>
+                <Input
+                  id="interview-date"
+                  type="date"
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                  min={today}
+                />
+              </div>
+              <Button
+                onClick={handleScheduleInterview}
+                className="bg-blue-500 hover:bg-blue-600 mt-6"
+              >
+                Agendar Entrevista
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Agendamento */}
         <Card>
@@ -441,6 +505,45 @@ export default function StudentProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Registrar Atendimento - Apenas no dia da entrevista */}
+        {isInterviewDay && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Registrar Atendimento - Entrevista Hoje</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="comments">Observações</Label>
+                  <Textarea
+                    id="comments"
+                    placeholder="Digite as observações do atendimento..."
+                    value={attendanceData.comments}
+                    onChange={(e) => setAttendanceData(prev => ({ ...prev, comments: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="discount">Percentual de Desconto (%)</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={attendanceData.discountPercentage}
+                    onChange={(e) => setAttendanceData(prev => ({ ...prev, discountPercentage: Number(e.target.value) }))}
+                  />
+                </div>
+                <Button
+                  onClick={() => handleRegisterAttendance('')}
+                  className="bg-green-500 hover:bg-green-600"
+                >
+                  Registrar Atendimento da Entrevista
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Registrar Atendimento - Apenas para agendamentos de hoje */}
         {todayAppointments.length > 0 && (
