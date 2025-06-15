@@ -418,11 +418,12 @@ export const RegistrationForm = () => {
                 {formData.seriesId && (
                   <div>
                     <Label htmlFor="unit">Unidade *</Label>
-                    <Select value={formData.unitId} onValueChange={(value) => handleInputChange('unitId', value)}>
+                    <Select value={formData.unitId} onValueChange={(value) => handleInputChange('unitId', value === 'none' ? '' : value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione a unidade" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Nenhuma unidade</SelectItem>
                         {availableUnits.map((unit) => (
                           <SelectItem key={unit.id} value={unit.id}>
                             {unit.name}
