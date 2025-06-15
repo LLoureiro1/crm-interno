@@ -109,7 +109,9 @@ export const StudentsTab = () => {
     }
 
     if (unitFilter !== 'all') {
-      filtered = filtered.filter(student => student.unit_id === unitFilter);
+      filtered = filtered.filter(student =>
+        student.unit_id === unitFilter || student.classes.unit_id === unitFilter
+      );
     }
 
     if (seriesFilter !== 'all') {
@@ -117,10 +119,27 @@ export const StudentsTab = () => {
     }
 
     if (examDateFilter !== 'all') {
-      if (examDateFilter === 'sem_data') {
-        filtered = filtered.filter(student => !student.exam_date);
-      } else {
-        filtered = filtered.filter(student => student.exam_date === examDateFilter);
+      const today = new Date().toISOString().split('T')[0];
+      
+      switch (examDateFilter) {
+        case 'sem_data':
+          filtered = filtered.filter(student => !student.exam_date);
+          break;
+        case 'hoje':
+          filtered = filtered.filter(student => student.exam_date === today);
+          break;
+        case 'futuras':
+          filtered = filtered.filter(student => student.exam_date && student.exam_date > today);
+          break;
+        case 'passadas':
+          filtered = filtered.filter(student => student.exam_date && student.exam_date < today);
+          break;
+        default:
+          if (examDateFilter.startsWith('date_')) {
+            const targetDate = examDateFilter.replace('date_', '');
+            filtered = filtered.filter(student => student.exam_date === targetDate);
+          }
+          break;
       }
     }
 
@@ -178,7 +197,7 @@ export const StudentsTab = () => {
   };
 
   const handleOpenStudentPage = (studentId: string) => {
-    window.open(`/student/${studentId}`, '_blank');
+    navigate(`/student/${studentId}`);
   };
 
   const handleCloseDialog = () => {
@@ -189,6 +208,11 @@ export const StudentsTab = () => {
   const handleUpdateStudent = () => {
     fetchStudents();
   };
+
+  // Agrupar datas de prova únicas
+  const uniqueExamDates = Array.from(
+    new Map(examDates.map(ed => [ed.exam_date, ed])).values()
+  );
 
   return (
     <div className="space-y-6">
@@ -274,9 +298,12 @@ export const StudentsTab = () => {
               <SelectContent>
                 <SelectItem value="all">Todas as datas</SelectItem>
                 <SelectItem value="sem_data">Sem data</SelectItem>
-                {examDates.map(examDate => (
-                  <SelectItem key={examDate.id} value={examDate.exam_date}>
-                    {new Date(examDate.exam_date).toLocaleDateString('pt-BR')} - {examDate.exam_time} ({examDate.units.name})
+                <SelectItem value="hoje">Hoje</SelectItem>
+                <SelectItem value="futuras">Futuras</SelectItem>
+                <SelectItem value="passadas">Passadas</SelectItem>
+                {uniqueExamDates.map(examDate => (
+                  <SelectItem key={examDate.id} value={`date_${examDate.exam_date}`}>
+                    {new Date(examDate.exam_date).toLocaleDateString('pt-BR')} - {examDate.exam_time}
                   </SelectItem>
                 ))}
               </SelectContent>

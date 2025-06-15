@@ -10,8 +10,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -38,19 +36,12 @@ interface StudentDialogProps {
 export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialogProps) => {
   const { profile } = useAuth();
   const [comments, setComments] = useState('');
-  const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [newStatus, setNewStatus] = useState<Enums<'student_status'>>(student.status);
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
-  const [interviewDate, setInterviewDate] = useState(student.interview_date || '');
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
-  const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
   
-  // Verificar se hoje é o dia da entrevista
-  const today = new Date().toISOString().split('T')[0];
-  const isInterviewDay = student.interview_date === today;
-
   useEffect(() => {
     if (open) {
       fetchInteractions();
@@ -68,39 +59,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       .order('created_at', { ascending: false });
 
     if (data) setInteractions(data);
-  };
-
-  const handleScheduleInterview = async () => {
-    if (!interviewDate) {
-      toast.error('Selecione a data da entrevista');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('students')
-        .update({ interview_date: interviewDate })
-        .eq('id', student.id);
-
-      if (error) throw error;
-
-      // Add interaction
-      await supabase
-        .from('student_interactions')
-        .insert({
-          student_id: student.id,
-          user_id: profile?.id,
-          interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${new Date(interviewDate).toLocaleDateString('pt-BR')}`
-        });
-
-      toast.success('Entrevista agendada com sucesso');
-      onUpdate();
-      fetchInteractions();
-    } catch (error) {
-      console.error('Error scheduling interview:', error);
-      toast.error('Erro ao agendar entrevista');
-    }
   };
 
   const handleAddInteraction = async () => {
@@ -127,51 +85,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
     } catch (error) {
       console.error('Error adding interaction:', error);
       toast.error('Erro ao adicionar comentário');
-    }
-  };
-
-  const handleRegisterAttendance = async () => {
-    if (!discountPercentage || !comments.trim()) {
-      toast.error('Preencha o percentual de desconto e comentários');
-      return;
-    }
-
-    const discount = parseFloat(discountPercentage);
-    if (isNaN(discount) || discount < 0 || discount > 100) {
-      toast.error('Percentual de desconto inválido');
-      return;
-    }
-
-    try {
-      // Update student with discount and status
-      const { error: studentError } = await supabase
-        .from('students')
-        .update({
-          discount_percentage: discount,
-          status: 'atendimento_recentemente'
-        })
-        .eq('id', student.id);
-
-      if (studentError) throw studentError;
-
-      // Add interaction
-      const { error: interactionError } = await supabase
-        .from('student_interactions')
-        .insert({
-          student_id: student.id,
-          user_id: profile?.id,
-          interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto: ${discount}%. ${comments.trim()}`
-        });
-
-      if (interactionError) throw interactionError;
-
-      toast.success('Atendimento registrado com sucesso');
-      onUpdate();
-      onClose();
-    } catch (error) {
-      console.error('Error registering attendance:', error);
-      toast.error('Erro ao registrar atendimento');
     }
   };
 
@@ -219,7 +132,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
       'presente': { label: 'Presente', variant: 'default' },
       'matriculado': { label: 'Matriculado', variant: 'default' },
-      'desistente': { label: 'Desistente', variant: 'destructive' }
+      'desistente': { label: 'Desistente', variant: 'destructive' },
+      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
+      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
+      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'destructive' },
+      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
@@ -336,78 +253,12 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-3 w-3" />
                       <span className="font-medium">Data da Entrevista:</span>
-                      <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
-                        {new Date(student.interview_date).toLocaleDateString('pt-BR')}
-                        {isInterviewDay && ' (HOJE)'}
-                      </p>
+                      <p>{new Date(student.interview_date).toLocaleDateString('pt-BR')}</p>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
-
-            {/* Interview Scheduling */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Agendar Entrevista</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label htmlFor="interview-date">Data da Entrevista</Label>
-                  <Input
-                    id="interview-date"
-                    type="date"
-                    value={interviewDate}
-                    onChange={(e) => setInterviewDate(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  onClick={handleScheduleInterview}
-                  className="w-full bg-blue-500 hover:bg-blue-600"
-                >
-                  Agendar Entrevista
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Actions - Only show Register Attendance if it's interview day */}
-            {canRegisterAttendance && isInterviewDay && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Registrar Atendimento</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <Label htmlFor="discount">Percentual de Desconto (%)</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="2.5"
-                      value={discountPercentage}
-                      onChange={(e) => setDiscountPercentage(e.target.value)}
-                      placeholder="Ex: 10.0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="attendance-comments">Comentários</Label>
-                    <Textarea
-                      id="attendance-comments"
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                      placeholder="Descreva o atendimento realizado..."
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleRegisterAttendance}
-                    className="w-full bg-orange-500 hover:bg-orange-600"
-                  >
-                    Registrar Atendimento
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Status Update */}
             <Card>
@@ -416,7 +267,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label htmlFor="status">Novo Status</Label>
                   <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Enums<'student_status'>)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -438,7 +288,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
 
                 {newStatus === 'desistente' && (
                   <div>
-                    <Label htmlFor="dropout-reason">Motivo da Desistência</Label>
                     <Select value={dropoutReason} onValueChange={(value) => setDropoutReason(value as Enums<'dropout_reason'>)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />

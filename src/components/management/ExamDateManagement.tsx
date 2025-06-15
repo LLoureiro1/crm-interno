@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar, Clock, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ export const ExamDateManagement = () => {
   const [formData, setFormData] = useState({
     exam_date: '',
     exam_time: '',
-    unit_id: ''
+    selectedUnits: [] as string[]
   });
 
   useEffect(() => {
@@ -62,31 +62,43 @@ export const ExamDateManagement = () => {
     setUnits(data || []);
   };
 
+  const handleUnitToggle = (unitId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedUnits: prev.selectedUnits.includes(unitId)
+        ? prev.selectedUnits.filter(id => id !== unitId)
+        : [...prev.selectedUnits, unitId]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.exam_date || !formData.exam_time || !formData.unit_id) {
-      toast.error('Preencha todos os campos');
+    if (!formData.exam_date || !formData.exam_time || formData.selectedUnits.length === 0) {
+      toast.error('Preencha todos os campos e selecione pelo menos uma unidade');
       return;
     }
 
     try {
+      // Criar uma data de prova para cada unidade selecionada
+      const examDatesData = formData.selectedUnits.map(unitId => ({
+        exam_date: formData.exam_date,
+        exam_time: formData.exam_time,
+        unit_id: unitId
+      }));
+
       const { error } = await supabase
         .from('exam_dates')
-        .insert({
-          exam_date: formData.exam_date,
-          exam_time: formData.exam_time,
-          unit_id: formData.unit_id
-        });
+        .insert(examDatesData);
 
       if (error) throw error;
 
-      toast.success('Data de prova cadastrada com sucesso');
-      setFormData({ exam_date: '', exam_time: '', unit_id: '' });
+      toast.success(`${examDatesData.length} data(s) de prova cadastrada(s) com sucesso`);
+      setFormData({ exam_date: '', exam_time: '', selectedUnits: [] });
       fetchExamDates();
     } catch (error) {
-      console.error('Error creating exam date:', error);
-      toast.error('Erro ao cadastrar data de prova');
+      console.error('Error creating exam dates:', error);
+      toast.error('Erro ao cadastrar datas de prova');
     }
   };
 
@@ -118,7 +130,7 @@ export const ExamDateManagement = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="exam_date">Data da Prova</Label>
                 <Input
@@ -139,28 +151,30 @@ export const ExamDateManagement = () => {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="unit_id">Unidade</Label>
-                <Select
-                  value={formData.unit_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map(unit => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            </div>
+            <div>
+              <Label>Unidades</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                {units.map(unit => (
+                  <div key={unit.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={unit.id}
+                      checked={formData.selectedUnits.includes(unit.id)}
+                      onCheckedChange={() => handleUnitToggle(unit.id)}
+                    />
+                    <Label 
+                      htmlFor={unit.id} 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {unit.name}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
             <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
               <Plus className="h-4 w-4 mr-2" />
-              Cadastrar Data
+              Cadastrar Datas
             </Button>
           </form>
         </CardContent>

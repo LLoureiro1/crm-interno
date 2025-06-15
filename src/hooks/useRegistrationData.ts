@@ -5,11 +5,10 @@ import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
 
 type City = Tables<'cities'>;
-type Unit = Tables<'units'>;
 type Serie = Tables<'series'>;
 type Class = Tables<'classes'> & {
   series: Serie;
-  units: Unit;
+  units: Tables<'units'>;
 };
 
 export const useRegistrationData = () => {
@@ -19,7 +18,7 @@ export const useRegistrationData = () => {
 
   const loadInitialData = async () => {
     try {
-      // Carregar todas as cidades (removido o limite)
+      // Carregar TODAS as cidades sem limite
       const { data: citiesData, error: citiesError } = await supabase
         .from('cities')
         .select('*')
