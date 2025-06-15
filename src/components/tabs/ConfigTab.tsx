@@ -1,5 +1,12 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserManagement } from '@/components/management/UserManagement';
+import { UnitManagement } from '@/components/management/UnitManagement';
+import { ClassManagement } from '@/components/management/ClassManagement';
+import { GradeUpload } from '@/components/management/GradeUpload';
+import { Users, Building, GraduationCap, Upload } from 'lucide-react';
 
 export const ConfigTab = () => {
   return (
@@ -9,47 +16,42 @@ export const ConfigTab = () => {
         <p className="text-gray-600">Gerencie usuários, unidades, turmas e configurações gerais</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestão de Usuários</CardTitle>
-            <CardDescription>Cadastre e gerencie usuários do sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Em desenvolvimento</p>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="users" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Usuários</span>
+          </TabsTrigger>
+          <TabsTrigger value="units" className="flex items-center space-x-2">
+            <Building className="h-4 w-4" />
+            <span>Unidades</span>
+          </TabsTrigger>
+          <TabsTrigger value="classes" className="flex items-center space-x-2">
+            <GraduationCap className="h-4 w-4" />
+            <span>Turmas</span>
+          </TabsTrigger>
+          <TabsTrigger value="grades" className="flex items-center space-x-2">
+            <Upload className="h-4 w-4" />
+            <span>Upload de Notas</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestão de Unidades</CardTitle>
-            <CardDescription>Cadastre e gerencie unidades escolares</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Em desenvolvimento</p>
-          </CardContent>
-        </Card>
+        <TabsContent value="users">
+          <UserManagement />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestão de Turmas</CardTitle>
-            <CardDescription>Cadastre e gerencie turmas e séries</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Em desenvolvimento</p>
-          </CardContent>
-        </Card>
+        <TabsContent value="units">
+          <UnitManagement />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload de Notas</CardTitle>
-            <CardDescription>Faça upload das planilhas de notas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Em desenvolvimento</p>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="classes">
+          <ClassManagement />
+        </TabsContent>
+
+        <TabsContent value="grades">
+          <GradeUpload />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

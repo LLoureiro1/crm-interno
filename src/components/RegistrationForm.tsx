@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +24,7 @@ export const RegistrationForm = () => {
     phone: '',
     email: '',
     cityId: '',
+    cityName: '',
     neighborhood: '',
     originSchool: '',
     seriesId: '',
@@ -33,6 +33,8 @@ export const RegistrationForm = () => {
   });
 
   const [cities, setCities] = useState<City[]>([]);
+  const [filteredCities, setFilteredCities] = useState<City[]>([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [series, setSeries] = useState<Serie[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
@@ -115,6 +117,26 @@ export const RegistrationForm = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCitySearch = (value: string) => {
+    setFormData(prev => ({ ...prev, cityName: value, cityId: '' }));
+    
+    if (value.length >= 3) {
+      const filtered = cities.filter(city => 
+        city.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredCities(filtered);
+      setShowCityDropdown(true);
+    } else {
+      setShowCityDropdown(false);
+      setFilteredCities([]);
+    }
+  };
+
+  const selectCity = (city: City) => {
+    setFormData(prev => ({ ...prev, cityId: city.id, cityName: city.name }));
+    setShowCityDropdown(false);
   };
 
   const formatPhone = (value: string) => {
@@ -227,6 +249,7 @@ export const RegistrationForm = () => {
         phone: '',
         email: '',
         cityId: '',
+        cityName: '',
         neighborhood: '',
         originSchool: '',
         seriesId: '',
@@ -325,20 +348,28 @@ export const RegistrationForm = () => {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800">Endereço</h3>
                 
-                <div>
+                <div className="relative">
                   <Label htmlFor="city">Cidade *</Label>
-                  <Select value={formData.cityId} onValueChange={(value) => handleInputChange('cityId', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a cidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cities.map((city) => (
-                        <SelectItem key={city.id} value={city.id}>
+                  <Input
+                    id="city"
+                    value={formData.cityName}
+                    onChange={(e) => handleCitySearch(e.target.value)}
+                    placeholder="Digite pelo menos 3 letras da cidade"
+                    required
+                  />
+                  {showCityDropdown && filteredCities.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredCities.map((city) => (
+                        <div
+                          key={city.id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => selectCity(city)}
+                        >
                           {city.name}
-                        </SelectItem>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                 </div>
 
                 <div>

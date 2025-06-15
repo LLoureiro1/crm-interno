@@ -1,13 +1,20 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
+type Student = Tables<'students'> & {
+  cities: { name: string };
+  classes: { name: string };
+  units: { name: string };
+};
 
 interface ReportData {
   totalInscricoes: number;
@@ -29,6 +36,7 @@ export const ReportsTab = () => {
     matriculados: 0,
     statusCounts: {}
   });
+  const [studentsData, setStudentsData] = useState<Student[]>([]);
 
   useEffect(() => {
     fetchUnits();
@@ -52,9 +60,12 @@ export const ReportsTab = () => {
   const fetchReportData = async () => {
     let query = supabase.from('students').select(`
       *,
+      cities!inner(name),
       classes!inner(
+        name,
         unit_id,
-        series_id
+        series_id,
+        units!inner(name)
       )
     `);
 
@@ -69,6 +80,8 @@ export const ReportsTab = () => {
     const { data: students } = await query;
 
     if (students) {
+      setStudentsData(students as Student[]);
+      
       const today = new Date().toISOString().split('T')[0];
       
       const totalInscricoes = students.length;
@@ -98,6 +111,53 @@ export const ReportsTab = () => {
       });
     }
   };
+
+  const getFilteredStudents = (filterType: string) => {
+    switch (filterType) {
+      case 'total':
+        return studentsData;
+      case 'proxima_prova':
+        return studentsData.filter(s => s.status === 'confirmado');
+      case 'matriculados':
+        return studentsData.filter(s => s.status === 'matriculado');
+      default:
+        return [];
+    }
+  };
+
+  const StudentsList = ({ students, title }: { students: Student[], title: string }) => (
+    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+      </DialogHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome do Aluno</TableHead>
+            <TableHead>Responsável</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>Cidade</TableHead>
+            <TableHead>Turma</TableHead>
+            <TableHead>Unidade</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {students.map((student) => (
+            <TableRow key={student.id}>
+              <TableCell>{student.student_name}</TableCell>
+              <TableCell>{student.responsible_name}</TableCell>
+              <TableCell>{student.phone}</TableCell>
+              <TableCell>{student.cities.name}</TableCell>
+              <TableCell>{student.classes.name}</TableCell>
+              <TableCell>{student.classes.units.name}</TableCell>
+              <TableCell>{statusLabels[student.status] || student.status}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </DialogContent>
+  );
 
   const statusLabels: { [key: string]: string } = {
     'nao_confirmado': 'Não Confirmado',
@@ -148,25 +208,41 @@ export const ReportsTab = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.totalInscricoes}</div>
-          </CardContent>
-        </Card>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reportData.totalInscricoes}</div>
+              </CardContent>
+            </Card>
+          </DialogTrigger>
+          <StudentsList 
+            students={getFilteredStudents('total')} 
+            title="Total de Inscrições" 
+          />
+        </Dialog>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.alunosProximaProva}</div>
-          </CardContent>
-        </Card>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reportData.alunosProximaProva}</div>
+              </CardContent>
+            </Card>
+          </DialogTrigger>
+          <StudentsList 
+            students={getFilteredStudents('proxima_prova')} 
+            title="Alunos com Próxima Prova" 
+          />
+        </Dialog>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -178,15 +254,23 @@ export const ReportsTab = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.matriculados}</div>
-          </CardContent>
-        </Card>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reportData.matriculados}</div>
+              </CardContent>
+            </Card>
+          </DialogTrigger>
+          <StudentsList 
+            students={getFilteredStudents('matriculados')} 
+            title="Alunos Matriculados" 
+          />
+        </Dialog>
       </div>
 
       {/* Status Breakdown */}
