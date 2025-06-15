@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +25,7 @@ export const UserManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    profile: 'padrao' as const,
+    profile: 'padrao' as Tables<'profiles'>['profile'],
     unit_id: ''
   });
 
@@ -85,7 +84,6 @@ export const UserManagement = () => {
         if (error) throw error;
         toast.success('Usuário atualizado com sucesso!');
       } else {
-        // Para criar novo usuário, você precisará implementar a lógica de registro
         toast.info('Funcionalidade de criação de usuário em desenvolvimento');
       }
 

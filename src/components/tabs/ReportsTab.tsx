@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +13,10 @@ type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 type Student = Tables<'students'> & {
   cities: { name: string };
-  classes: { name: string };
-  units: { name: string };
+  classes: { 
+    name: string;
+    units: { name: string };
+  };
 };
 
 interface ReportData {
@@ -63,8 +66,6 @@ export const ReportsTab = () => {
       cities!inner(name),
       classes!inner(
         name,
-        unit_id,
-        series_id,
         units!inner(name)
       )
     `);
