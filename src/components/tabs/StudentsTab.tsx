@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye } from 'lucide-react';
+import { Search, Download, Eye, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { StudentDialog } from '@/components/StudentDialog';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Student = Tables<'students'> & {
@@ -26,8 +28,11 @@ export const StudentsTab = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
   const [seriesFilter, setSeriesFilter] = useState('all');
+  const [examDateFilter, setExamDateFilter] = useState('all');
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showStudentDialog, setShowStudentDialog] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -37,7 +42,7 @@ export const StudentsTab = () => {
 
   useEffect(() => {
     filterStudents();
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter]);
+  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -93,6 +98,30 @@ export const StudentsTab = () => {
       filtered = filtered.filter(student => student.classes.series_id === seriesFilter);
     }
 
+    if (examDateFilter !== 'all') {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      filtered = filtered.filter(student => {
+        if (!student.exam_date) return examDateFilter === 'sem_data';
+        
+        const examDate = student.exam_date;
+        
+        switch (examDateFilter) {
+          case 'hoje':
+            return examDate === todayStr;
+          case 'passadas':
+            return examDate < todayStr;
+          case 'futuras':
+            return examDate > todayStr;
+          case 'sem_data':
+            return false;
+          default:
+            return true;
+        }
+      });
+    }
+
     setFilteredStudents(filtered);
   };
 
@@ -129,11 +158,29 @@ export const StudentsTab = () => {
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
       'presente': { label: 'Presente', variant: 'default' },
       'matriculado': { label: 'Matriculado', variant: 'default' },
-      'desistente': { label: 'Desistente', variant: 'destructive' }
+      'desistente': { label: 'Desistente', variant: 'destructive' },
+      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
+      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
+      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'destructive' },
+      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const handleViewStudent = (student: Student) => {
+    setSelectedStudent(student);
+    setShowStudentDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setShowStudentDialog(false);
+    setSelectedStudent(null);
+  };
+
+  const handleUpdateStudent = () => {
+    fetchStudents();
   };
 
   return (
@@ -155,7 +202,7 @@ export const StudentsTab = () => {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -177,6 +224,10 @@ export const StudentsTab = () => {
                 <SelectItem value="presente">Presente</SelectItem>
                 <SelectItem value="matriculado">Matriculado</SelectItem>
                 <SelectItem value="desistente">Desistente</SelectItem>
+                <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
+                <SelectItem value="atendimento_agendado">Atendimento Agendado</SelectItem>
+                <SelectItem value="faltou_ao_atendimento">Faltou ao Atendimento</SelectItem>
+                <SelectItem value="atendimento_recentemente">Atendimento Recentemente</SelectItem>
               </SelectContent>
             </Select>
 
@@ -203,6 +254,24 @@ export const StudentsTab = () => {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={examDateFilter} onValueChange={setExamDateFilter}>
+              <SelectTrigger>
+                <SelectValue>
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>Data da Prova</span>
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as datas</SelectItem>
+                <SelectItem value="hoje">Hoje</SelectItem>
+                <SelectItem value="futuras">Futuras</SelectItem>
+                <SelectItem value="passadas">Passadas</SelectItem>
+                <SelectItem value="sem_data">Sem data</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -227,6 +296,14 @@ export const StudentsTab = () => {
                       <p className="text-sm text-gray-600">{student.classes.units.name}</p>
                     </div>
                     <div>
+                      {student.exam_date && (
+                        <p className="text-sm text-gray-600 flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {new Date(student.exam_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                    <div>
                       {getStatusBadge(student.status)}
                     </div>
                   </div>
@@ -234,7 +311,7 @@ export const StudentsTab = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/student/${student.id}`)}
+                  onClick={() => handleViewStudent(student)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Ver Detalhes
@@ -244,6 +321,16 @@ export const StudentsTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Student Dialog */}
+      {selectedStudent && (
+        <StudentDialog
+          student={selectedStudent}
+          open={showStudentDialog}
+          onClose={handleCloseDialog}
+          onUpdate={handleUpdateStudent}
+        />
+      )}
     </div>
   );
 };

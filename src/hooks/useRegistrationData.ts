@@ -19,7 +19,7 @@ export const useRegistrationData = () => {
 
   const loadInitialData = async () => {
     try {
-      // Carregar cidades
+      // Carregar todas as cidades (sem limite)
       const { data: citiesData, error: citiesError } = await supabase
         .from('cities')
         .select('*')
@@ -27,6 +27,7 @@ export const useRegistrationData = () => {
 
       if (citiesError) throw citiesError;
       setCities(citiesData || []);
+      console.log(`Carregadas ${citiesData?.length || 0} cidades`);
 
       // Carregar séries
       const { data: seriesData, error: seriesError } = await supabase
