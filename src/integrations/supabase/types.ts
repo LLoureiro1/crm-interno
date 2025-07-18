@@ -398,7 +398,7 @@ export type Database = {
       students: {
         Row: {
           birth_date: string
-          city: string
+          city: string | null
           class_id: string
           code: string | null
           created_at: string
@@ -421,7 +421,7 @@ export type Database = {
         }
         Insert: {
           birth_date: string
-          city: string
+          city?: string | null
           class_id: string
           code?: string | null
           created_at?: string
@@ -444,7 +444,7 @@ export type Database = {
         }
         Update: {
           birth_date?: string
-          city?: string
+          city?: string | null
           class_id?: string
           code?: string | null
           created_at?: string

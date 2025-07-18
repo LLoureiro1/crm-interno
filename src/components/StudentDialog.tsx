@@ -23,7 +23,6 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  cities: Tables<'cities'>;
 };
 
 interface StudentDialogProps {
@@ -193,7 +192,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
                     <span className="font-medium">Cidade:</span>
-                    <p>{student.cities.name}</p>
+                    <p>{student.city}</p>
                   </div>
                   <div>
                     <span className="font-medium">Bairro:</span>

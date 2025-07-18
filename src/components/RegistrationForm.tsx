@@ -122,7 +122,7 @@ export const RegistrationForm = () => {
         birth_date: convertDateToISO(formData.birthDate),
         phone: formData.phone,
         email: formData.email,
-        city_id: cityId || null,
+        city: formData.cityName,
         neighborhood: formData.neighborhood,
         origin_school: formData.originSchool,
         class_id: formData.classId,

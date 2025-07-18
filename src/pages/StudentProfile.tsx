@@ -10,16 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
+import { useNavigate } from 'react-router-dom';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  cities: Tables<'cities'>;
 };
 
 type Profile = Tables<'profiles'>;
@@ -27,6 +27,7 @@ type Profile = Tables<'profiles'>;
 const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [student, setStudent] = useState<Student | null>(null);
   const [interviewers, setInterviewers] = useState<Profile[]>([]);
   const [comments, setComments] = useState('');
@@ -70,8 +71,7 @@ const StudentProfile = () => {
           *,
           units(*),
           series(*)
-        ),
-        cities(*)
+        )
       `)
       .eq('id', id)
       .single();
@@ -299,6 +299,24 @@ const StudentProfile = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <Button 
+              onClick={() => navigate('/')} 
+              variant="outline" 
+              className="flex items-center space-x-2"
+            >
+              <Home className="h-4 w-4" />
+              <span>Tela Inicial</span>
+            </Button>
+            <Button 
+              onClick={() => window.history.back()} 
+              variant="outline" 
+              className="flex items-center space-x-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Voltar</span>
+            </Button>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
             <User className="h-6 w-6" />
             <span>Ficha do Aluno - {student.student_name}</span>
@@ -347,7 +365,7 @@ const StudentProfile = () => {
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
                     <span className="font-medium">Cidade:</span>
-                    <p>{student.cities?.name || 'Não informado'}</p>
+                    <p>{student.city || 'Não informado'}</p>
                   </div>
                   <div>
                     <span className="font-medium">Bairro:</span>

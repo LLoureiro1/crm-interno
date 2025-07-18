@@ -17,7 +17,6 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  cities: Tables<'cities'>;
 };
 
 type ExamDate = Tables<'exam_dates'> & {
@@ -59,8 +58,7 @@ export const StudentsTab = () => {
           *,
           units(*),
           series(*)
-        ),
-        cities(*)
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -154,7 +152,7 @@ export const StudentsTab = () => {
       'Data de Nascimento': new Date(student.birth_date).toLocaleDateString('pt-BR'),
       'Telefone': student.phone,
       'Email': student.email,
-      'Cidade': student.cities.name,
+      'Cidade': student.city,
       'Bairro': student.neighborhood,
       'Escola de Origem': student.origin_school,
       'Série': student.classes.series.name,

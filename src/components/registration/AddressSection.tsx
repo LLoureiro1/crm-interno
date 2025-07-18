@@ -66,13 +66,13 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
       
       <div className="relative">
         <Label htmlFor="city" className={fieldErrors.cityName ? 'text-red-600' : ''}>
-          Cidade
+          Cidade *
         </Label>
         <Input
           id="city"
           value={formData.cityName}
           onChange={(e) => handleCitySearch(e.target.value)}
-          placeholder="Digite o nome da cidade (opcional)"
+          placeholder="Digite o nome da cidade"
           className={fieldErrors.cityName ? 'border-red-500 focus:border-red-500' : ''}
         />
         {fieldErrors.cityName && (
@@ -94,13 +94,6 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
                 Mostrando primeiros 50 resultados. Digite mais caracteres para refinar.
               </div>
             )}
-          </div>
-        )}
-        {showCityDropdown && filteredCities.length === 0 && formData.cityName.length >= 2 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-            <div className="px-4 py-2 text-gray-500">
-              Nenhuma cidade encontrada
-            </div>
           </div>
         )}
       </div>

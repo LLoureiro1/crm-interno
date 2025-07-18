@@ -12,7 +12,6 @@ import type { Tables } from '@/integrations/supabase/types';
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 type Student = Tables<'students'> & {
-  cities: { name: string };
   classes: { 
     name: string;
     units: { name: string };
@@ -63,7 +62,6 @@ export const ReportsTab = () => {
   const fetchReportData = async () => {
     let query = supabase.from('students').select(`
       *,
-      cities!inner(name),
       classes!inner(
         name,
         units!inner(name)
@@ -149,7 +147,7 @@ export const ReportsTab = () => {
               <TableCell>{student.student_name}</TableCell>
               <TableCell>{student.responsible_name}</TableCell>
               <TableCell>{student.phone}</TableCell>
-              <TableCell>{student.cities.name}</TableCell>
+              <TableCell>{student.city}</TableCell>
               <TableCell>{student.classes.name}</TableCell>
               <TableCell>{student.classes.units.name}</TableCell>
               <TableCell>{statusLabels[student.status] || student.status}</TableCell>
