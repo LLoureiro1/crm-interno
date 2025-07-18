@@ -21,37 +21,9 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
   const handleCitySearch = (value: string) => {
     onInputChange('cityName', value);
     onInputChange('cityId', '');
-    
-    if (value.length >= 2) {
-      // Busca melhorada - busca no início do nome e depois contém
-      const searchTerm = value.toLowerCase().trim();
-      const filtered = cities.filter(city => {
-        const cityName = city.name.toLowerCase();
-        return cityName.startsWith(searchTerm) || cityName.includes(searchTerm);
-      })
-      .sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        
-        // Prioriza cidades que começam com o termo pesquisado
-        const aStarts = aName.startsWith(searchLower);
-        const bStarts = bName.startsWith(searchLower);
-        
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 50); // Limita a 50 resultados para performance
-      
-      setFilteredCities(filtered);
-      setShowCityDropdown(true);
-      console.log(`Filtro de cidade: "${value}" encontrou ${filtered.length} resultados`);
-    } else {
-      setShowCityDropdown(false);
-      setFilteredCities([]);
-    }
+    // Não mais filtramos cidades - apenas atualizamos o valor
+    setShowCityDropdown(false);
+    setFilteredCities([]);
   };
 
   const selectCity = (city: City) => {
@@ -77,24 +49,6 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
         />
         {fieldErrors.cityName && (
           <p className="text-red-600 text-sm mt-1">{fieldErrors.cityName}</p>
-        )}
-        {showCityDropdown && filteredCities.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-auto">
-            {filteredCities.map((city) => (
-              <div
-                key={city.id}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                onClick={() => selectCity(city)}
-              >
-                {city.name}
-              </div>
-            ))}
-            {cities.length > 50 && (
-              <div className="px-4 py-2 text-gray-500 text-sm italic">
-                Mostrando primeiros 50 resultados. Digite mais caracteres para refinar.
-              </div>
-            )}
-          </div>
         )}
       </div>
 

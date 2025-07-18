@@ -41,7 +41,7 @@ export const RegistrationForm = () => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
 
-  const { cities, series, classes } = useRegistrationData();
+  const { series, classes } = useRegistrationData();
 
   // Filtrar turmas quando série é selecionada
   useEffect(() => {
@@ -96,25 +96,6 @@ export const RegistrationForm = () => {
 
     try {
       const selectedClass = availableClasses.find(cls => cls.id === formData.classId);
-      
-      // Criar ou obter cidade se não existir
-      let cityId = formData.cityId;
-      if (formData.cityName && !formData.cityId) {
-        // Criar nova cidade
-        const { data: cityData, error: cityError } = await supabase
-          .from('cities')
-          .insert({ name: formData.cityName })
-          .select()
-          .single();
-        
-        if (cityError) {
-          console.error('Erro ao criar cidade:', cityError);
-          // Continuar sem cidade se houver erro
-          cityId = '';
-        } else {
-          cityId = cityData.id;
-        }
-      }
       
       const studentData = {
         student_name: formData.studentName,
@@ -189,7 +170,7 @@ export const RegistrationForm = () => {
               <AddressSection
                 formData={formData}
                 fieldErrors={fieldErrors}
-                cities={cities}
+                cities={[]}
                 onInputChange={handleInputChange}
               />
 

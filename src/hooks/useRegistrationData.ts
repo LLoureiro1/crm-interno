@@ -12,22 +12,11 @@ type Class = Tables<'classes'> & {
 };
 
 export const useRegistrationData = () => {
-  const [cities, setCities] = useState<City[]>([]);
   const [series, setSeries] = useState<Serie[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
 
   const loadInitialData = async () => {
     try {
-      // Carregar TODAS as cidades sem limite
-      const { data: citiesData, error: citiesError } = await supabase
-        .from('cities')
-        .select('*')
-        .order('name');
-
-      if (citiesError) throw citiesError;
-      setCities(citiesData || []);
-      console.log(`Carregadas ${citiesData?.length || 0} cidades`);
-
       // Carregar séries
       const { data: seriesData, error: seriesError } = await supabase
         .from('series')
@@ -60,5 +49,5 @@ export const useRegistrationData = () => {
     loadInitialData();
   }, []);
 
-  return { cities, series, classes };
+  return { series, classes };
 };
