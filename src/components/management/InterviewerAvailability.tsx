@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
 
 type InterviewerAvailability = Tables<'interviewer_availability'> & {
@@ -220,13 +221,13 @@ export const InterviewerAvailability = () => {
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">
-                        {new Date(availability.date).toLocaleDateString('pt-BR')}
+                        {formatDateForDisplay(availability.date)}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4 text-gray-500" />
                       <span>
-                        {availability.start_time} - {availability.end_time}
+                        {formatTimeForDisplay(availability.start_time)} - {formatTimeForDisplay(availability.end_time)}
                       </span>
                     </div>
                     <div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -177,7 +177,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   </div>
                   <div>
                     <span className="font-medium">Data de Nascimento:</span>
-                    <p>{new Date(student.birth_date).toLocaleDateString('pt-BR')}</p>
+                    <p>{formatDateForDisplay(student.birth_date)}</p>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Phone className="h-3 w-3" />
@@ -239,20 +239,20 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />
                     <span className="font-medium">Data da Inscrição:</span>
-                    <p>{new Date(student.created_at).toLocaleDateString('pt-BR')}</p>
+                    <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
                   </div>
                   {student.exam_date && (
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-3 w-3" />
                       <span className="font-medium">Data da Prova:</span>
-                      <p>{new Date(student.exam_date).toLocaleDateString('pt-BR')}</p>
+                      <p>{formatDateForDisplay(student.exam_date)}</p>
                     </div>
                   )}
                   {student.interview_date && (
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-3 w-3" />
                       <span className="font-medium">Data da Entrevista:</span>
-                      <p>{new Date(student.interview_date).toLocaleDateString('pt-BR')}</p>
+                      <p>{formatDateForDisplay(student.interview_date)}</p>
                     </div>
                   )}
                 </div>
