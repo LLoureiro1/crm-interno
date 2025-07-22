@@ -485,37 +485,32 @@ export type Database = {
       units: {
         Row: {
           address: string
-          city_id: string
+          city: string
           created_at: string
           id: string
           name: string
           phone: string
+          updated_at: string | null
         }
         Insert: {
           address: string
-          city_id: string
+          city: string
           created_at?: string
           id?: string
           name: string
           phone: string
+          updated_at?: string | null
         }
         Update: {
           address?: string
-          city_id?: string
+          city?: string
           created_at?: string
           id?: string
           name?: string
           phone?: string
+          updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "units_city_id_fkey"
-            columns: ["city_id"]
-            isOneToOne: false
-            referencedRelation: "cities"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

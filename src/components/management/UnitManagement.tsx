@@ -12,29 +12,23 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'> & {
-  cities?: { name: string } | null;
+  city?: string | null;
 };
-type City = Tables<'cities'>;
 
 export const UnitManagement = () => {
   const [units, setUnits] = useState<Unit[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
-  const [filteredCities, setFilteredCities] = useState<City[]>([]);
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     phone: '',
-    city_id: '',
     city_name: ''
   });
 
   useEffect(() => {
     fetchUnits();
-    fetchCities();
   }, []);
 
   const fetchUnits = async () => {
@@ -51,22 +45,10 @@ export const UnitManagement = () => {
     setUnits(data || []);
   };
 
-  const fetchCities = async () => {
-    // Não carregar cidades mais
-    setCities([]);
-  };
-
   const handleCitySearch = (value: string) => {
-    setFormData(prev => ({ ...prev, city_name: value, city_id: '' }));
-    // Não mais filtramos cidades
-    setShowCityDropdown(false);
-    setFilteredCities([]);
+    setFormData(prev => ({ ...prev, city_name: value }));
   };
 
-  const selectCity = (city: City) => {
-    setFormData(prev => ({ ...prev, city_id: city.id, city_name: city.name }));
-    setShowCityDropdown(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +63,7 @@ export const UnitManagement = () => {
             address: formData.address,
             phone: formData.phone,
             city: formData.city_name || null
-          })
+          } as any)
           .eq('id', editingUnit.id);
 
         if (error) throw error;
@@ -94,7 +76,7 @@ export const UnitManagement = () => {
             address: formData.address,
             phone: formData.phone,
             city: formData.city_name || null
-          });
+          } as any);
 
         if (error) throw error;
         toast.success('Unidade criada com sucesso!');
@@ -117,7 +99,6 @@ export const UnitManagement = () => {
       name: unit.name,
       address: unit.address,
       phone: unit.phone,
-      city_id: '',
       city_name: unit.city || ''
     });
     setDialogOpen(true);
@@ -146,11 +127,9 @@ export const UnitManagement = () => {
       name: '',
       address: '',
       phone: '',
-      city_id: '',
       city_name: ''
     });
     setEditingUnit(null);
-    setShowCityDropdown(false);
   };
 
   return (
