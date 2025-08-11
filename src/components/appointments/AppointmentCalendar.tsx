@@ -5,20 +5,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Clock, User, Building2, GraduationCap } from 'lucide-react';
+import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Appointment = Tables<'appointments'> & {
-  students: Tables<'students'> & {
-    classes: Tables<'classes'> & {
-      series: Tables<'series'>;
-      units: Tables<'units'>;
+  students?: Tables<'students'> & {
+    student_name?: string;
+    classes?: Tables<'classes'> & {
+      series?: Tables<'series'>;
+      units?: Tables<'units'>;
+      series_id?: string;
+      unit_id?: string;
     };
   };
-  profiles: Tables<'profiles'>;
+  profiles?: Tables<'profiles'>;
+  unit?: { id: string; name: string };
+  series?: { id: string; name: string };
+  interviewer?: { id: string; name: string };
 };
 
 interface AppointmentCalendarProps {
@@ -26,116 +32,241 @@ interface AppointmentCalendarProps {
 }
 
 export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Inicializa com a data atual
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  
+  // Log para depuração da data selecionada
+  useEffect(() => {
+    console.log('Data selecionada inicializada:', selectedDate, selectedDate.toISOString().split('T')[0]);
+  }, []);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
+  
+  // Log para depuração dos estados
+  useEffect(() => {
+    console.log('Estado de appointments atualizado:', appointments);
+  }, [appointments]);
+  
+  useEffect(() => {
+    console.log('Estado de filteredAppointments atualizado:', filteredAppointments);
+  }, [filteredAppointments]);
+  
+  // Inicialização para garantir que filteredAppointments seja sempre um array
+  useEffect(() => {
+    console.log('Component mounted, initializing states');
+    setFilteredAppointments([]);
+  }, []);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [interviewers, setInterviewers] = useState<Tables<'profiles'>[]>([]);
-  const [filters, setFilters] = useState({
-    unit: '',
-    series: '',
-    interviewer: ''
-  });
-  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({ unit: 'all', series: 'all', interviewer: 'all' });
+  const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   useEffect(() => {
     fetchFiltersData();
   }, []);
 
   useEffect(() => {
+    console.log('Data selecionada mudou:', selectedDate);
     if (selectedDate) {
       fetchAppointments();
     }
   }, [selectedDate]);
+  
+  // Inicializar filteredAppointments como um array vazio
+  useEffect(() => {
+    setFilteredAppointments([]);
+  }, []);
 
   useEffect(() => {
+    console.log('Appointments or filters changed, reapplying filters');
+    console.log('Current appointments:', appointments);
+    console.log('Current filters:', filters);
     applyFilters();
   }, [appointments, filters]);
+  
+  // Log filtered appointments whenever they change
+  useEffect(() => {
+    console.log('Filtered appointments updated:', filteredAppointments);
+  }, [filteredAppointments]);
 
   const fetchFiltersData = async () => {
-    const [unitsData, seriesData, interviewersData] = await Promise.all([
-      supabase.from('units').select('*').order('name'),
-      supabase.from('series').select('*').order('name'),
-      supabase.from('profiles').select('*').in('profile', ['entrevistador', 'direcao', 'admin']).order('name')
-    ]);
+    setFiltersLoading(true);
+    try {
+      const [unitsData, seriesData, interviewersData] = await Promise.all([
+        supabase.from('units').select('*').order('name'),
+        supabase.from('series').select('*').order('name'),
+        supabase.from('profiles').select('*').in('profile', ['entrevistador', 'direcao', 'admin']).order('name')
+      ]);
 
-    if (unitsData.data) setUnits(unitsData.data);
-    if (seriesData.data) setSeries(seriesData.data);
-    if (interviewersData.data) setInterviewers(interviewersData.data);
+      if (unitsData.error) throw unitsData.error;
+      if (seriesData.error) throw seriesData.error;
+      if (interviewersData.error) throw interviewersData.error;
+
+      setUnits(unitsData.data || []);
+      setSeries(seriesData.data || []);
+      setInterviewers(interviewersData.data || []);
+      
+      console.log('Filters loaded:', {
+        units: unitsData.data?.length || 0,
+        series: seriesData.data?.length || 0,
+        interviewers: interviewersData.data?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching filters data:', error);
+      toast.error('Erro ao carregar dados de filtros');
+    } finally {
+      setFiltersLoading(false);
+    }
   };
 
   const fetchAppointments = async () => {
     setLoading(true);
     const dateStr = selectedDate.toISOString().split('T')[0];
     
-    const { data, error } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        students!inner(
-          *,
-          classes!inner(
-            *,
-            series(*),
-            units(*)
-          )
-        ),
-        profiles!appointments_interviewer_id_fkey(*)
-      `)
-      .eq('appointment_date', dateStr)
-      .order('appointment_time');
-
-    if (error) {
-      console.error('Error fetching appointments:', error);
-      toast.error('Erro ao carregar agendamentos');
+    // Verificar se o usuário está autenticado antes de fazer a consulta
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.error('Usuário não autenticado');
+      toast.error('Você precisa estar logado para ver os agendamentos');
       setLoading(false);
       return;
     }
+    
+    try {
+      console.log('Buscando agendamentos para a data:', dateStr);
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          students!left(
+            *,
+            classes!left(
+              *,
+              series(*),
+              units(*)
+            )
+          ),
+          profiles!appointments_interviewer_id_fkey(*)
+        `)
+        .eq('appointment_date', dateStr)
+        .order('appointment_time');
 
-    setAppointments(data || []);
-    setLoading(false);
+      if (error) {
+        throw error;
+      }
+
+      console.log('Agendamentos carregados:', data?.length || 0, data);
+      
+      if (data && data.length > 0) {
+        setAppointments(data);
+      } else {
+        setAppointments([]);
+        setFilteredAppointments([]);
+        console.log('Nenhum agendamento encontrado para esta data:', dateStr);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar agendamentos:', error);
+      toast.error('Erro ao carregar agendamentos');
+      setAppointments([]);
+      setFilteredAppointments([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const applyFilters = () => {
-    let filtered = appointments;
+    console.log('Aplicando filtros:', filters, 'to appointments:', appointments.length);
+    
+    if (!appointments || appointments.length === 0) {
+      console.log('Nenhum agendamento para filtrar');
+      setFilteredAppointments([]);
+      return;
+    }
+    
+    let filtered = [...appointments];
 
-    if (filters.unit) {
-      filtered = filtered.filter(apt => apt.students?.classes?.unit_id === filters.unit);
+    if (filters.unit && filters.unit !== 'all') {
+      filtered = filtered.filter(apt => {
+        const unitMatch = apt.students?.classes?.unit_id === filters.unit;
+        if (!unitMatch) {
+          console.log('Agendamento não corresponde ao filtro de unidade:', apt.id);
+        }
+        return unitMatch;
+      });
+      console.log('After unit filter:', filtered.length);
     }
 
-    if (filters.series) {
-      filtered = filtered.filter(apt => apt.students?.classes?.series_id === filters.series);
+    if (filters.series && filters.series !== 'all') {
+      filtered = filtered.filter(apt => {
+        const seriesMatch = apt.students?.classes?.series_id === filters.series;
+        if (!seriesMatch) {
+          console.log('Agendamento não corresponde ao filtro de série:', apt.id);
+        }
+        return seriesMatch;
+      });
+      console.log('After series filter:', filtered.length);
     }
 
-    if (filters.interviewer) {
-      filtered = filtered.filter(apt => apt.interviewer_id === filters.interviewer);
+    if (filters.interviewer && filters.interviewer !== 'all') {
+      filtered = filtered.filter(apt => {
+        const interviewerMatch = apt.interviewer_id === filters.interviewer;
+        if (!interviewerMatch) {
+          console.log('Agendamento não corresponde ao filtro de entrevistador:', apt.id);
+        }
+        return interviewerMatch;
+      });
+      console.log('After interviewer filter:', filtered.length);
     }
 
+    console.log('Final filtered appointments:', filtered.length);
     setFilteredAppointments(filtered);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
+    console.log('Date selected:', date);
     if (date) {
       setSelectedDate(date);
-      onDateSelect?.(date.toISOString().split('T')[0]);
+      const dateStr = date.toISOString().split('T')[0];
+      console.log('Formatted date for API:', dateStr);
+      onDateSelect?.(dateStr);
     }
   };
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
+      // Atualiza o estado local para feedback imediato ao usuário
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, status: newStatus, attended: newStatus === 'realizado' } 
+            : apt
+        )
+      );
+      
+      // Atualiza no banco de dados
       const { error } = await supabase
         .from('appointments')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          attended: newStatus === 'realizado',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', appointmentId);
 
       if (error) throw error;
 
       toast.success('Status atualizado com sucesso');
+      // Recarrega os dados para garantir sincronização
       fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
       toast.error('Erro ao atualizar status');
+      // Recarrega os dados em caso de erro para restaurar o estado correto
+      fetchAppointments();
     }
   };
 
@@ -151,8 +282,10 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         return <Badge variant="destructive">Cancelado</Badge>;
       case 'faltou':
         return <Badge variant="destructive">Faltou</Badge>;
+      case 'realizado':
+        return <Badge className="bg-green-500">Realizado</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status || 'Pendente'}</Badge>;
     }
   };
 
@@ -168,12 +301,20 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              className="rounded-md border"
-            />
+            {loading && appointments.length === 0 ? (
+              <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                className="rounded-md border"
+                initialFocus
+                today={today}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -183,58 +324,66 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
             <CardTitle>Filtros</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Unidade</label>
-              <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as unidades" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas as unidades</SelectItem>
-                  {units.map(unit => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {filtersLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-sm font-medium">Unidade</label>
+                  <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as unidades" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as unidades</SelectItem>
+                      {units.map(unit => (
+                        <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <label className="text-sm font-medium">Série</label>
-              <Select value={filters.series} onValueChange={(value) => setFilters(prev => ({ ...prev, series: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as séries" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas as séries</SelectItem>
-                  {series.map(serie => (
-                    <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <label className="text-sm font-medium">Série</label>
+                  <Select value={filters.series} onValueChange={(value) => setFilters(prev => ({ ...prev, series: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as séries" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as séries</SelectItem>
+                      {series.map(serie => (
+                        <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <label className="text-sm font-medium">Entrevistador</label>
-              <Select value={filters.interviewer} onValueChange={(value) => setFilters(prev => ({ ...prev, interviewer: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os entrevistadores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos os entrevistadores</SelectItem>
-                  {interviewers.map(interviewer => (
-                    <SelectItem key={interviewer.id} value={interviewer.id}>{interviewer.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <label className="text-sm font-medium">Entrevistador</label>
+                  <Select value={filters.interviewer} onValueChange={(value) => setFilters(prev => ({ ...prev, interviewer: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os entrevistadores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os entrevistadores</SelectItem>
+                      {interviewers.map(interviewer => (
+                        <SelectItem key={interviewer.id} value={interviewer.id}>{interviewer.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <Button 
-              onClick={() => setFilters({ unit: '', series: '', interviewer: '' })}
-              variant="outline"
-              className="w-full"
-            >
-              Limpar Filtros
-            </Button>
+                <Button 
+                  onClick={() => setFilters({ unit: 'all', series: 'all', interviewer: 'all' })}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Limpar Filtros
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -242,35 +391,40 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       {/* Appointments List */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            Agendamentos para {formatDateForDisplay(selectedDate.toISOString().split('T')[0])}
+          <CardTitle className="flex items-center space-x-2">
+            <ClipboardList className="h-5 w-5" />
+            <span>Agendamentos para {formatDateForDisplay(selectedDate.toISOString().split('T')[0])}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8">Carregando agendamentos...</p>
-          ) : filteredAppointments.length > 0 ? (
-            <div className="space-y-4">
-              {filteredAppointments.map((appointment) => (
-                <div key={appointment.id} className="border rounded-lg p-4 space-y-3">
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-500">Carregando agendamentos...</span>
+              </div>
+            ) : filteredAppointments && filteredAppointments.length > 0 ? (
+              <div className="space-y-4">
+                {filteredAppointments.map((appointment) => (
+                <div key={appointment.id} className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-gray-500" />
                         <span className="font-medium">
-                          {formatTimeForDisplay(appointment.appointment_time)}
+                          {appointment.appointment_time ? formatTimeForDisplay(appointment.appointment_time) : 'Horário não definido'}
                         </span>
                       </div>
-                      {getStatusBadge(appointment.status, appointment.attended || false)}
+                      {getStatusBadge(appointment.status || '', appointment.attended || false)}
                     </div>
                     <div className="flex space-x-2">
-                      {!appointment.attended && appointment.status !== 'faltou' && (
+                      {!appointment.attended && appointment.status !== 'faltou' && appointment.status !== 'realizado' && (
                         <>
                           <Button
                             size="sm"
                             onClick={() => handleStatusUpdate(appointment.id, 'faltou')}
                             variant="outline"
                             className="text-red-600"
+                            disabled={loading}
                           >
                             Marcar Falta
                           </Button>
@@ -278,6 +432,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                             size="sm"
                             onClick={() => handleStatusUpdate(appointment.id, 'realizado')}
                             className="bg-green-600 hover:bg-green-700"
+                            disabled={loading}
                           >
                             Marcar Realizado
                           </Button>
@@ -290,22 +445,33 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Aluno:</span>
-                      <span>{appointment.students?.student_name}</span>
+                      <span>{appointment.students?.student_name || 'Não informado'}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Building2 className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Unidade:</span>
-                      <span>{appointment.students?.classes?.units?.name}</span>
+                      <span>
+                        {appointment.students?.classes?.units?.name || 
+                         appointment.unit?.name || 
+                         'Não informada'}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <GraduationCap className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Série:</span>
-                      <span>{appointment.students?.classes?.series?.name}</span>
+                      <span>
+                        {appointment.students?.classes?.series?.name || 
+                         appointment.series?.name || 
+                         'Não informada'}
+                      </span>
                     </div>
                   </div>
 
                   <div className="text-sm">
-                    <span className="font-medium">Entrevistador:</span> {appointment.profiles?.name}
+                    <span className="font-medium">Entrevistador:</span> 
+                    {appointment.profiles?.name || 
+                     appointment.interviewer?.name || 
+                     'Não informado'}
                   </div>
 
                   {appointment.comments && (
@@ -323,9 +489,11 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">
-              Nenhum agendamento encontrado para esta data
-            </p>
+            <div className="text-center py-8">
+              <CalendarX className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">Nenhum agendamento encontrado para esta data.</p>
+              <p className="text-sm text-gray-400 mt-1">Tente selecionar outra data ou ajustar os filtros.</p>
+            </div>
           )}
         </CardContent>
       </Card>
