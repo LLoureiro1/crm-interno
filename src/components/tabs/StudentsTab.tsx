@@ -195,6 +195,8 @@ export const StudentsTab = () => {
   };
 
   const handleOpenStudentPage = (studentId: string) => {
+    console.log('studentId:', studentId);
+    console.log('Navigating to:', `/student/${studentId}`);
     navigate(`/student/${studentId}`);
   };
 

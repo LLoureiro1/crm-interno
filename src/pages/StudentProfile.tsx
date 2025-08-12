@@ -139,7 +139,8 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${new Date(interviewDate).toLocaleDateString('pt-BR')} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name}. Status automaticamente alterado para "Atendimento Agendado".`
+          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name}. Status automaticamente alterado para "Atendimento Agendado".`,
+
         });
 
       toast.success('Entrevista agendada com sucesso e status atualizado!');
