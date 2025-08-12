@@ -73,13 +73,14 @@ export const AcademicDataSection = ({
 
       {formData.seriesId && (
         <div>
-          <Label htmlFor="unit">Unidade</Label>
-          <Select value={formData.unitId} onValueChange={(value) => onInputChange('unitId', value === 'none' ? '' : value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione a unidade (opcional)" />
+          <Label htmlFor="unit" className={fieldErrors.unitId ? 'text-red-600' : ''}>
+            Unidade *
+          </Label>
+          <Select value={formData.unitId} onValueChange={(value) => onInputChange('unitId', value)}>
+            <SelectTrigger className={fieldErrors.unitId ? 'border-red-500 focus:border-red-500' : ''}>
+              <SelectValue placeholder="Selecione a unidade" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Nenhuma unidade específica</SelectItem>
               {availableUnits.map((unit) => (
                 <SelectItem key={unit.id} value={unit.id}>
                   {unit.name}
@@ -87,6 +88,9 @@ export const AcademicDataSection = ({
               ))}
             </SelectContent>
           </Select>
+          {fieldErrors.unitId && (
+            <p className="text-red-600 text-sm mt-1">{fieldErrors.unitId}</p>
+          )}
         </div>
       )}
 

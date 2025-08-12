@@ -45,6 +45,10 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.seriesId = 'Série é obrigatória';
   }
   
+  if (!formData.unitId) {
+    errors.unitId = 'Unidade é obrigatória';
+  }
+  
   if (!formData.classId) {
     errors.classId = 'Turma é obrigatória';
   }

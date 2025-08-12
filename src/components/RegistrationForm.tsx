@@ -107,7 +107,7 @@ export const RegistrationForm = () => {
         neighborhood: formData.neighborhood,
         origin_school: formData.originSchool,
         class_id: formData.classId,
-        unit_id: selectedClass?.unit_id,
+        unit_id: formData.unitId,
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
