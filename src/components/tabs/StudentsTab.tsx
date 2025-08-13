@@ -12,6 +12,7 @@ import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import type { Tables } from '@/integrations/supabase/types';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -149,7 +150,7 @@ export const StudentsTab = () => {
       'Código': student.code,
       'Nome do Aluno': student.student_name,
       'Nome do Responsável': student.responsible_name,
-      'Data de Nascimento': new Date(student.birth_date).toLocaleDateString('pt-BR'),
+      'Data de Nascimento': student.birth_date ? new Date(student.birth_date).toLocaleDateString('pt-BR') : '',
       'Telefone': student.phone,
       'Email': student.email,
       'Cidade': student.city,
@@ -158,11 +159,11 @@ export const StudentsTab = () => {
       'Série': student.classes.series.name,
       'Unidade': student.classes.units.name,
       'Status': student.status,
-      'Data da Prova': student.exam_date ? new Date(student.exam_date).toLocaleDateString('pt-BR') : '',
-      'Data da Entrevista': student.interview_date ? new Date(student.interview_date).toLocaleDateString('pt-BR') : '',
+      'Data da Prova': student.exam_date ? formatDateForDisplay(student.exam_date) : '',
+      'Data da Entrevista': student.interview_date ? formatDateForDisplay(student.interview_date) : '',
       'Nota Português': student.portuguese_grade || '',
       'Nota Matemática': student.math_grade || '',
-      'Data de Inscrição': new Date(student.created_at).toLocaleDateString('pt-BR'),
+      'Data de Inscrição': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
       'Percentual de Desconto': student.discount_percentage ? `${student.discount_percentage}%` : '0%'
     }));
 
@@ -286,7 +287,7 @@ export const StudentsTab = () => {
                 { value: 'passadas', label: 'Passadas' },
                 ...examDates.map(date => ({
                   value: `date_${date.exam_date}`,
-                  label: `${new Date(date.exam_date).toLocaleDateString('pt-BR')} - ${date.units.name}`,
+                  label: `${formatDateForDisplay(date.exam_date)} - ${date.units.name}`,
                 })),
               ]}
               selected={examDateFilter}
@@ -321,13 +322,13 @@ export const StudentsTab = () => {
                       {student.exam_date && (
                         <p className="text-sm text-gray-600 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          Prova: {new Date(student.exam_date).toLocaleDateString('pt-BR')}
+                          Prova: {formatDateForDisplay(student.exam_date)} 
                         </p>
                       )}
                       {student.interview_date && (
                         <p className="text-sm text-blue-600 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          Entrevista: {new Date(student.interview_date).toLocaleDateString('pt-BR')}
+                          Entrevista: {formatDateForDisplay(student.interview_date)} 
                         </p>
                       )}
                     </div>
