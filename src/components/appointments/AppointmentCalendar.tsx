@@ -276,6 +276,14 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       if (error) throw error;
 
+      // Update student's discount_percentage with the latest attendance discount
+      const { error: studentUpdateError } = await supabase
+        .from('students')
+        .update({ discount_percentage: discount })
+        .eq('id', currentAppointment.student_id);
+
+      if (studentUpdateError) throw studentUpdateError;
+
       toast.success('Atendimento registrado com sucesso');
       setShowAttendanceModal(false);
       setCurrentAppointment(null);
