@@ -126,21 +126,21 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" } } = {
-      'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
-      'confirmado': { label: 'Confirmado', variant: 'secondary' },
-      'presente': { label: 'Presente', variant: 'default' },
-      'matriculado': { label: 'Matriculado', variant: 'default' },
-      'desistente': { label: 'Desistente', variant: 'destructive' },
-      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
-      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'destructive' },
-      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
-    };
+      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" } } = {
+        'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
+        'confirmado': { label: 'Confirmado', variant: 'secondary' },
+        'presente': { label: 'Presente', variant: 'default' },
+        'matriculado': { label: 'Matriculado', variant: 'success' },
+        'desistente': { label: 'Desistente', variant: 'destructive' },
+        'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
+        'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
+        'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
+        'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
+      };
 
-    const config = statusMap[status] || { label: status, variant: 'outline' as const };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
+      const config = statusMap[status] || { label: status, variant: 'outline' as const };
+      return <Badge variant={config.variant}>{config.label}</Badge>;
+    };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
