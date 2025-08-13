@@ -365,10 +365,6 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   };
 
   const getStatusBadge = (status: string, attended: boolean) => {
-    if (attended) {
-      return <Badge className="bg-green-500">Realizado</Badge>;
-    }
-
     switch (status) {
       case 'agendado':
         return <Badge variant="secondary">Agendado</Badge>;
@@ -380,6 +376,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         return <Badge variant="destructive">Faltou</Badge>;
       case 'realizado':
         return <Badge className="bg-green-500">Realizado</Badge>;
+      case 'faltou':
+        return <Badge variant="destructive">Faltou</Badge>;
       default:
         return <Badge variant="outline">{status || 'Pendente'}</Badge>;
     }
