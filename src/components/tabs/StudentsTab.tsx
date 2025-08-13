@@ -233,7 +233,7 @@ export const StudentsTab = () => {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -259,6 +259,7 @@ export const StudentsTab = () => {
               selected={statusFilter}
               onChange={setStatusFilter}
               placeholder="Status"
+              className="w-full"
             />
 
             <MultiSelect
@@ -266,6 +267,7 @@ export const StudentsTab = () => {
               selected={unitFilter}
               onChange={setUnitFilter}
               placeholder="Unidade"
+              className="w-full"
             />
 
           <MultiSelect
@@ -273,6 +275,7 @@ export const StudentsTab = () => {
             selected={seriesFilter}
             onChange={setSeriesFilter}
             placeholder="Série"
+            className="w-full"
           />
 
             <MultiSelect
@@ -289,6 +292,7 @@ export const StudentsTab = () => {
               selected={examDateFilter}
               onChange={setExamDateFilter}
               placeholder="Data da Prova"
+              className="w-full"
             />
           </div>
         </CardContent>

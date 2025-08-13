@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -30,6 +30,7 @@ interface MultiSelectProps {
   selected: string[]
   onChange: (value: string[]) => void
   placeholder?: string
+  className?: string
 }
 
 export function MultiSelect({
@@ -37,6 +38,7 @@ export function MultiSelect({
   selected,
   onChange,
   placeholder = "Select...",
+  className,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -73,7 +75,7 @@ export function MultiSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className={cn("w-[--radix-popover-trigger-width] p-0", className)}>
         <Command>
           <CommandInput placeholder="Search..." />
           <CommandList>
