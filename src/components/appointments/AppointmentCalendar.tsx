@@ -252,7 +252,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
   const handleRegisterAttendance = async () => {
     if (!currentAppointment) return;
-    if (!attendanceDiscount || !attendanceComments.trim()) {
+    if (!attendanceDiscount) {
       toast.error('Preencha o percentual de desconto e comentários');
       return;
     }
@@ -296,7 +296,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
           student_id: currentAppointment.student_id,
           user_id: profile?.id, // Assuming profile is available in this component
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto: ${discount}%. ${attendanceComments.trim()}`
+          comments: `Atendimento realizado. Desconto: ${discount}%. ${attendanceComments.trim() || 'Sem comentários.'}`
         });
 
       if (interactionError) throw interactionError;
@@ -314,6 +314,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   };
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    const appointmentToUpdate = appointments.find(apt => apt.id === appointmentId);
+    if (!appointmentToUpdate) {
+      console.error('Appointment not found for status update:', appointmentId);
+      toast.error('Agendamento não encontrado.');
+      return;
+    }
     try {
       // Atualiza o estado local para feedback imediato ao usuário
       setAppointments(prev => 
@@ -329,13 +335,23 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         .from('appointments')
         .update({ 
           status: newStatus,
-          attended: newStatus === 'realizado',
+          attended: newStatus === 'realizado' || newStatus === 'faltou',
           // Status is already set above, no need to set it again
           updated_at: new Date().toISOString()
         })
         .eq('id', appointmentId);
 
       if (error) throw error;
+
+      // If the new status is 'faltou', update the student's status as well
+      if (newStatus === 'faltou') {
+        const { error: studentUpdateError } = await supabase
+          .from('students')
+          .update({ status: 'faltou_ao_atendimento' })
+           .eq('id', appointmentToUpdate.student_id);
+
+        if (studentUpdateError) throw studentUpdateError;
+      }
 
       toast.success('Status atualizado com sucesso');
       // Recarrega os dados para garantir sincronização
