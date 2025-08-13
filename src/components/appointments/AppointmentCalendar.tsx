@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   // Inicializa com a data atual
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const { profile } = useAuth();
   
   // Log para depuração da data selecionada
   useEffect(() => {
@@ -276,13 +278,28 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       if (error) throw error;
 
-      // Update student's discount_percentage with the latest attendance discount
+      // Update student's discount_percentage and status
       const { error: studentUpdateError } = await supabase
         .from('students')
-        .update({ discount_percentage: discount })
+        .update({ 
+          discount_percentage: discount,
+          status: 'atendimento_recentemente' // Placeholder for now, will verify later
+        })
         .eq('id', currentAppointment.student_id);
 
       if (studentUpdateError) throw studentUpdateError;
+
+      // Add interaction
+      const { error: interactionError } = await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: currentAppointment.student_id,
+          user_id: profile?.id, // Assuming profile is available in this component
+          interaction_type: 'atendimento',
+          comments: `Atendimento realizado. Desconto: ${discount}%. ${attendanceComments.trim()}`
+        });
+
+      if (interactionError) throw interactionError;
 
       toast.success('Atendimento registrado com sucesso');
       setShowAttendanceModal(false);
