@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
@@ -29,10 +30,10 @@ export const StudentsTab = () => {
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [examDates, setExamDates] = useState<ExamDate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [unitFilter, setUnitFilter] = useState('all');
-  const [seriesFilter, setSeriesFilter] = useState('all');
-  const [examDateFilter, setExamDateFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [unitFilter, setUnitFilter] = useState<string[]>([]);
+  const [seriesFilter, setSeriesFilter] = useState<string[]>([]);
+  const [examDateFilter, setExamDateFilter] = useState<string[]>([]);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -102,43 +103,42 @@ export const StudentsTab = () => {
       );
     }
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(student => student.status === statusFilter);
+    if (statusFilter.length > 0) {
+      filtered = filtered.filter(student => statusFilter.includes(student.status!));
     }
 
-    if (unitFilter !== 'all') {
+    if (unitFilter.length > 0) {
       filtered = filtered.filter(student =>
-        student.unit_id === unitFilter || student.classes.unit_id === unitFilter
+        unitFilter.includes(student.unit_id!) || unitFilter.includes(student.classes.unit_id!)
       );
     }
 
-    if (seriesFilter !== 'all') {
-      filtered = filtered.filter(student => student.classes.series_id === seriesFilter);
+    if (seriesFilter.length > 0) {
+      filtered = filtered.filter(student => seriesFilter.includes(student.classes.series_id!));
     }
 
-    if (examDateFilter !== 'all') {
+    if (examDateFilter.length > 0) {
       const today = new Date().toISOString().split('T')[0];
-      
-      switch (examDateFilter) {
-        case 'sem_data':
-          filtered = filtered.filter(student => !student.exam_date);
-          break;
-        case 'hoje':
-          filtered = filtered.filter(student => student.exam_date === today);
-          break;
-        case 'futuras':
-          filtered = filtered.filter(student => student.exam_date && student.exam_date > today);
-          break;
-        case 'passadas':
-          filtered = filtered.filter(student => student.exam_date && student.exam_date < today);
-          break;
-        default:
-          if (examDateFilter.startsWith('date_')) {
-            const targetDate = examDateFilter.replace('date_', '');
-            filtered = filtered.filter(student => student.exam_date === targetDate);
+      filtered = filtered.filter(student => {
+        return examDateFilter.some(filter => {
+          switch (filter) {
+            case 'sem_data':
+              return !student.exam_date;
+            case 'hoje':
+              return student.exam_date === today;
+            case 'futuras':
+              return student.exam_date && student.exam_date > today;
+            case 'passadas':
+              return student.exam_date && student.exam_date < today;
+            default:
+              if (filter.startsWith('date_')) {
+                const targetDate = filter.replace('date_', '');
+                return student.exam_date === targetDate;
+              }
+              return false;
           }
-          break;
-      }
+        });
+      });
     }
 
     setFilteredStudents(filtered);
@@ -244,70 +244,52 @@ export const StudentsTab = () => {
               />
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                <SelectItem value="confirmado">Confirmado</SelectItem>
-                <SelectItem value="presente">Presente</SelectItem>
-                <SelectItem value="matriculado">Matriculado</SelectItem>
-                <SelectItem value="desistente">Desistente</SelectItem>
-                <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                <SelectItem value="atendimento_agendado">Atendimento Agendado</SelectItem>
-                <SelectItem value="faltou_ao_atendimento">Faltou ao Atendimento</SelectItem>
-                <SelectItem value="atendimento_recentemente">Atendimento Recentemente</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={[
+                { value: 'nao_confirmado', label: 'Não Confirmado' },
+                { value: 'confirmado', label: 'Confirmado' },
+                { value: 'presente', label: 'Presente' },
+                { value: 'matriculado', label: 'Matriculado' },
+                { value: 'desistente', label: 'Desistente' },
+                { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },
+                { value: 'atendimento_agendado', label: 'Atendimento Agendado' },
+                { value: 'faltou_ao_atendimento', label: 'Faltou ao Atendimento' },
+                { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' }
+              ]}
+              selected={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Status"
+            />
 
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as unidades</SelectItem>
-                {units.map(unit => (
-                  <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={units.map(unit => ({ value: unit.id, label: unit.name }))}
+              selected={unitFilter}
+              onChange={setUnitFilter}
+              placeholder="Unidade"
+            />
 
-            <Select value={seriesFilter} onValueChange={setSeriesFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Série" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as séries</SelectItem>
-                {series.map(serie => (
-                  <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <MultiSelect
+            options={series.map(_series => ({ value: _series.id, label: _series.name }))}
+            selected={seriesFilter}
+            onChange={setSeriesFilter}
+            placeholder="Série"
+          />
 
-            <Select value={examDateFilter} onValueChange={setExamDateFilter}>
-              <SelectTrigger>
-                <SelectValue>
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <span>Data da Prova</span>
-                  </div>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as datas</SelectItem>
-                <SelectItem value="sem_data">Sem data</SelectItem>
-                <SelectItem value="hoje">Hoje</SelectItem>
-                <SelectItem value="futuras">Futuras</SelectItem>
-                <SelectItem value="passadas">Passadas</SelectItem>
-                {uniqueExamDates.map(examDate => (
-                  <SelectItem key={examDate.id} value={`date_${examDate.exam_date}`}>
-                    {new Date(examDate.exam_date).toLocaleDateString('pt-BR')} - {examDate.exam_time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={[
+                { value: 'sem_data', label: 'Sem Data' },
+                { value: 'hoje', label: 'Hoje' },
+                { value: 'futuras', label: 'Futuras' },
+                { value: 'passadas', label: 'Passadas' },
+                ...examDates.map(date => ({
+                  value: `date_${date.exam_date}`,
+                  label: `${new Date(date.exam_date).toLocaleDateString('pt-BR')} - ${date.units.name}`,
+                })),
+              ]}
+              selected={examDateFilter}
+              onChange={setExamDateFilter}
+              placeholder="Data da Prova"
+            />
           </div>
         </CardContent>
       </Card>
