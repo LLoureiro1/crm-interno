@@ -143,6 +143,17 @@ const StudentProfile = () => {
 
         });
 
+      // Add appointment record
+      await supabase
+        .from('appointments')
+        .insert({
+          student_id: id,
+          interviewer_id: interviewerId,
+          appointment_date: interviewDate,
+          appointment_time: interviewTime,
+          status: 'scheduled' // Assuming a default status for new appointments
+        });
+
       toast.success('Entrevista agendada com sucesso e status atualizado!');
       fetchStudent();
       fetchInteractions();
