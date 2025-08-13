@@ -2,8 +2,11 @@
 import { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +66,10 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [filters, setFilters] = useState({ unit: 'all', series: 'all', interviewer: 'all' });
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [currentAppointment, setCurrentAppointment] = useState<Appointment | null>(null);
+  const [attendanceDiscount, setAttendanceDiscount] = useState('');
+  const [attendanceComments, setAttendanceComments] = useState('');
 
   useEffect(() => {
     fetchFiltersData();
@@ -236,13 +243,58 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     }
   };
 
+  const handleOpenAttendanceModal = (appointment: Appointment) => {
+    setCurrentAppointment(appointment);
+    setShowAttendanceModal(true);
+  };
+
+  const handleRegisterAttendance = async () => {
+    if (!currentAppointment) return;
+    if (!attendanceDiscount || !attendanceComments.trim()) {
+      toast.error('Preencha o percentual de desconto e comentários');
+      return;
+    }
+
+    const discount = parseFloat(attendanceDiscount);
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      toast.error('Percentual de desconto inválido');
+      return;
+    }
+
+    try {
+      // Update appointment with status 'realizado', discount, and comments
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          status: 'realizado',
+          attended: true,
+          discount_percentage: discount,
+          comments: attendanceComments.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentAppointment.id);
+
+      if (error) throw error;
+
+      toast.success('Atendimento registrado com sucesso');
+      setShowAttendanceModal(false);
+      setCurrentAppointment(null);
+      setAttendanceDiscount('');
+      setAttendanceComments('');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error registering attendance:', error);
+      toast.error('Erro ao registrar atendimento');
+    }
+  };
+
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
       // Atualiza o estado local para feedback imediato ao usuário
       setAppointments(prev => 
         prev.map(apt => 
           apt.id === appointmentId 
-            ? { ...apt, status: newStatus, attended: newStatus === 'realizado' } 
+            ? { ...apt, status: newStatus, attended: newStatus === 'realizado' || newStatus === 'faltou' } 
             : apt
         )
       );
@@ -253,6 +305,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         .update({ 
           status: newStatus,
           attended: newStatus === 'realizado',
+          // Status is already set above, no need to set it again
           updated_at: new Date().toISOString()
         })
         .eq('id', appointmentId);
@@ -432,11 +485,11 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleStatusUpdate(appointment.id, 'realizado')}
+                            onClick={() => handleOpenAttendanceModal(appointment)}
                             className="bg-green-600 hover:bg-green-700"
                             disabled={loading}
                           >
-                            Marcar Realizado
+                            Atender
                           </Button>
                         </>
                       )}
@@ -499,6 +552,44 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Atendimento</DialogTitle>
+            <DialogDescription>
+              Preencha os detalhes do atendimento para {currentAppointment?.students?.student_name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="discount" className="text-right">Percentual de Desconto</label>
+              <Input
+                id="discount"
+                type="number"
+                value={attendanceDiscount}
+                onChange={(e) => setAttendanceDiscount(e.target.value)}
+                className="col-span-3"
+                placeholder="Ex: 10, 20, 50"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="comments" className="text-right">Comentários</label>
+              <Textarea
+                id="comments"
+                value={attendanceComments}
+                onChange={(e) => setAttendanceComments(e.target.value)}
+                className="col-span-3"
+                placeholder="Observações sobre o atendimento..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAttendanceModal(false)}>Cancelar</Button>
+            <Button onClick={handleRegisterAttendance}>Registrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
