@@ -173,15 +173,15 @@ export const StudentsTab = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" } } = {
+    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" } } = {
       'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
       'presente': { label: 'Presente', variant: 'default' },
-      'matriculado': { label: 'Matriculado', variant: 'default' },
+      'matriculado': { label: 'Matriculado', variant: 'success' },
       'desistente': { label: 'Desistente', variant: 'destructive' },
       'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
       'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'destructive' },
+      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
       'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
     };
 
