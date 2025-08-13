@@ -278,6 +278,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     switch (status) {
       case 'agendado':
         return <Badge variant="secondary">Agendado</Badge>;
+      case 'scheduled':
+        return <Badge variant="secondary">Agendado</Badge>;
       case 'cancelado':
         return <Badge variant="destructive">Cancelado</Badge>;
       case 'faltou':
@@ -441,7 +443,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="font-medium">Aluno:</span>
