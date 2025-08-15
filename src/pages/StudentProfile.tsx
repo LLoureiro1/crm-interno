@@ -194,8 +194,8 @@ const StudentProfile = () => {
   };
 
   const handleRegisterAttendance = async () => {
-    if (!discountPercentage || !comments.trim()) {
-      toast.error('Preencha o percentual de desconto e comentários');
+    if (!discountPercentage) {
+      toast.error('Preencha o percentual de desconto');
       return;
     }
 

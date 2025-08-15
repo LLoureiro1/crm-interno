@@ -253,7 +253,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const handleRegisterAttendance = async () => {
     if (!currentAppointment) return;
     if (!attendanceDiscount) {
-      toast.error('Preencha o percentual de desconto e comentários');
+      toast.error('Preencha o percentual de desconto');
       return;
     }
 
