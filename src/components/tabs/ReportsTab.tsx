@@ -84,7 +84,7 @@ export const ReportsTab = () => {
       const today = new Date().toISOString().split('T')[0];
       
       const totalInscricoes = students.length;
-      const alunosProximaProva = students.filter(s => s.status === 'confirmado').length;
+      const alunosProximaProva = students.filter(s => s.status === 'confirmado' || s.status === 'nao_confirmado').length;
       const matriculados = students.filter(s => s.status === 'matriculado').length;
 
       // Fetch today's appointments
