@@ -502,7 +502,7 @@ const StudentProfile = () => {
             </Card>
 
             {/* Actions - Only show Register Attendance if it's interview day */}
-            {canRegisterAttendance && isInterviewDay && (
+            {canRegisterAttendance && isInterviewDay && student.status !== 'atendimento_recentemente' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Registrar Atendimento</CardTitle>
