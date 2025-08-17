@@ -116,7 +116,7 @@ export const ReportsTab = () => {
       case 'total':
         return studentsData;
       case 'proxima_prova':
-        return studentsData.filter(s => s.status === 'confirmado');
+        return studentsData.filter(s => s.status === 'confirmado' || s.status === 'nao_confirmado');
       case 'matriculados':
         return studentsData.filter(s => s.status === 'matriculado');
       default:
