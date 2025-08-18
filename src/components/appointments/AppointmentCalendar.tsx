@@ -364,7 +364,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     }
   };
 
-  const getStatusBadge = (status: string, attended: boolean) => {
+  const getStatusBadge = (status: string, attended: boolean, studentStatus?: string) => {
+    // Se o aluno já foi atendido recentemente, mostrar como realizado
+    if (studentStatus === 'atendimento_recentemente') {
+      return <Badge className="bg-green-500">Realizado</Badge>;
+    }
+    
     switch (status) {
       case 'agendado':
         return <Badge variant="secondary">Agendado</Badge>;
@@ -376,8 +381,6 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         return <Badge variant="destructive">Faltou</Badge>;
       case 'realizado':
         return <Badge className="bg-green-500">Realizado</Badge>;
-      case 'faltou':
-        return <Badge variant="destructive">Faltou</Badge>;
       default:
         return <Badge variant="outline">{status || 'Pendente'}</Badge>;
     }
@@ -508,7 +511,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                           {appointment.appointment_time ? formatTimeForDisplay(appointment.appointment_time) : 'Horário não definido'}
                         </span>
                       </div>
-                      {getStatusBadge(appointment.status || '', appointment.attended || false)}
+                      {getStatusBadge(appointment.status || '', appointment.attended || false, appointment.students?.status)}
                     </div>
                     <div className="flex space-x-2">
                       {appointment.status !== 'realizado' && 
