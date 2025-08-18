@@ -511,7 +511,9 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                       {getStatusBadge(appointment.status || '', appointment.attended || false)}
                     </div>
                     <div className="flex space-x-2">
-                      {appointment.status !== 'realizado' && appointment.status !== 'faltou' && ( 
+                      {appointment.status !== 'realizado' && 
+                       appointment.status !== 'faltou' && 
+                       appointment.students?.status !== 'atendimento_recentemente' && ( 
                         <>
                           <Button
                             size="sm"
