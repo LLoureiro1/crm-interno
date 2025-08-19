@@ -64,18 +64,20 @@ const Confirmation: React.FC = () => {
           <p className="text-lg mb-4">
             Sua inscrição foi realizada com sucesso.
           </p>
-          {hasExam && (
-            <p className="text-md mb-4">
-              Você precisará realizar um exame de nivelamento.
-            </p>
-          )}
-          {examDetails && (
-            <div className="mt-4 p-4 border rounded-md bg-blue-50 dark:bg-blue-900 text-left">
-              <h3 className="text-lg font-semibold mb-2">Detalhes do Exame:</h3>
-              <p><strong>Data:</strong> {new Date(examDetails.exam_date).toLocaleDateString('pt-BR')}</p>
-              <p><strong>Hora:</strong> {examDetails.exam_time.substring(0, 5)}</p>
-              <p><strong>Unidade:</strong> {examDetails.units?.name}</p>
-              <p><strong>Endereço:</strong> {examDetails.units?.address}</p>
+          {hasExam ? (
+            examDetails && (
+              <div className="mt-4 p-4 border rounded-md bg-blue-50 dark:bg-blue-900 text-left">
+                <h3 className="text-lg font-semibold mb-2">Detalhes do Exame:</h3>
+                <p><strong>Data:</strong> {new Date(examDetails.exam_date).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Hora:</strong> {examDetails.exam_time.substring(0, 5)}</p>
+                <p><strong>Unidade:</strong> {examDetails.units?.name}</p>
+                <p><strong>Endereço:</strong> {examDetails.units?.address}</p>
+              </div>
+            )
+          ) : (
+            <div className="mt-4 p-4 border rounded-md bg-green-50 dark:bg-green-900 text-left">
+              <h3 className="text-lg font-semibold mb-2">Próxima Etapa:</h3>
+              <p>A próxima etapa do processo é uma entrevista com o responsável na unidade.</p>
             </div>
           )}
           <Button onClick={() => navigate('/inscricao')} className="mt-6">
