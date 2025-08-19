@@ -78,8 +78,8 @@ const Confirmation: React.FC = () => {
               <p><strong>Endereço:</strong> {examDetails.units?.address}</p>
             </div>
           )}
-          <Button onClick={handleGoHome} className="mt-6">
-            Inscrever outro aluno
+          <Button onClick={() => navigate('/inscricao')} className="mt-6">
+            Inscrever Outro Aluno
           </Button>
         </CardContent>
       </Card>
