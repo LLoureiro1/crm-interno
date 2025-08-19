@@ -78,6 +78,8 @@ const Confirmation: React.FC = () => {
             <div className="mt-4 p-4 border rounded-md bg-green-50 dark:bg-green-900 text-left">
               <h3 className="text-lg font-semibold mb-2">Próxima Etapa:</h3>
               <p>A próxima etapa do processo é uma entrevista com o responsável na unidade.</p>
+              <br></br>
+              <p>Nos próximos dias entraremos em contato pelo telefone cadastrado para agendar o horário do atendimento.</p>
             </div>
           )}
           <Button onClick={() => navigate('/inscricao')} className="mt-6">
