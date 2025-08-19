@@ -73,7 +73,7 @@ const Confirmation: React.FC = () => {
             <div className="mt-4 p-4 border rounded-md bg-blue-50 dark:bg-blue-900 text-left">
               <h3 className="text-lg font-semibold mb-2">Detalhes do Exame:</h3>
               <p><strong>Data:</strong> {new Date(examDetails.exam_date).toLocaleDateString('pt-BR')}</p>
-              <p><strong>Hora:</strong> {examDetails.exam_time}</p>
+              <p><strong>Hora:</strong> {examDetails.exam_time.substring(0, 5)}</p>
               <p><strong>Unidade:</strong> {examDetails.units?.name}</p>
               <p><strong>Endereço:</strong> {examDetails.units?.address}</p>
             </div>
