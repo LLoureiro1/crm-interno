@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Registration from "./pages/Registration";
 import StudentProfile from "./pages/StudentProfile";
 import NotFound from "./pages/NotFound";
+import Confirmation from './components/registration/Confirmation';
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/inscricao" element={<Registration />} />
           <Route path="/student/:id" element={<StudentProfile />} />
+          <Route path="/confirmation" element={<Confirmation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

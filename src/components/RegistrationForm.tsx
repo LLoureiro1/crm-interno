@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,7 @@ type Class = Tables<'classes'> & {
 };
 
 export const RegistrationForm = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
     responsibleName: '',
@@ -119,6 +121,14 @@ export const RegistrationForm = () => {
 
       toast.success('Inscrição realizada com sucesso!');
       
+      // Redirecionar para a tela de confirmação
+      navigate('/confirmation', {
+        state: {
+          classId: formData.classId,
+          hasExam: selectedClass?.has_exam
+        }
+      });
+
       // Limpar formulário
       setFormData({
         studentName: '',
