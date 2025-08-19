@@ -34,6 +34,7 @@ const Confirmation: React.FC = () => {
             .from('exam_dates')
             .select('*, units(*)')
             .eq('unit_id', classData.unit_id)
+            .gte('exam_date', new Date().toISOString().split('T')[0])
             .order('exam_date', { ascending: true })
             .limit(1)
             .single();
