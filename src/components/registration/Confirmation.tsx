@@ -64,11 +64,6 @@ const Confirmation: React.FC = () => {
           <p className="text-lg mb-4">
             Sua inscrição foi realizada com sucesso.
           </p>
-          {classId && (
-            <p className="text-md mb-2">
-              Você foi inscrito na turma: <strong>{classId}</strong>
-            </p>
-          )}
           {hasExam && (
             <p className="text-md mb-4">
               Você precisará realizar um exame de nivelamento.
@@ -84,7 +79,7 @@ const Confirmation: React.FC = () => {
             </div>
           )}
           <Button onClick={handleGoHome} className="mt-6">
-            Voltar para a Página Inicial
+            Inscrever outro aluno
           </Button>
         </CardContent>
       </Card>
