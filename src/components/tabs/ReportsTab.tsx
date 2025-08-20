@@ -270,8 +270,7 @@ export const ReportsTab = () => {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>
-                <p className="text-xs text-muted-foreground">agendamentos para hoje</p>
+                <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>                
               </CardContent>
             </Card>
           </DialogTrigger>
