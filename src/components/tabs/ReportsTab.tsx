@@ -39,6 +39,7 @@ export const ReportsTab = () => {
     statusCounts: {}
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
+  const [todayAppointmentsStudents, setTodayAppointmentsStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     fetchUnits();
@@ -94,6 +95,24 @@ export const ReportsTab = () => {
         .eq('appointment_date', today);
       
       const agendamentosHoje = appointments?.length || 0;
+
+      // Fetch students for today's appointments
+      if (appointments) {
+        const studentIds = appointments.map(app => app.student_id);
+        const { data: studentsWithAppointments } = await supabase
+          .from('students')
+          .select(`
+            *,
+            classes!inner(
+              name,
+              units!inner(name)
+            )
+          `)
+          .in('id', studentIds);
+        if (studentsWithAppointments) {
+          setTodayAppointmentsStudents(studentsWithAppointments as Student[]);
+        }
+      }
 
       // Count by status
       const statusCounts: { [key: string]: number } = {};
@@ -243,15 +262,21 @@ export const ReportsTab = () => {
           />
         </Dialog>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>
-          </CardContent>
-        </Card>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>
+                <p className="text-xs text-muted-foreground">agendamentos para hoje</p>
+              </CardContent>
+            </Card>
+          </DialogTrigger>
+          <StudentsList students={todayAppointmentsStudents} title="Alunos com Agendamentos Hoje" />
+        </Dialog>
 
         <Dialog>
           <DialogTrigger asChild>
