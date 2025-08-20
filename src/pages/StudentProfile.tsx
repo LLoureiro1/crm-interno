@@ -408,14 +408,18 @@ const StudentProfile = () => {
                     <span className="font-medium">Unidade:</span>
                     <p>{student.classes.units.name}</p>
                   </div>
-                  <div>
-                    <span className="font-medium">Nota Português:</span>
-                    <p>{student.portuguese_grade || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Nota Matemática:</span>
-                    <p>{student.math_grade || 'Não informado'}</p>
-                  </div>
+                  {student.classes?.has_exam && (
+                    <>
+                      <div>
+                        <span className="font-medium">Nota Português:</span>
+                        <p>{student.portuguese_grade || 'Não informado'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Nota Matemática:</span>
+                        <p>{student.math_grade || 'Não informado'}</p>
+                      </div>
+                    </>
+                  )}
                   <div className="flex items-center space-x-1">
                     <Percent className="h-3 w-3" />
                     <span className="font-medium">Desconto:</span>
