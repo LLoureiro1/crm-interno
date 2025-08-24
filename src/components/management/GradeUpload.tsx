@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { Download } from 'lucide-react';
 
 interface StudentGrade {
   code: string;
@@ -17,6 +18,14 @@ interface StudentGrade {
 }
 
 export const GradeUpload = () => {
+  const downloadTemplate = () => {
+    const headers = ["Código", "Nota Português", "Nota Matemática"];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Modelo Notas');
+    XLSX.writeFile(wb, `modelo_notas_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<StudentGrade[]>([]);
@@ -137,6 +146,10 @@ export const GradeUpload = () => {
               </ul>
             </AlertDescription>
           </Alert>
+          <Button onClick={downloadTemplate} className="mt-4">
+            <Download className="h-4 w-4 mr-2" />
+            Baixar modelo de planilha
+          </Button>
         </CardContent>
       </Card>
 
