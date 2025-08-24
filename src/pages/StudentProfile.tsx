@@ -456,7 +456,7 @@ const StudentProfile = () => {
                       <span className="font-medium">Data da Prova:</span>
                       {student.exam_dates.map((exam, index) => (
                         <p key={index}>
-                          {formatDateForDisplay(exam.exam_date)} às {exam.exam_time}
+                          {formatDateForDisplay(exam.exam_date)} às {exam.exam_time.substring(0, 5)}
                         </p>
                       ))}
                     </div>
