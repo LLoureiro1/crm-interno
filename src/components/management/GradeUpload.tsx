@@ -45,8 +45,8 @@ export const GradeUpload = () => {
 
       const parsedData: StudentGrade[] = jsonData.map((row: any) => ({
         code: row['Código'] || row['codigo'] || row['Code'] || '',
-        math_grade: parseFloat(row['Matemática'] || row['matematica'] || row['Math'] || 0),
-        portuguese_grade: parseFloat(row['Português'] || row['portugues'] || row['Portuguese'] || 0)
+        math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
+        portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
       }));
 
       setPreview(parsedData.slice(0, 5)); // Mostrar apenas os primeiros 5 para preview
@@ -68,8 +68,8 @@ export const GradeUpload = () => {
 
       const studentsToUpdate: StudentGrade[] = jsonData.map((row: any) => ({
         code: row['Código'] || row['codigo'] || row['Code'] || '',
-        math_grade: parseFloat(row['Matemática'] || row['matematica'] || row['Math'] || 0),
-        portuguese_grade: parseFloat(row['Português'] || row['portugues'] || row['Portuguese'] || 0)
+        math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
+        portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
       }));
 
       let successCount = 0;
