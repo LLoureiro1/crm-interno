@@ -2,7 +2,7 @@
 // Utility functions for date formatting and parsing
 export const formatDateForDisplay = (dateString: string): string => {
   // Parse date string as local date to avoid timezone issues
-  const date = new Date(dateString.replace(/-/g, '\/'));
+  const date = new Date(dateString + 'T00:00:00');
   
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
