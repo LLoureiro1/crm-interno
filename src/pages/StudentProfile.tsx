@@ -20,6 +20,7 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
+  exam_dates?: Tables<'exam_dates'>[];
 };
 
 type Profile = Tables<'profiles'>;
@@ -82,7 +83,26 @@ const StudentProfile = () => {
       return;
     }
 
-    setStudent(data);
+    const studentData = data;
+
+    if (studentData.classes.has_exam) {
+      const { data: examDatesData, error: examDatesError } = await supabase
+        .from('exam_dates')
+        .select('*')
+        .eq('unit_id', studentData.classes.unit_id)
+        .gte('exam_date', new Date().toISOString().split('T')[0])
+        .order('exam_date', { ascending: true })
+        .order('exam_time', { ascending: true });
+
+      if (examDatesError) {
+        console.error('Error fetching exam dates:', examDatesError);
+        toast.error('Erro ao carregar datas de prova');
+      } else {
+        studentData.exam_dates = examDatesData;
+      }
+    }
+
+    setStudent(studentData);
   };
 
   const fetchInterviewers = async () => {
@@ -430,11 +450,14 @@ const StudentProfile = () => {
                     <span className="font-medium">Data da Inscrição:</span>
                     <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
                   </div>
-                  {student.exam_date && (
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
+                  {student.classes?.has_exam && student.exam_dates && student.exam_dates.length > 0 && (
+                    <div>
                       <span className="font-medium">Data da Prova:</span>
-                      <p>{formatDateForDisplay(student.exam_date)}</p>
+                      {student.exam_dates.map((exam, index) => (
+                        <p key={index}>
+                          {formatDateForDisplay(exam.exam_date)} às {exam.exam_time}
+                        </p>
+                      ))}
                     </div>
                   )}
                   {student.interview_date && (
@@ -567,6 +590,12 @@ const StudentProfile = () => {
                       {canUpdateToMatriculado && (
                         <SelectItem value="matriculado">Matriculado</SelectItem>
                       )}
+                   {student.classes?.has_exam && student.exam_dates && student.exam_dates.length > 0 && (
+                     <div>
+                       <span className="font-medium">Data da Prova:</span>
+                       <p>{formatDateForDisplay(student.exam_dates[0].exam_date)} às {formatTimeForDisplay(student.exam_dates[0].exam_time)}</p>
+                     </div>
+                   )}
                     </SelectContent>
                   </Select>
                 </div>
