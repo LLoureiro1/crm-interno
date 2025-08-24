@@ -201,13 +201,13 @@ export const ExamDateManagement = () => {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-gray-500" />
-                        <span>{new Date(examDate.exam_date).toLocaleDateString('pt-BR')}</span>
+                        <span>{new Date(examDate.exam_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-gray-500" />
-                        <span>{examDate.exam_time}</span>
+                        <span>{examDate.exam_time.substring(0, 5)}</span>
                       </div>
                     </TableCell>
                     <TableCell>{examDate.units.name}</TableCell>
