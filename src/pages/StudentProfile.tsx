@@ -84,6 +84,7 @@ const StudentProfile = () => {
     }
 
     const studentData = data;
+    let finalStudentData: Student = studentData;
 
     if (studentData.classes.has_exam) {
       const { data: examDatesData, error: examDatesError } = await supabase
@@ -98,11 +99,11 @@ const StudentProfile = () => {
         console.error('Error fetching exam dates:', examDatesError);
         toast.error('Erro ao carregar datas de prova');
       } else {
-        studentData.exam_dates = examDatesData;
+        finalStudentData = { ...studentData, exam_dates: examDatesData };
       }
     }
 
-    setStudent(studentData);
+    setStudent(finalStudentData);
   };
 
   const fetchInterviewers = async () => {
