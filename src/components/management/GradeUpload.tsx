@@ -132,8 +132,8 @@ export const GradeUpload = () => {
               A planilha deve conter as colunas:
               <ul className="list-disc list-inside mt-2">
                 <li><strong>Código</strong>: Código único do aluno</li>
-                <li><strong>Matemática</strong>: Nota de matemática (opcional)</li>
-                <li><strong>Português</strong>: Nota de português (opcional)</li>
+                <li><strong>Português</strong>: Nota de português </li>
+                <li><strong>Matemática</strong>: Nota de matemática </li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -161,7 +161,7 @@ export const GradeUpload = () => {
               <div className="border rounded p-4 bg-gray-50">
                 {preview.map((student, index) => (
                   <div key={index} className="text-sm">
-                    Código: {student.code} | Matemática: {student.math_grade || 'N/A'} | Português: {student.portuguese_grade || 'N/A'}
+                    Código: {student.code} | Português: {student.portuguese_grade || 'N/A'} | Matemática: {student.math_grade || 'N/A'}
                   </div>
                 ))}
                 {preview.length === 5 && <div className="text-sm text-gray-500 mt-2">... e mais</div>}
