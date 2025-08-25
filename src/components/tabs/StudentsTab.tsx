@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
+import { Search, Download, Eye, Calendar, ExternalLink, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import type { Tables } from '@/integrations/supabase/types';
 import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
+import { toast } from 'sonner';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -173,7 +174,7 @@ export const StudentsTab = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" } } = {
+    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
       'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
       'presente': { label: 'Presente', variant: 'default' },
@@ -182,11 +183,33 @@ export const StudentsTab = () => {
       'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
       'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
       'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
+      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
+      'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
+      'ausente': { label: 'Ausente', variant: 'destructive' }
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const handleManualStatusUpdate = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('update-student-statuses', {
+        body: { source: 'manual' }
+      });
+
+      if (error) {
+        console.error('Error invoking status update:', error);
+        toast.error('Erro ao atualizar status dos alunos');
+        return;
+      }
+
+      toast.success(data.message || 'Status dos alunos atualizados com sucesso');
+      fetchStudents(); // Refresh the list
+    } catch (error) {
+      console.error('Error calling status update function:', error);
+      toast.error('Erro ao chamar função de atualização');
+    }
   };
 
   const handleViewStudent = (student: Student) => {
@@ -221,10 +244,16 @@ export const StudentsTab = () => {
           <h2 className="text-xl font-semibold text-gray-900">Gestão de Alunos</h2>
           <p className="text-gray-600">Visualize e gerencie todos os alunos cadastrados</p>
         </div>
-        <Button onClick={exportToExcel} className="bg-orange-500 hover:bg-orange-600">
-          <Download className="h-4 w-4 mr-2" />
-          Exportar Excel
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleManualStatusUpdate} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar Status
+          </Button>
+          <Button onClick={exportToExcel} className="bg-orange-500 hover:bg-orange-600">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -253,7 +282,9 @@ export const StudentsTab = () => {
                 { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },
                 { value: 'atendimento_agendado', label: 'Atendimento Agendado' },
                 { value: 'faltou_ao_atendimento', label: 'Faltou ao Atendimento' },
-                { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' }
+                { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' },
+                { value: 'atendimento_ha_mais_de_uma_semana', label: 'Atendimento há mais de uma semana' },
+                { value: 'ausente', label: 'Ausente' }
               ]}
               selected={statusFilter}
               onChange={setStatusFilter}

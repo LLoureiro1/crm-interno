@@ -490,6 +490,7 @@ export type Database = {
         | "faltou_ao_atendimento"
         | "desistente"
         | "matriculado"
+        | "ausente"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
     }
     CompositeTypes: {
@@ -644,6 +645,7 @@ export const Constants = {
         "faltou_ao_atendimento",
         "desistente",
         "matriculado",
+        "ausente",
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
     },

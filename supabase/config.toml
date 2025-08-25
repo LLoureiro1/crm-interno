@@ -1,1 +1,7 @@
 project_id = "jfpzbsfywfcuylqgafpp"
+
+[functions.check-missed-interviews]
+verify_jwt = false
+
+[functions.update-student-statuses]
+verify_jwt = false

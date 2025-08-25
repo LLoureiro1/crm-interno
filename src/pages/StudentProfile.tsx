@@ -302,7 +302,7 @@ const StudentProfile = () => {
   };
 
   const getStatusBadge = (status: string) => {
-      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" } } = {
+      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
         'presente': { label: 'Presente', variant: 'default' },
@@ -311,7 +311,9 @@ const StudentProfile = () => {
         'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
         'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
         'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-        'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' }
+        'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
+        'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
+        'ausente': { label: 'Ausente', variant: 'destructive' }
       };
 
       const config = statusMap[status] || { label: status, variant: 'outline' as const };
