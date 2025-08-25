@@ -62,7 +62,7 @@ export const StudentsTab = () => {
           units(*),
           series(*)
         ),
-        exam_dates:exam_date_id(
+        exam_dates(
           *,
           units(*)
         )
