@@ -18,8 +18,6 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  // Relacionamento opcional com exam_dates usando a nova FK
-  exam_dates?: (Tables<'exam_dates'> & { units: Tables<'units'> }) | null;
 };
 
 type ExamDate = Tables<'exam_dates'> & {
@@ -61,10 +59,6 @@ export const StudentsTab = () => {
           *,
           units(*),
           series(*)
-        ),
-        exam_dates(
-          *,
-          units(*)
         )
       `)
       .order('created_at', { ascending: false });
@@ -310,11 +304,6 @@ export const StudentsTab = () => {
         <CardContent>
           <div className="space-y-4">
             {filteredStudents.map((student) => {
-              const hasLinkedExam = !!student.exam_dates;
-              const examDateToShow = student.exam_dates?.exam_date || student.exam_date || null;
-              const examTimeToShow = student.exam_dates?.exam_time || null;
-              const examUnitName = student.exam_dates?.units?.name || null;
-
               return (
                 <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
@@ -328,12 +317,10 @@ export const StudentsTab = () => {
                         <p className="text-sm text-gray-600">{student.classes.units.name}</p>
                       </div>
                       <div>
-                        {examDateToShow && (
+                        {student.exam_date && (
                           <p className="text-sm text-gray-600 flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
-                            Prova: {formatDateForDisplay(examDateToShow)}
-                            {examTimeToShow ? ` às ${formatTimeForDisplay(examTimeToShow as string)}` : ''}
-                            {examUnitName ? ` - ${examUnitName}` : ''}
+                            Prova: {formatDateForDisplay(student.exam_date)}
                           </p>
                         )}
                         {student.interview_date && (
