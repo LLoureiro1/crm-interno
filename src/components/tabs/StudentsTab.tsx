@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,13 +11,15 @@ import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import type { Tables } from '@/integrations/supabase/types';
-import { formatDateForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
+  // Novo relacionamento opcional com exam_dates (pode ser null quando não houver vínculo)
+  exam_dates?: (Tables<'exam_dates'> & { units: Tables<'units'> }) | null;
 };
 
 type ExamDate = Tables<'exam_dates'> & {
@@ -60,6 +61,10 @@ export const StudentsTab = () => {
           *,
           units(*),
           series(*)
+        ),
+        exam_dates(
+          *,
+          units(*)
         )
       `)
       .order('created_at', { ascending: false });
@@ -69,7 +74,7 @@ export const StudentsTab = () => {
       return;
     }
 
-    setStudents(data || []);
+    setStudents((data as Student[]) || []);
   };
 
   const fetchUnits = async () => {
@@ -91,7 +96,7 @@ export const StudentsTab = () => {
       `)
       .order('exam_date', { ascending: true });
     
-    if (data) setExamDates(data);
+    if (data) setExamDates(data as ExamDate[]);
   };
 
   const filterStudents = () => {
@@ -228,7 +233,6 @@ export const StudentsTab = () => {
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -271,13 +275,13 @@ export const StudentsTab = () => {
               className="w-full"
             />
 
-          <MultiSelect
-            options={series.map(_series => ({ value: _series.id, label: _series.name }))}
-            selected={seriesFilter}
-            onChange={setSeriesFilter}
-            placeholder="Série"
-            className="w-full"
-          />
+            <MultiSelect
+              options={series.map(_series => ({ value: _series.id, label: _series.name }))}
+              selected={seriesFilter}
+              onChange={setSeriesFilter}
+              placeholder="Série"
+              className="w-full"
+            />
 
             <MultiSelect
               options={[
@@ -299,69 +303,76 @@ export const StudentsTab = () => {
         </CardContent>
       </Card>
 
-      {/* Students List */}
       <Card>
         <CardHeader>
           <CardTitle>Lista de Alunos ({filteredStudents.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredStudents.map((student) => (
-              <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{student.student_name}</h3>
-                      <p className="text-sm text-gray-600">Código: {student.code}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">{student.classes.series.name}</p>
-                      <p className="text-sm text-gray-600">{student.classes.units.name}</p>
-                    </div>
-                    <div>
-                      {student.exam_date && (
-                        <p className="text-sm text-gray-600 flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          Prova: {formatDateForDisplay(student.exam_date)} 
-                        </p>
-                      )}
-                      {student.interview_date && (
-                        <p className="text-sm text-blue-600 flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          Entrevista: {formatDateForDisplay(student.interview_date)} 
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      {getStatusBadge(student.status)}
+            {filteredStudents.map((student) => {
+              const hasLinkedExam = !!student.exam_dates;
+              const examDateToShow = student.exam_dates?.exam_date || student.exam_date || null;
+              const examTimeToShow = student.exam_dates?.exam_time || null;
+              const examUnitName = student.exam_dates?.units?.name || null;
+
+              return (
+                <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{student.student_name}</h3>
+                        <p className="text-sm text-gray-600">Código: {student.code}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">{student.classes.series.name}</p>
+                        <p className="text-sm text-gray-600">{student.classes.units.name}</p>
+                      </div>
+                      <div>
+                        {examDateToShow && (
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Prova: {formatDateForDisplay(examDateToShow)}
+                            {examTimeToShow ? ` às ${formatTimeForDisplay(examTimeToShow as string)}` : ''}
+                            {examUnitName ? ` - ${examUnitName}` : ''}
+                          </p>
+                        )}
+                        {student.interview_date && (
+                          <p className="text-sm text-blue-600 flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Entrevista: {formatDateForDisplay(student.interview_date)} 
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        {getStatusBadge(student.status)}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewStudent(student)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver Detalhes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenStudentPage(student.id)}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Abrir Página
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewStudent(student)}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver Detalhes
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenStudentPage(student.id)}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir Página
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {/* Student Dialog */}
       {selectedStudent && (
         <StudentDialog
           student={selectedStudent}

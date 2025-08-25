@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -168,63 +168,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      exam_units: {
-        Row: {
-          created_at: string
-          exam_id: string | null
-          id: string
-          unit_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          exam_id?: string | null
-          id?: string
-          unit_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          exam_id?: string | null
-          id?: string
-          unit_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exam_units_exam_id_fkey"
-            columns: ["exam_id"]
-            isOneToOne: false
-            referencedRelation: "exams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exam_units_unit_id_fkey"
-            columns: ["unit_id"]
-            isOneToOne: false
-            referencedRelation: "units"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exams: {
-        Row: {
-          created_at: string
-          exam_date: string
-          exam_time: string
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          exam_date: string
-          exam_time: string
-          id?: string
-        }
-        Update: {
-          created_at?: string
-          exam_date?: string
-          exam_time?: string
-          id?: string
-        }
-        Relationships: []
       }
       interviewer_availability: {
         Row: {
