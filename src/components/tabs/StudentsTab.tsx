@@ -18,7 +18,7 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  // Novo relacionamento opcional com exam_dates (pode ser null quando não houver vínculo)
+  // Relacionamento opcional com exam_dates usando a nova FK
   exam_dates?: (Tables<'exam_dates'> & { units: Tables<'units'> }) | null;
 };
 
@@ -62,7 +62,7 @@ export const StudentsTab = () => {
           units(*),
           series(*)
         ),
-        exam_dates(
+        exam_dates:exam_date_id(
           *,
           units(*)
         )
