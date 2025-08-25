@@ -593,13 +593,7 @@ const StudentProfile = () => {
                       {canUpdateToMatriculado && (
                         <SelectItem value="matriculado">Matriculado</SelectItem>
                       )}
-                   {student.classes?.has_exam && student.exam_dates && student.exam_dates.length > 0 && (
-                     <div>
-                       <span className="font-medium">Data da Prova:</span>
-                       <p>{formatDateForDisplay(student.exam_dates[0].exam_date)} às {formatTimeForDisplay(student.exam_dates[0].exam_time)}</p>
-                     </div>
-                   )}
-                    </SelectContent>
+                   </SelectContent>
                   </Select>
                 </div>
 
