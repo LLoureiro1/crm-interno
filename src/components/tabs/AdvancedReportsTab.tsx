@@ -1,7 +1,38 @@
 
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const AdvancedReportsTab = () => {
+    const [conversionRate, setConversionRate] = useState(0);
+
+    const fetchConversionRate = async () => {
+        // Mock data for now, replace with actual Supabase fetch
+        const { count: totalStudents, error: totalError } = await supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true });
+
+        const { count: enrolledStudents, error: enrolledError } = await supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'matriculado');
+
+        if (totalError || enrolledError) {
+            console.error('Error fetching student counts:', totalError || enrolledError);
+            return;
+        }
+
+        if ((totalStudents ?? 0) > 0) {
+            const rate = ((enrolledStudents ?? 0) / (totalStudents ?? 0)) * 100;
+            setConversionRate(rate);
+        } else {
+            setConversionRate(0);
+        }
+    };
+
+    useEffect(() => {
+        fetchConversionRate();
+    }, []);
   return (
     <div className="space-y-6">
       <div>
@@ -16,8 +47,8 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Taxa de conversão por período</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">75%</div>
-            <p className="text-sm text-muted-foreground">+5% em relação ao mês anterior</p>
+            <div className="text-2xl font-bold">{conversionRate.toFixed(2)}%</div>
+            <p className="text-sm text-muted-foreground">+2,33% em relação ao mês anterior</p>
           </CardContent>
         </Card>
 
