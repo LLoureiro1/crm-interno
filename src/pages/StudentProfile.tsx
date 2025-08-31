@@ -38,6 +38,9 @@ const StudentProfile = () => {
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewerId, setInterviewerId] = useState('');
+  const [availableExamDates, setAvailableExamDates] = useState<Tables<'exam_dates'>[]>([]);
+  const [selectedExamDateId, setSelectedExamDateId] = useState<string>('');
+  const [showExamDateEditor, setShowExamDateEditor] = useState(false);
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
@@ -57,6 +60,7 @@ const StudentProfile = () => {
     if (student) {
       setNewStatus(student.status);
       fetchInteractions();
+      fetchAvailableExamDates();
     }
   }, [student]);
 
@@ -113,6 +117,30 @@ const StudentProfile = () => {
       .order('created_at', { ascending: false });
 
     if (data) setInteractions(data);
+  };
+
+  const fetchAvailableExamDates = async () => {
+    if (!student?.classes?.unit_id) return;
+
+    const { data, error } = await supabase
+      .from('exam_dates')
+      .select('*')
+      .eq('unit_id', student.classes.unit_id)
+      .gte('exam_date', new Date().toISOString().split('T')[0])
+      .order('exam_date', { ascending: true })
+      .order('exam_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching available exam dates:', error);
+      return;
+    }
+
+    setAvailableExamDates(data || []);
+
+    // Definir a data atual do aluno como selecionada se existir
+    if (student?.exam_date_id) {
+      setSelectedExamDateId(student.exam_date_id);
+    }
   };
 
   const handleScheduleInterview = async () => {
@@ -280,6 +308,41 @@ const StudentProfile = () => {
     }
   };
 
+  const handleChangeExamDate = async () => {
+    if (!selectedExamDateId || !student?.id) {
+      toast.error('Selecione uma data de prova válida');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ exam_date_id: selectedExamDateId })
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      // Adicionar interação
+      const selectedExamDate = availableExamDates.find(ed => ed.id === selectedExamDateId);
+      await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: student.id,
+          user_id: profile?.id,
+          interaction_type: 'mudanca_data_prova',
+          comments: `Data da prova alterada para ${formatDateForDisplay(selectedExamDate?.exam_date || '')} às ${selectedExamDate?.exam_time.substring(0, 5) || ''}`
+        });
+
+      toast.success('Data da prova alterada com sucesso!');
+      setShowExamDateEditor(false);
+      fetchStudent();
+      fetchInteractions();
+    } catch (error) {
+      console.error('Error changing exam date:', error);
+      toast.error('Erro ao alterar data da prova');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
       const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
@@ -432,22 +495,68 @@ const StudentProfile = () => {
                     <span className="font-medium">Data da Inscrição:</span>
                     <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
                   </div>
-                  {student.classes?.has_exam && student.exam_date && (
-                    <div>
+                  {student.classes?.has_exam && (
+                    <div className="col-span-2">
                       <span className="font-medium">Data da Prova:</span>
-                      <p>{formatDateForDisplay(student.exam_date)}</p>
+                      {student.exam_date ? (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <p>{formatDateForDisplay(student.exam_date)}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              fetchAvailableExamDates();
+                              setShowExamDateEditor(!showExamDateEditor);
+                            }}
+                          >
+                            {showExamDateEditor ? 'Cancelar' : 'Alterar'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">Não informado</p>
+                      )}
+                      
+                      {/* Editor de data da prova */}
+                      {showExamDateEditor && availableExamDates.length > 0 && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <Label htmlFor="exam-date-select">Nova Data da Prova</Label>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <Select 
+                              value={selectedExamDateId} 
+                              onValueChange={setSelectedExamDateId}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Selecione uma nova data" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableExamDates.map(examDate => (
+                                  <SelectItem key={examDate.id} value={examDate.id}>
+                                    {formatDateForDisplay(examDate.exam_date)} às {examDate.exam_time.substring(0, 5)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              onClick={handleChangeExamDate}
+                              disabled={!selectedExamDateId || selectedExamDateId === student?.exam_date_id}
+                              size="sm"
+                              className="bg-blue-500 hover:bg-blue-600"
+                            >
+                              Confirmar
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {student.interview_date && (
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span className="font-medium">Data da Entrevista:</span>
-                      <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
-                        {formatDateForDisplay(student.interview_date)}
-                        {isInterviewDay && ' (HOJE)'}
-                      </p>
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span className="font-medium">Data da Entrevista:</span>
+                    <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
+                      {formatDateForDisplay(student.interview_date)}
+                      {isInterviewDay && ' (HOJE)'}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
