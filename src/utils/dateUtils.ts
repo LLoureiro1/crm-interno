@@ -1,8 +1,18 @@
 
 // Utility functions for date formatting and parsing
-export const formatDateForDisplay = (dateString: string): string => {
+export const formatDateForDisplay = (dateString: string | null | undefined): string => {
+  // Verificar se a data é válida antes de processar
+  if (!dateString || dateString === '') {
+    return 'Não informado';
+  }
+  
   // Parse date string as local date to avoid timezone issues
   const date = new Date(dateString + 'T00:00:00');
+  
+  // Verificar se a data é válida
+  if (isNaN(date.getTime())) {
+    return 'Data inválida';
+  }
   
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',

@@ -549,14 +549,16 @@ const StudentProfile = () => {
                       )}
                     </div>
                   )}
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span className="font-medium">Data da Entrevista:</span>
-                    <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
-                      {formatDateForDisplay(student.interview_date)}
-                      {isInterviewDay && ' (HOJE)'}
-                    </p>
-                  </div>
+                  {student.interview_date && (
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span className="font-medium">Data da Entrevista:</span>
+                      <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
+                        {formatDateForDisplay(student.interview_date)}
+                        {isInterviewDay && ' (HOJE)'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
