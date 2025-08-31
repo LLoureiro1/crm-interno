@@ -24,6 +24,11 @@ type Student = Tables<'students'> & {
 
 type Profile = Tables<'profiles'>;
 
+type ClassWithRelations = Tables<'classes'> & {
+  units: Tables<'units'>;
+  series: Tables<'series'>;
+};
+
 const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
@@ -41,6 +46,15 @@ const StudentProfile = () => {
   const [availableExamDates, setAvailableExamDates] = useState<Tables<'exam_dates'>[]>([]);
   const [selectedExamDateId, setSelectedExamDateId] = useState<string>('');
   const [showExamDateEditor, setShowExamDateEditor] = useState(false);
+
+  // Estados para edição de série e unidade
+  const [availableUnits, setAvailableUnits] = useState<Tables<'units'>[]>([]);
+  const [availableSeries, setAvailableSeries] = useState<Tables<'series'>[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<ClassWithRelations[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [showSeriesUnitEditor, setShowSeriesUnitEditor] = useState(false);
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
@@ -61,8 +75,22 @@ const StudentProfile = () => {
       setNewStatus(student.status);
       fetchInteractions();
       fetchAvailableExamDates();
+      fetchAvailableUnits(); // ADICIONAR
+      fetchAvailableSeries(); // ADICIONAR
+      
+      // Definir valores atuais como selecionados
+      setSelectedUnitId(student.classes.unit_id);
+      setSelectedSeriesId(student.classes.series_id);
+      setSelectedClassId(student.class_id);
     }
   }, [student]);
+
+  // Buscar turmas quando unidade ou série mudarem
+  useEffect(() => {
+    if (selectedUnitId && selectedSeriesId) {
+      fetchAvailableClasses(selectedUnitId, selectedSeriesId);
+    }
+  }, [selectedUnitId, selectedSeriesId]);
 
   const fetchStudent = async () => {
     if (!id) return;
@@ -140,6 +168,103 @@ const StudentProfile = () => {
     // Definir a data atual do aluno como selecionada se existir
     if ((student as any)?.exam_date_id) {
       setSelectedExamDateId((student as any).exam_date_id);
+    }
+  };
+
+  // Função para buscar unidades disponíveis
+  const fetchAvailableUnits = async () => {
+    const { data, error } = await supabase
+      .from('units')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching units:', error);
+      return;
+    }
+
+    setAvailableUnits(data || []);
+  };
+
+  // Função para buscar séries disponíveis
+  const fetchAvailableSeries = async () => {
+    const { data, error } = await supabase
+      .from('series')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching series:', error);
+      return;
+    }
+
+    setAvailableSeries(data || []);
+  };
+
+  // Função para buscar turmas baseadas na unidade e série selecionadas
+  const fetchAvailableClasses = async (unitId: string, seriesId: string) => {
+    if (!unitId || !seriesId) {
+      setAvailableClasses([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        units(*),
+        series(*)
+      `)
+      .eq('unit_id', unitId)
+      .eq('series_id', seriesId)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching classes:', error);
+      return;
+    }
+
+    setAvailableClasses(data || []);
+  };
+
+  // Função para alterar série/unidade do aluno
+  const handleChangeSeriesUnit = async () => {
+    if (!selectedClassId || !student?.id) {
+      toast.error('Selecione uma turma válida');
+      return;
+    }
+
+    try {
+      const updateData: any = { class_id: selectedClassId };
+      const { error } = await supabase
+        .from('students')
+        .update(updateData)
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      // Adicionar interação
+      const selectedClass = availableClasses.find(c => c.id === selectedClassId);
+      await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: student.id,
+          user_id: profile?.id,
+          interaction_type: 'mudanca_turma',
+          comments: `Turma alterada para ${selectedClass?.name}` + 
+            (selectedClass && 'series' in selectedClass && (selectedClass as any).series 
+              ? ` - ${(selectedClass as any).series.name}` : '') + 
+            (selectedClass && 'units' in selectedClass && (selectedClass as any).units 
+              ? ` (${(selectedClass as any).units.name})` : '')
+        });
+
+      toast.success('Série e unidade alteradas com sucesso!');
+      setShowSeriesUnitEditor(false);
+      fetchStudent();
+      fetchInteractions();
+    } catch (error) {
+      console.error('Error changing series/unit:', error);
+      toast.error('Erro ao alterar série/unidade');
     }
   };
 
@@ -469,12 +594,94 @@ const StudentProfile = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="font-medium">Série:</span>
-                    <p>{student.classes.series.name}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <p>{student.classes.series.name}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          fetchAvailableUnits();
+                          fetchAvailableSeries();
+                          setShowSeriesUnitEditor(!showSeriesUnitEditor);
+                        }}
+                      >
+                        {showSeriesUnitEditor ? 'Cancelar' : 'Alterar'}
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <span className="font-medium">Unidade:</span>
                     <p>{student.classes.units.name}</p>
                   </div>
+                  
+                  {/* Editor de série e unidade */}
+                  {showSeriesUnitEditor && (
+                    <div className="col-span-2 mt-3 p-3 bg-gray-50 rounded-lg">
+                      <Label>Alterar Série e Unidade</Label>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div>
+                          <Label htmlFor="unit-select" className="text-xs">Unidade</Label>
+                          <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableUnits.map(unit => (
+                                <SelectItem key={unit.id} value={unit.id}>
+                                  {unit.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="series-select" className="text-xs">Série</Label>
+                          <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableSeries.map(series => (
+                                <SelectItem key={series.id} value={series.id}>
+                                  {series.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="class-select" className="text-xs">Turma</Label>
+                          <Select 
+                            value={selectedClassId} 
+                            onValueChange={setSelectedClassId}
+                            disabled={!selectedUnitId || !selectedSeriesId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione turma" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableClasses.map(cls => (
+                                <SelectItem key={cls.id} value={cls.id}>
+                                  {cls.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        onClick={handleChangeSeriesUnit}
+                        disabled={!selectedClassId || selectedClassId === student.class_id}
+                        size="sm"
+                        className="mt-3 bg-blue-500 hover:bg-blue-600"
+                      >
+                        Confirmar Alteração
+                      </Button>
+                    </div>
+                  )}
                   {student.classes?.has_exam && (
                     <>
                       <div>
