@@ -13,7 +13,7 @@ import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, Arr
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
-import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -138,8 +138,8 @@ const StudentProfile = () => {
     setAvailableExamDates(data || []);
 
     // Definir a data atual do aluno como selecionada se existir
-    if (student?.exam_date_id) {
-      setSelectedExamDateId(student.exam_date_id);
+    if ((student as any)?.exam_date_id) {
+      setSelectedExamDateId((student as any).exam_date_id);
     }
   };
 
@@ -538,7 +538,7 @@ const StudentProfile = () => {
                             </Select>
                             <Button
                               onClick={handleChangeExamDate}
-                              disabled={!selectedExamDateId || selectedExamDateId === student?.exam_date_id}
+                              disabled={!selectedExamDateId || selectedExamDateId === (student as any)?.exam_date_id}
                               size="sm"
                               className="bg-blue-500 hover:bg-blue-600"
                             >
