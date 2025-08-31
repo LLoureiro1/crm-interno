@@ -314,9 +314,9 @@ export const StudentsTab = () => {
                 { value: 'hoje', label: 'Hoje' },
                 { value: 'futuras', label: 'Futuras' },
                 { value: 'passadas', label: 'Passadas' },
-                ...examDates.map(date => ({
+                ...uniqueExamDates.map(date => ({
                   value: `date_${date.exam_date}`,
-                  label: `${formatDateForDisplay(date.exam_date)}`,
+                  label: formatDateForDisplay(date.exam_date),
                 })),
               ]}
               selected={examDateFilter}
