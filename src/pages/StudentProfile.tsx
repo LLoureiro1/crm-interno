@@ -20,7 +20,6 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
-  exam_dates?: Tables<'exam_dates'>[];
 };
 
 type Profile = Tables<'profiles'>;
@@ -83,27 +82,7 @@ const StudentProfile = () => {
       return;
     }
 
-    const studentData = data;
-    let finalStudentData: Student = studentData;
-
-    if (studentData.classes.has_exam) {
-      const { data: examDatesData, error: examDatesError } = await supabase
-        .from('exam_dates')
-        .select('*')
-        .eq('unit_id', studentData.classes.unit_id)
-        .gte('exam_date', new Date().toISOString().split('T')[0])
-        .order('exam_date', { ascending: true })
-        .order('exam_time', { ascending: true });
-
-      if (examDatesError) {
-        console.error('Error fetching exam dates:', examDatesError);
-        toast.error('Erro ao carregar datas de prova');
-      } else {
-        finalStudentData = { ...studentData, exam_dates: examDatesData };
-      }
-    }
-
-    setStudent(finalStudentData);
+    setStudent(data);
   };
 
   const fetchInterviewers = async () => {
@@ -453,14 +432,10 @@ const StudentProfile = () => {
                     <span className="font-medium">Data da Inscrição:</span>
                     <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
                   </div>
-                  {student.classes?.has_exam && student.exam_dates && student.exam_dates.length > 0 && (
+                  {student.classes?.has_exam && student.exam_date && (
                     <div>
                       <span className="font-medium">Data da Prova:</span>
-                      {student.exam_dates.map((exam, index) => (
-                        <p key={index}>
-                          {formatDateForDisplay(exam.exam_date)} às {exam.exam_time.substring(0, 5)}
-                        </p>
-                      ))}
+                      <p>{formatDateForDisplay(student.exam_date)}</p>
                     </div>
                   )}
                   {student.interview_date && (
