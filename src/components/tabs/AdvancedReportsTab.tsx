@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export const AdvancedReportsTab = () => {
     const [conversionRate, setConversionRate] = useState(0);
     const [averageDiscount, setAverageDiscount] = useState(0);
-    const [averageMonthlyFee, setAverageMonthlyFee] = useState(0); // ADICIONAR ESTA LINHA
+    const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
+    const [interviewerStats, setInterviewerStats] = useState<Array<{name: string, conversion: number, total: number, enrolled: number}>>([]);
 
     const fetchConversionRate = async () => {
         // Mock data for now, replace with actual Supabase fetch
@@ -117,10 +118,82 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    const fetchInterviewerConversion = async () => {
+        try {
+            // Buscar agendamentos para obter relação entrevistador-aluno
+            const { data: appointments, error } = await supabase
+                .from('appointments')
+                .select(`
+                    interviewer_id,
+                    student_id,
+                    profiles!appointments_interviewer_id_fkey (
+                        id,
+                        name
+                    ),
+                    students (
+                        id,
+                        status
+                    )
+                `);
+
+            if (error) {
+                console.error('Erro ao buscar dados de agendamentos:', error);
+                return;
+            }
+
+            if (!appointments || appointments.length === 0) {
+                setInterviewerStats([]);
+                return;
+            }
+
+            // Agrupar alunos por entrevistador
+            const interviewerMap = new Map();
+
+            appointments.forEach(appointment => {
+                const interviewerId = appointment.interviewer_id;
+                const interviewerName = appointment.profiles?.name || 'Entrevistador desconhecido';
+                const isEnrolled = appointment.students?.status === 'matriculado';
+
+                if (!interviewerMap.has(interviewerId)) {
+                    interviewerMap.set(interviewerId, {
+                        name: interviewerName,
+                        total: 0,
+                        enrolled: 0
+                    });
+                }
+
+                const stats = interviewerMap.get(interviewerId);
+                stats.total += 1;
+                if (isEnrolled) {
+                    stats.enrolled += 1;
+                }
+            });
+
+            // Calcular conversão e ordenar por taxa
+            const interviewerStats = Array.from(interviewerMap.values())
+                .map(stats => ({
+                    name: stats.name,
+                    total: stats.total,
+                    enrolled: stats.enrolled,
+                    conversion: stats.total > 0 ? (stats.enrolled / stats.total) * 100 : 0
+                }))
+                .filter(stats => stats.total >= 3) // Só mostrar entrevistadores com pelo menos 3 entrevistas
+                .sort((a, b) => b.conversion - a.conversion)
+                .slice(0, 5); // Top 5 entrevistadores
+
+            setInterviewerStats(interviewerStats);
+
+        } catch (error) {
+            console.error('Erro ao calcular conversão por entrevistador:', error);
+            setInterviewerStats([]);
+        }
+    };
+
     useEffect(() => {
         fetchConversionRate();
         fetchAverageDiscount();
-        fetchAverageMonthlyFee(); // ADICIONAR ESTA LINHA
+        fetchAverageMonthlyFee();
+        fetchInterviewerConversion();
     }, []);
   return (
     <div className="space-y-6">
@@ -177,18 +250,28 @@ export const AdvancedReportsTab = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="font-medium">Maria Silva</span>
-              <span className="text-green-600 font-semibold">85%</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="font-medium">João Santos</span>
-              <span className="text-green-600 font-semibold">78%</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="font-medium">Ana Costa</span>
-              <span className="text-green-600 font-semibold">72%</span>
-            </div>
+            {interviewerStats.length > 0 ? (
+              interviewerStats.map((interviewer, index) => (
+                <div key={interviewer.name} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{interviewer.name}</span>
+                    <span className="text-xs text-gray-500">
+                      {interviewer.enrolled}/{interviewer.total} alunos
+                    </span>
+                  </div>
+                  <span className={`font-semibold ${
+                    interviewer.conversion >= 70 ? 'text-green-600' : 
+                    interviewer.conversion >= 50 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {interviewer.conversion.toFixed(1)}%
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-4">
+                Nenhum dado de entrevistador disponível
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
