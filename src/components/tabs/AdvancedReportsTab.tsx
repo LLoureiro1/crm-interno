@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export const AdvancedReportsTab = () => {
     const [conversionRate, setConversionRate] = useState(0);
-    const [averageDiscount, setAverageDiscount] = useState(0); // ADICIONAR ESTA LINHA
+    const [averageDiscount, setAverageDiscount] = useState(0);
+    const [averageMonthlyFee, setAverageMonthlyFee] = useState(0); // ADICIONAR ESTA LINHA
 
     const fetchConversionRate = async () => {
         // Mock data for now, replace with actual Supabase fetch
@@ -64,9 +65,62 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    const fetchAverageMonthlyFee = async () => {
+        try {
+            // Buscar alunos matriculados com dados da turma
+            const { data: enrolledStudents, error } = await supabase
+                .from('students')
+                .select(`
+                    discount_percentage,
+                    classes (
+                        monthly_fee
+                    )
+                `)
+                .eq('status', 'matriculado');
+
+            if (error) {
+                console.error('Erro ao buscar dados de mensalidade:', error);
+                return;
+            }
+
+            if (!enrolledStudents || enrolledStudents.length === 0) {
+                setAverageMonthlyFee(0);
+                return;
+            }
+
+            // Calcular mensalidade média com desconto aplicado
+            let totalFeeWithDiscount = 0;
+            let validStudents = 0;
+
+            enrolledStudents.forEach(student => {
+                if (student.classes?.monthly_fee) {
+                    const originalFee = student.classes.monthly_fee;
+                    const discountPercentage = student.discount_percentage || 0;
+                    const discountMultiplier = 1 - (discountPercentage / 100);
+                    const finalFee = originalFee * discountMultiplier;
+                    
+                    totalFeeWithDiscount += finalFee;
+                    validStudents++;
+                }
+            });
+
+            if (validStudents > 0) {
+                const avgFee = totalFeeWithDiscount / validStudents;
+                setAverageMonthlyFee(avgFee);
+            } else {
+                setAverageMonthlyFee(0);
+            }
+
+        } catch (error) {
+            console.error('Erro ao calcular mensalidade média:', error);
+            setAverageMonthlyFee(0);
+        }
+    };
+
     useEffect(() => {
         fetchConversionRate();
-        fetchAverageDiscount(); // ADICIONAR ESTA LINHA
+        fetchAverageDiscount();
+        fetchAverageMonthlyFee(); // ADICIONAR ESTA LINHA
     }, []);
   return (
     <div className="space-y-6">
@@ -106,8 +160,12 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Valor médio após descontos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 450</div>
-            <p className="text-sm text-muted-foreground">+3% em relação ao período anterior</p>
+            <div className="text-2xl font-bold">
+              {averageMonthlyFee > 0 ? `R$ ${averageMonthlyFee.toFixed(0)}` : 'R$ 0'}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {averageMonthlyFee > 0 ? 'Valor após aplicação de descontos' : 'Nenhum aluno matriculado'}
+            </p>
           </CardContent>
         </Card>
       </div>
