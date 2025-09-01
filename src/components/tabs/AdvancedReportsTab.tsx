@@ -2,33 +2,120 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
 export const AdvancedReportsTab = () => {
     const [conversionRate, setConversionRate] = useState(0);
     const [averageDiscount, setAverageDiscount] = useState(0);
     const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
     const [interviewerStats, setInterviewerStats] = useState<Array<{name: string, conversion: number, total: number, enrolled: number}>>([]);
+    
+    // Estados dos filtros
+    const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
+    const [selectedClassId, setSelectedClassId] = useState<string>('all');
+    const [units, setUnits] = useState<Tables<'units'>[]>([]);
+    const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
+    const [filteredClasses, setFilteredClasses] = useState<Tables<'classes'>[]>([]);
 
-    const fetchConversionRate = async () => {
-        // Mock data for now, replace with actual Supabase fetch
-        const { count: totalStudents, error: totalError } = await supabase
-            .from('students')
-            .select('*', { count: 'exact', head: true });
-
-        const { count: enrolledStudents, error: enrolledError } = await supabase
-            .from('students')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'matriculado');
-
-        if (totalError || enrolledError) {
-            console.error('Error fetching student counts:', totalError || enrolledError);
+    // Funções para buscar dados de filtros
+    const fetchUnits = async () => {
+        const { data, error } = await supabase
+            .from('units')
+            .select('*')
+            .order('name');
+        
+        if (error) {
+            console.error('Erro ao buscar unidades:', error);
             return;
         }
+        
+        setUnits(data || []);
+    };
 
-        if ((totalStudents ?? 0) > 0) {
-            const rate = ((enrolledStudents ?? 0) / (totalStudents ?? 0)) * 100;
-            setConversionRate(rate);
+    const fetchClasses = async () => {
+        const { data, error } = await supabase
+            .from('classes')
+            .select(`
+                *,
+                units(name),
+                series(name)
+            `)
+            .order('name');
+        
+        if (error) {
+            console.error('Erro ao buscar turmas:', error);
+            return;
+        }
+        
+        setClasses(data || []);
+        setFilteredClasses(data || []);
+    };
+
+    // Filtrar turmas baseado na unidade selecionada
+    useEffect(() => {
+        if (selectedUnitId === 'all') {
+            setFilteredClasses(classes);
         } else {
+            setFilteredClasses(classes.filter(cls => cls.unit_id === selectedUnitId));
+        }
+        // Reset class selection when unit changes
+        if (selectedClassId !== 'all') {
+            setSelectedClassId('all');
+        }
+    }, [selectedUnitId, classes]);
+
+    // Função para aplicar filtros nas queries
+    const applyFilters = (query: any) => {
+        if (selectedUnitId !== 'all') {
+            query = query.eq('unit_id', selectedUnitId);
+        }
+        if (selectedClassId !== 'all') {
+            query = query.eq('class_id', selectedClassId);
+        }
+        return query;
+    };
+
+    const fetchConversionRate = async () => {
+        try {
+            // Query base para total de estudantes
+            let totalQuery = supabase
+                .from('students')
+                .select('*', { count: 'exact', head: true });
+            
+            // Query base para estudantes matriculados
+            let enrolledQuery = supabase
+                .from('students')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'matriculado');
+
+            // Aplicar filtros
+            totalQuery = applyFilters(totalQuery);
+            enrolledQuery = applyFilters(enrolledQuery);
+
+            const [totalResult, enrolledResult] = await Promise.all([
+                totalQuery,
+                enrolledQuery
+            ]);
+
+            if (totalResult.error || enrolledResult.error) {
+                console.error('Error fetching student counts:', totalResult.error || enrolledResult.error);
+                return;
+            }
+
+            const totalStudents = totalResult.count ?? 0;
+            const enrolledStudents = enrolledResult.count ?? 0;
+
+            if (totalStudents > 0) {
+                const rate = (enrolledStudents / totalStudents) * 100;
+                setConversionRate(rate);
+            } else {
+                setConversionRate(0);
+            }
+        } catch (error) {
+            console.error('Erro ao calcular taxa de conversão:', error);
             setConversionRate(0);
         }
     };
@@ -36,11 +123,16 @@ export const AdvancedReportsTab = () => {
     const fetchAverageDiscount = async () => {
         try {
             // Buscar todos os alunos matriculados com desconto
-            const { data: enrolledStudents, error } = await supabase
+            let query = supabase
                 .from('students')
                 .select('discount_percentage')
                 .eq('status', 'matriculado')
                 .not('discount_percentage', 'is', null);
+            
+            // Aplicar filtros
+            query = applyFilters(query);
+            
+            const { data: enrolledStudents, error } = await query;
 
             if (error) {
                 console.error('Erro ao buscar descontos:', error);
@@ -69,7 +161,7 @@ export const AdvancedReportsTab = () => {
     const fetchAverageMonthlyFee = async () => {
         try {
             // Buscar alunos matriculados com dados da turma
-            const { data: enrolledStudents, error } = await supabase
+            let query = supabase
                 .from('students')
                 .select(`
                     discount_percentage,
@@ -78,6 +170,11 @@ export const AdvancedReportsTab = () => {
                     )
                 `)
                 .eq('status', 'matriculado');
+            
+            // Aplicar filtros
+            query = applyFilters(query);
+            
+            const { data: enrolledStudents, error } = await query;
 
             if (error) {
                 console.error('Erro ao buscar dados de mensalidade:', error);
@@ -121,7 +218,7 @@ export const AdvancedReportsTab = () => {
     const fetchInterviewerConversion = async () => {
         try {
             // Buscar agendamentos para obter relação entrevistador-aluno
-            const { data: appointments, error } = await supabase
+            let query = supabase
                 .from('appointments')
                 .select(`
                     interviewer_id,
@@ -132,9 +229,13 @@ export const AdvancedReportsTab = () => {
                     ),
                     students (
                         id,
-                        status
+                        status,
+                        unit_id,
+                        class_id
                     )
                 `);
+
+            const { data: appointments, error } = await query;
 
             if (error) {
                 console.error('Erro ao buscar dados de agendamentos:', error);
@@ -146,10 +247,25 @@ export const AdvancedReportsTab = () => {
                 return;
             }
 
+            // Filtrar appointments baseado nos filtros selecionados
+            const filteredAppointments = appointments.filter(appointment => {
+                if (!appointment.students) return false;
+                
+                if (selectedUnitId !== 'all' && appointment.students.unit_id !== selectedUnitId) {
+                    return false;
+                }
+                
+                if (selectedClassId !== 'all' && appointment.students.class_id !== selectedClassId) {
+                    return false;
+                }
+                
+                return true;
+            });
+
             // Agrupar alunos por entrevistador
             const interviewerMap = new Map();
 
-            appointments.forEach(appointment => {
+            filteredAppointments.forEach(appointment => {
                 const interviewerId = appointment.interviewer_id;
                 const interviewerName = appointment.profiles?.name || 'Entrevistador desconhecido';
                 const isEnrolled = appointment.students?.status === 'matriculado';
@@ -189,18 +305,92 @@ export const AdvancedReportsTab = () => {
         }
     };
 
-    useEffect(() => {
+    // Função para buscar todos os dados
+    const fetchAllData = () => {
         fetchConversionRate();
         fetchAverageDiscount();
         fetchAverageMonthlyFee();
         fetchInterviewerConversion();
+    };
+
+    // Effect inicial para buscar dados básicos
+    useEffect(() => {
+        fetchUnits();
+        fetchClasses();
     }, []);
+
+    // Effect para atualizar dados quando filtros mudarem
+    useEffect(() => {
+        if (units.length > 0 && classes.length > 0) {
+            fetchAllData();
+        }
+    }, [selectedUnitId, selectedClassId, units.length, classes.length]);
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Relatórios Avançados</h2>
         <p className="text-gray-600">Análises detalhadas para direção e administradores</p>
       </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+          <CardDescription>Selecione unidade e/ou turma para análise específica</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Unidade
+              </label>
+              <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as unidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as unidades</SelectItem>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Turma
+              </label>
+              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as turmas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as turmas</SelectItem>
+                  {filteredClasses.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name} - {(cls as any).series?.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Button 
+                onClick={fetchAllData} 
+                variant="outline" 
+                className="w-full"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
