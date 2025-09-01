@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export const AdvancedReportsTab = () => {
     const [conversionRate, setConversionRate] = useState(0);
+    const [averageDiscount, setAverageDiscount] = useState(0); // ADICIONAR ESTA LINHA
 
     const fetchConversionRate = async () => {
         // Mock data for now, replace with actual Supabase fetch
@@ -30,8 +31,42 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    const fetchAverageDiscount = async () => {
+        try {
+            // Buscar todos os alunos matriculados com desconto
+            const { data: enrolledStudents, error } = await supabase
+                .from('students')
+                .select('discount_percentage')
+                .eq('status', 'matriculado')
+                .not('discount_percentage', 'is', null);
+
+            if (error) {
+                console.error('Erro ao buscar descontos:', error);
+                return;
+            }
+
+            if (!enrolledStudents || enrolledStudents.length === 0) {
+                setAverageDiscount(0);
+                return;
+            }
+
+            // Calcular média dos descontos
+            const totalDiscount = enrolledStudents.reduce((sum, student) => {
+                return sum + (student.discount_percentage || 0);
+            }, 0);
+
+            const avgDiscount = totalDiscount / enrolledStudents.length;
+            setAverageDiscount(avgDiscount);
+
+        } catch (error) {
+            console.error('Erro ao calcular desconto médio:', error);
+            setAverageDiscount(0);
+        }
+    };
+
     useEffect(() => {
         fetchConversionRate();
+        fetchAverageDiscount(); // ADICIONAR ESTA LINHA
     }, []);
   return (
     <div className="space-y-6">
@@ -58,8 +93,10 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Percentual médio de desconto concedido</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12.5%</div>
-            <p className="text-sm text-muted-foreground">Dentro da meta estabelecida</p>
+            <div className="text-2xl font-bold">{averageDiscount.toFixed(1)}%</div>
+            <p className="text-sm text-muted-foreground">
+              {averageDiscount > 0 ? 'Baseado em alunos matriculados' : 'Nenhum desconto aplicado'}
+            </p>
           </CardContent>
         </Card>
 
