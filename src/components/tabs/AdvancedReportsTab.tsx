@@ -83,7 +83,7 @@ export const AdvancedReportsTab = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{conversionRate.toFixed(2)}%</div>
-            <p className="text-sm text-muted-foreground">+4,65% em relação ao mês anterior</p>
+            <p className="text-sm text-muted-foreground">Conversão de referência: 25%</p>
           </CardContent>
         </Card>
 
