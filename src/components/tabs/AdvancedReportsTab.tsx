@@ -433,6 +433,42 @@ export const AdvancedReportsTab = () => {
         </Card>
       </div>
 
+      {/* Seção de Estatísticas de Entrevistas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Entrevistas Marcadas</CardTitle>
+            <CardDescription>Alunos com data de entrevista definida</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-sm text-muted-foreground">Campo interview_date preenchido</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Entrevistas Realizadas</CardTitle>
+            <CardDescription>Alunos com desconto/atendimento registrado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-sm text-muted-foreground">Campo discount_percentage preenchido</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Taxa de Realização</CardTitle>
+            <CardDescription>Percentual de entrevistas efetivadas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0%</div>
+            <p className="text-sm text-muted-foreground">Realizadas ÷ Marcadas</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Conversão por Entrevistador</CardTitle>
