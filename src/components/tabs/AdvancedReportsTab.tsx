@@ -222,13 +222,13 @@ export const AdvancedReportsTab = () => {
 
     const fetchInterviewerConversion = async () => {
         try {
-            // Buscar agendamentos para obter relação entrevistador-aluno
-            let query = supabase
-                .from('appointments')
+            // Buscar interações de atendimento para contar o total real de atendimentos por entrevistador
+            let interactionsQuery = supabase
+                .from('student_interactions')
                 .select(`
-                    interviewer_id,
+                    user_id,
                     student_id,
-                    profiles!appointments_interviewer_id_fkey (
+                    profiles!student_interactions_user_id_fkey (
                         id,
                         name
                     ),
@@ -238,55 +238,60 @@ export const AdvancedReportsTab = () => {
                         unit_id,
                         class_id
                     )
-                `);
+                `)
+                .eq('interaction_type', 'atendimento');
 
-            const { data: appointments, error } = await query;
+            const { data: interactions, error: interactionsError } = await interactionsQuery;
 
-            if (error) {
-                console.error('Erro ao buscar dados de agendamentos:', error);
+            if (interactionsError) {
+                console.error('Erro ao buscar dados de interações:', interactionsError);
                 return;
             }
 
-            if (!appointments || appointments.length === 0) {
+            if (!interactions || interactions.length === 0) {
                 setInterviewerStats([]);
                 return;
             }
 
-            // Filtrar appointments baseado nos filtros selecionados
-            const filteredAppointments = appointments.filter(appointment => {
-                if (!appointment.students) return false;
+            // Filtrar interações baseado nos filtros selecionados
+            const filteredInteractions = interactions.filter(interaction => {
+                if (!interaction.students) return false;
                 
-                if (selectedUnitId !== 'all' && appointment.students.unit_id !== selectedUnitId) {
+                if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
                     return false;
                 }
                 
-                if (selectedClassId !== 'all' && appointment.students.class_id !== selectedClassId) {
+                if (selectedClassId !== 'all' && interaction.students.class_id !== selectedClassId) {
                     return false;
                 }
                 
                 return true;
             });
 
-            // Agrupar alunos por entrevistador
+            // Agrupar alunos por entrevistador baseado em student_interactions
             const interviewerMap = new Map();
 
-            filteredAppointments.forEach(appointment => {
-                const interviewerId = appointment.interviewer_id;
-                const interviewerName = appointment.profiles?.name || 'Entrevistador desconhecido';
-                const isEnrolled = appointment.students?.status === 'matriculado';
+            filteredInteractions.forEach(interaction => {
+                const interviewerId = interaction.user_id; // user_id da interação
+                const interviewerName = interaction.profiles?.name || 'Entrevistador desconhecido';
+                const studentId = interaction.student_id;
+                const isEnrolled = interaction.students?.status === 'matriculado';
 
                 if (!interviewerMap.has(interviewerId)) {
                     interviewerMap.set(interviewerId, {
                         name: interviewerName,
-                        total: 0,
-                        enrolled: 0
+                        total: 0, // Total de atendimentos reais (baseado em student_interactions)
+                        enrolledStudents: new Set(), // Set para alunos únicos matriculados
+                        totalStudents: new Set() // Set para alunos únicos atendidos
                     });
                 }
 
                 const stats = interviewerMap.get(interviewerId);
-                stats.total += 1;
+                stats.total += 1; // Conta cada interação de atendimento
+                stats.totalStudents.add(studentId); // Adiciona aluno único ao total
+                
                 if (isEnrolled) {
-                    stats.enrolled += 1;
+                    stats.enrolledStudents.add(studentId); // Adiciona aluno único matriculado
                 }
             });
 
@@ -294,11 +299,11 @@ export const AdvancedReportsTab = () => {
             const interviewerStats = Array.from(interviewerMap.values())
                 .map(stats => ({
                     name: stats.name,
-                    total: stats.total,
-                    enrolled: stats.enrolled,
-                    conversion: stats.total > 0 ? (stats.enrolled / stats.total) * 100 : 0
+                    total: stats.total, // Total de atendimentos reais
+                    enrolled: stats.enrolledStudents.size, // Total de alunos únicos matriculados
+                    conversion: stats.totalStudents.size > 0 ? (stats.enrolledStudents.size / stats.totalStudents.size) * 100 : 0
                 }))
-                .filter(stats => stats.total >= 3) // Só mostrar entrevistadores com pelo menos 3 entrevistas
+                .filter(stats => stats.total >= 3) // Só mostrar entrevistadores com pelo menos 3 atendimentos
                 .sort((a, b) => b.conversion - a.conversion)
                 .slice(0, 5); // Top 5 entrevistadores
 
