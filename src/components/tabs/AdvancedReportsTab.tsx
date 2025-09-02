@@ -20,6 +20,11 @@ export const AdvancedReportsTab = () => {
     const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
     const [filteredClasses, setFilteredClasses] = useState<Tables<'classes'>[]>([]);
 
+    // Estados para estatísticas de entrevistas
+    const [scheduledInterviews, setScheduledInterviews] = useState(0);
+    const [completedInterviews, setCompletedInterviews] = useState(0);
+    const [interviewCompletionRate, setInterviewCompletionRate] = useState(0);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -305,12 +310,88 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    const fetchInterviewStats = async () => {
+        try {
+            // Buscar entrevistas marcadas (alunos com interview_date)
+            let scheduledQuery = supabase
+                .from('students')
+                .select('*', { count: 'exact', head: true })
+                .not('interview_date', 'is', null);
+            
+            // Buscar entrevistas realizadas através de student_interactions
+            // Contar alunos únicos que tiveram interação do tipo "atendimento"
+            let completedQuery = supabase
+                .from('student_interactions')
+                .select('student_id')
+                .eq('interaction_type', 'atendimento');
+            
+            // Aplicar filtros para entrevistas marcadas
+            scheduledQuery = applyFilters(scheduledQuery);
+
+            const [scheduledResult, completedResult] = await Promise.all([
+                scheduledQuery,
+                completedQuery
+            ]);
+
+            if (scheduledResult.error || completedResult.error) {
+                console.error('Erro ao buscar estatísticas de entrevistas:', scheduledResult.error || completedResult.error);
+                return;
+            }
+
+            const scheduled = scheduledResult.count ?? 0;
+            
+            // Para entrevistas realizadas, precisamos aplicar filtros adicionais
+            // pois student_interactions não tem unit_id/class_id diretamente
+            let completedCount = 0;
+            
+            if (completedResult.data && completedResult.data.length > 0) {
+                // Se há filtros aplicados, precisamos verificar se os alunos das interações
+                // pertencem às unidades/turmas selecionadas
+                if (selectedUnitId !== 'all' || selectedClassId !== 'all') {
+                    const studentIds = [...new Set(completedResult.data.map(item => item.student_id))];
+                    
+                    let studentsQuery = supabase
+                        .from('students')
+                        .select('id, unit_id, class_id')
+                        .in('id', studentIds);
+                    
+                    studentsQuery = applyFilters(studentsQuery);
+                    
+                    const { data: filteredStudents, error: studentsError } = await studentsQuery;
+                    
+                    if (studentsError) {
+                        console.error('Erro ao filtrar alunos das interações:', studentsError);
+                        completedCount = 0;
+                    } else {
+                        completedCount = filteredStudents?.length || 0;
+                    }
+                } else {
+                    // Sem filtros, contar alunos únicos das interações
+                    completedCount = new Set(completedResult.data.map(item => item.student_id)).size;
+                }
+            }
+
+            const rate = scheduled > 0 ? (completedCount / scheduled) * 100 : 0;
+
+            setScheduledInterviews(scheduled);
+            setCompletedInterviews(completedCount);
+            setInterviewCompletionRate(rate);
+
+        } catch (error) {
+            console.error('Erro ao calcular estatísticas de entrevistas:', error);
+            setScheduledInterviews(0);
+            setCompletedInterviews(0);
+            setInterviewCompletionRate(0);
+        }
+    };
+
     // Função para buscar todos os dados
     const fetchAllData = () => {
         fetchConversionRate();
         fetchAverageDiscount();
         fetchAverageMonthlyFee();
         fetchInterviewerConversion();
+        fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
     };
 
     // Effect inicial para buscar dados básicos
@@ -441,7 +522,7 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Alunos com data de entrevista definida</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{scheduledInterviews}</div>
             <p className="text-sm text-muted-foreground">Campo interview_date preenchido</p>
           </CardContent>
         </Card>
@@ -452,7 +533,7 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Alunos com desconto/atendimento registrado</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{completedInterviews}</div>
             <p className="text-sm text-muted-foreground">Campo discount_percentage preenchido</p>
           </CardContent>
         </Card>
@@ -463,7 +544,7 @@ export const AdvancedReportsTab = () => {
             <CardDescription>Percentual de entrevistas efetivadas</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0%</div>
+            <div className="text-2xl font-bold">{interviewCompletionRate.toFixed(1)}%</div>
             <p className="text-sm text-muted-foreground">Realizadas ÷ Marcadas</p>
           </CardContent>
         </Card>
