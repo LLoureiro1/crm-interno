@@ -440,8 +440,21 @@ const StudentProfile = () => {
     }
 
     try {
-      // Corrigido: o campo correto é 'exam_date_id', não 'exam_date'
+      const selectedExamDate = availableExamDates.find(ed => ed.id === selectedExamDateId);
+      const newExamDate = selectedExamDate?.exam_date;
+      const currentExamDate = student.exam_date;
+      
+      // Verificar se a nova data é posterior à data atual
+      const isNewDateLater = newExamDate && currentExamDate && new Date(newExamDate) > new Date(currentExamDate);
+      
+      // Preparar dados para atualização
       const updateData: any = { exam_date_id: selectedExamDateId };
+      
+      // Se o aluno está ausente e a nova data é posterior, alterar status para não confirmado
+      if (student.status === 'ausente' && isNewDateLater) {
+        updateData.status = 'nao_confirmado';
+      }
+
       const { error } = await supabase
         .from('students')
         .update(updateData)
@@ -450,17 +463,27 @@ const StudentProfile = () => {
       if (error) throw error;
 
       // Adicionar interação
-      const selectedExamDate = availableExamDates.find(ed => ed.id === selectedExamDateId);
+      let interactionComment = `Data da prova alterada para ${formatDateForDisplay(selectedExamDate?.exam_date || '')} às ${selectedExamDate?.exam_time.substring(0, 5) || ''}`;
+      
+      // Adicionar informação sobre mudança de status se aplicável
+      if (student.status === 'ausente' && isNewDateLater) {
+        interactionComment += '. Status automaticamente alterado de "Ausente" para "Não Confirmado" devido à nova data ser posterior.';
+      }
+
       await supabase
         .from('student_interactions')
         .insert({
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_data_prova',
-          comments: `Data da prova alterada para ${formatDateForDisplay(selectedExamDate?.exam_date || '')} às ${selectedExamDate?.exam_time.substring(0, 5) || ''}`
+          comments: interactionComment
         });
 
-      toast.success('Data da prova alterada com sucesso!');
+      const successMessage = student.status === 'ausente' && isNewDateLater 
+        ? 'Data da prova alterada com sucesso! Status automaticamente alterado para "Não Confirmado".'
+        : 'Data da prova alterada com sucesso!';
+        
+      toast.success(successMessage);
       setShowExamDateEditor(false);
       fetchStudent();
       fetchInteractions();
