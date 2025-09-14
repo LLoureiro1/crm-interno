@@ -3,7 +3,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
 import { formatDate } from '@/utils/registrationFormatters';
-import { sanitizeName } from '@/utils/sanitization';
 
 interface StudentDataSectionProps {
   formData: RegistrationFormData;
@@ -28,7 +27,7 @@ export const StudentDataSection = ({ formData, fieldErrors, onInputChange }: Stu
         <Input
           id="studentName"
           value={formData.studentName}
-          onChange={(e) => onInputChange('studentName', sanitizeName(e.target.value))}
+          onChange={(e) => onInputChange('studentName', e.target.value)}
           placeholder="Digite o nome completo do aluno"
           className={fieldErrors.studentName ? 'border-red-500 focus:border-red-500' : ''}
           required

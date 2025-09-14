@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
 import { formatPhone } from '@/utils/registrationFormatters';
-import { sanitizeName, sanitizeEmail, sanitizePhone } from '@/utils/sanitization';
+import { sanitizeEmail, sanitizePhone } from '@/utils/sanitization';
 
 interface ResponsibleDataSectionProps {
   formData: RegistrationFormData;
@@ -28,7 +28,7 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange }:
         <Input
           id="responsibleName"
           value={formData.responsibleName}
-          onChange={(e) => onInputChange('responsibleName', sanitizeName(e.target.value))}
+          onChange={(e) => onInputChange('responsibleName', e.target.value)}
           placeholder="Digite o nome completo do responsável"
           className={fieldErrors.responsibleName ? 'border-red-500 focus:border-red-500' : ''}
           required
