@@ -211,7 +211,7 @@ export const ReportsTab = () => {
   const statusLabels: { [key: string]: string } = {
     'nao_confirmado': 'Não Confirmado',
     'confirmado': 'Confirmado',
-    'presente': 'Presente',
+    'cadastro_invalido': 'Cadastro Inválido',
     'nenhum_agendamento': 'Nenhum Agendamento',
     'atendimento_agendado': 'Atendimento Agendado',
     'atendimento_recentemente': 'Atendimento Recente',

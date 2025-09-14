@@ -177,7 +177,7 @@ export const StudentsTab = () => {
     const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
       'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
-      'presente': { label: 'Presente', variant: 'default' },
+      'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'default' },
       'matriculado': { label: 'Matriculado', variant: 'success' },
       'desistente': { label: 'Desistente', variant: 'destructive' },
       'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
@@ -276,7 +276,7 @@ export const StudentsTab = () => {
               options={[
                 { value: 'nao_confirmado', label: 'Não Confirmado' },
                 { value: 'confirmado', label: 'Confirmado' },
-                { value: 'presente', label: 'Presente' },
+                { value: 'cadastro_invalido', label: 'Cadastro Inválido' },
                 { value: 'matriculado', label: 'Matriculado' },
                 { value: 'desistente', label: 'Desistente' },
                 { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },

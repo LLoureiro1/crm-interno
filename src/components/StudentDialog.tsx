@@ -133,7 +133,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
-        'presente': { label: 'Presente', variant: 'default' },
+        'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'default' },
         'matriculado': { label: 'Matriculado', variant: 'success' },
         'desistente': { label: 'Desistente', variant: 'destructive' },
         'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
@@ -279,7 +279,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <SelectContent>
                       <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
                       <SelectItem value="confirmado">Confirmado</SelectItem>
-                      <SelectItem value="presente">Presente</SelectItem>
+                      <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
                       <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
                       <SelectItem value="atendimento_agendado">Atendimento Agendado</SelectItem>
                       <SelectItem value="faltou_ao_atendimento">Faltou ao Atendimento</SelectItem>

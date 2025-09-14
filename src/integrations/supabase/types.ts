@@ -482,7 +482,7 @@ export type Database = {
       student_status:
         | "nao_confirmado"
         | "confirmado"
-        | "presente"
+        | "cadastro_invalido"
         | "nenhum_agendamento"
         | "atendimento_agendado"
         | "atendimento_recentemente"
@@ -637,7 +637,7 @@ export const Constants = {
       student_status: [
         "nao_confirmado",
         "confirmado",
-        "presente",
+        "cadastro_invalido",
         "nenhum_agendamento",
         "atendimento_agendado",
         "atendimento_recentemente",
