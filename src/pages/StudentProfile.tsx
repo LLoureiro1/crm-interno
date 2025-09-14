@@ -441,7 +441,7 @@ const StudentProfile = () => {
 
     try {
       // Corrigido: o campo correto é 'exam_date', não 'exam_date_id'
-      const updateData: any = { exam_date: selectedExamDateId };
+      const updateData: any = { exam_date_id: selectedExamDateId };
       const { error } = await supabase
         .from('students')
         .update(updateData)
