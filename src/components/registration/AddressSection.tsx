@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
+import { sanitizePlainText } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
 type City = Tables<'cities'>;
@@ -59,7 +60,7 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
         <Input
           id="neighborhood"
           value={formData.neighborhood}
-          onChange={(e) => onInputChange('neighborhood', e.target.value)}
+          onChange={(e) => onInputChange('neighborhood', sanitizePlainText(e.target.value))}
           placeholder="Digite o bairro"
           className={fieldErrors.neighborhood ? 'border-red-500 focus:border-red-500' : ''}
           required

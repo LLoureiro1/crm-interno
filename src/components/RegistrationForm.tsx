@@ -11,6 +11,7 @@ import { AddressSection } from './registration/AddressSection';
 import { AcademicDataSection } from './registration/AcademicDataSection';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
+import { sanitizeRegistrationData } from '@/utils/sanitization';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -86,7 +87,10 @@ export const RegistrationForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const errors = validateForm(formData);
+    // Sanitizar dados do formulário antes da validação
+    const sanitizedFormData = sanitizeRegistrationData(formData);
+    
+    const errors = validateForm(sanitizedFormData);
     setFieldErrors(errors);
     
     if (Object.keys(errors).length > 0) {
@@ -97,19 +101,19 @@ export const RegistrationForm = () => {
     setLoading(true);
 
     try {
-      const selectedClass = availableClasses.find(cls => cls.id === formData.classId);
+      const selectedClass = availableClasses.find(cls => cls.id === sanitizedFormData.classId);
       
       const studentData = {
-        student_name: formData.studentName,
-        responsible_name: formData.responsibleName,
-        birth_date: convertDateToISO(formData.birthDate),
-        phone: formData.phone,
-        email: formData.email,
-        city: formData.cityName,
-        neighborhood: formData.neighborhood,
-        origin_school: formData.originSchool,
-        class_id: formData.classId,
-        unit_id: formData.unitId,
+        student_name: sanitizedFormData.studentName,
+        responsible_name: sanitizedFormData.responsibleName,
+        birth_date: convertDateToISO(sanitizedFormData.birthDate),
+        phone: sanitizedFormData.phone,
+        email: sanitizedFormData.email,
+        city: sanitizedFormData.cityName,
+        neighborhood: sanitizedFormData.neighborhood,
+        origin_school: sanitizedFormData.originSchool,
+        class_id: sanitizedFormData.classId,
+        unit_id: sanitizedFormData.unitId,
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 

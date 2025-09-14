@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { sanitizeInteractionComment, sanitizeInput } from '@/utils/sanitization';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,9 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       return;
     }
 
+    // Sanitizar o comentário antes de salvar
+    const sanitizedComment = sanitizeInput(comments.trim());
+
     try {
       const { error } = await supabase
         .from('student_interactions')
@@ -73,7 +77,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'comentario',
-          comments: comments.trim()
+          comments: sanitizedComment
         });
 
       if (error) throw error;
@@ -355,7 +359,12 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                             {new Date(interaction.created_at).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700">{interaction.comments}</p>
+                        <p 
+                          className="text-sm text-gray-700"
+                          dangerouslySetInnerHTML={{ 
+                            __html: sanitizeInteractionComment(interaction.comments || '') 
+                          }}
+                        />
                         <Badge variant="outline" className="mt-1 text-xs">
                           {interaction.interaction_type}
                         </Badge>

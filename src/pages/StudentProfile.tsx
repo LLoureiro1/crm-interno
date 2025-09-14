@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatDateForDisplay } from '@/utils/dateUtils';
+import { sanitizeInteractionComment, sanitizeInput } from '@/utils/sanitization';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -325,6 +326,9 @@ const StudentProfile = () => {
       return;
     }
 
+    // Sanitizar o comentário antes de salvar
+    const sanitizedComment = sanitizeInput(comments.trim());
+
     try {
       const { error } = await supabase
         .from('student_interactions')
@@ -332,7 +336,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'comentario',
-          comments: comments.trim()
+          comments: sanitizedComment
         });
 
       if (error) throw error;
@@ -984,7 +988,12 @@ const StudentProfile = () => {
                             {new Date(interaction.created_at).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700">{interaction.comments}</p>
+                        <p 
+                          className="text-sm text-gray-700"
+                          dangerouslySetInnerHTML={{ 
+                            __html: sanitizeInteractionComment(interaction.comments || '') 
+                          }}
+                        />
                         <Badge variant="outline" className="mt-1 text-xs">
                           {interaction.interaction_type}
                         </Badge>

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { sanitizeName, sanitizeEmail } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'> & {
@@ -149,7 +150,7 @@ export const UserManagement = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: sanitizeName(e.target.value) }))}
                   required
                 />
               </div>
@@ -159,7 +160,7 @@ export const UserManagement = () => {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: sanitizeEmail(e.target.value) }))}
                   required
                 />
               </div>

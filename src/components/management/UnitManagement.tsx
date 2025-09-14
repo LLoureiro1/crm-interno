@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { sanitizePlainText, sanitizePhone } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'> & {
@@ -155,7 +156,7 @@ export const UnitManagement = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: sanitizePlainText(e.target.value) }))}
                   required
                 />
               </div>
@@ -164,7 +165,7 @@ export const UnitManagement = () => {
                 <Input
                   id="address"
                   value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: sanitizePlainText(e.target.value) }))}
                   required
                 />
               </div>
@@ -173,7 +174,7 @@ export const UnitManagement = () => {
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: sanitizePhone(e.target.value) }))}
                   required
                 />
               </div>
