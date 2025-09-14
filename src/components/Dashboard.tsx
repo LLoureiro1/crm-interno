@@ -18,7 +18,7 @@ export const Dashboard = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Bem-vindo ao CRM Educacional</p>
+        <p className="text-gray-600">Bem-vindo ao Laurel Escolar</p>
       </div>
 
       <Tabs defaultValue="reports" className="space-y-4">

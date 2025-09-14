@@ -33,7 +33,7 @@ export const LoginForm = () => {
     <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">CRM Educacional</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900">Laurel Escolar</CardTitle>
           <CardDescription>Faça login para acessar o sistema</CardDescription>
         </CardHeader>
         <CardContent>
