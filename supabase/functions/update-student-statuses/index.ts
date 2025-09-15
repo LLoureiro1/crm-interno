@@ -84,7 +84,85 @@ serve(async (req) => {
       totalUpdates += studentsForAbsent.length
     }
 
-    // Rule 2: Mark students as "atendimento_ha_mais_de_uma_semana" if interview was more than 7 days ago
+    // Rule 2: Mark students as "faltou_ao_atendimento" if interview date has passed and no "realizado" appointment
+    const { data: studentsForMissedInterview, error: fetchMissedInterviewError } = await supabaseClient
+      .from('students')
+      .select(`
+        id, 
+        student_name, 
+        interview_date,
+        status
+      `)
+      .not('interview_date', 'is', null)
+      .lt('interview_date', todayStr)
+      .in('status', ['atendimento_agendado', 'confirmado'])
+
+    if (fetchMissedInterviewError) {
+      console.error('Error fetching students for missed interview status:', fetchMissedInterviewError)
+      throw fetchMissedInterviewError
+    }
+
+    let studentsToUpdate = []
+    if (studentsForMissedInterview && studentsForMissedInterview.length > 0) {
+      console.log(`Found ${studentsForMissedInterview.length} students to check for missed interviews`)
+
+      // Verificar quais alunos não têm appointment com status "realizado"
+      for (const student of studentsForMissedInterview) {
+        // Buscar appointments para este aluno na data da entrevista
+        const { data: appointments, error: appointmentError } = await supabaseClient
+          .from('appointments')
+          .select('id, status, appointment_date')
+          .eq('student_id', student.id)
+          .eq('appointment_date', student.interview_date)
+
+        if (appointmentError) {
+          console.error(`Error fetching appointments for student ${student.id}:`, appointmentError)
+          continue
+        }
+
+        // Se não há appointment ou nenhum tem status "realizado", marcar como faltou
+        const hasRealizedAppointment = appointments?.some(apt => apt.status === 'realizado')
+        
+        if (!hasRealizedAppointment) {
+          studentsToUpdate.push(student)
+        }
+      }
+
+      if (studentsToUpdate.length > 0) {
+        console.log(`Found ${studentsToUpdate.length} students to mark as missed interview`)
+
+        const { error: updateMissedError } = await supabaseClient
+          .from('students')
+          .update({ status: 'faltou_ao_atendimento' })
+          .in('id', studentsToUpdate.map(s => s.id))
+
+        if (updateMissedError) {
+          console.error('Error updating students to missed interview:', updateMissedError)
+          throw updateMissedError
+        }
+
+        // Add interaction records for missed interview students
+        const missedInterviewInteractions = studentsToUpdate.map(student => ({
+          student_id: student.id,
+          interaction_type: 'mudanca_status',
+          comments: `Status automaticamente alterado para "Faltou ao Atendimento" - entrevista agendada para ${new Date(student.interview_date).toLocaleDateString('pt-BR')} não foi registrada como realizada.`
+        }))
+
+        const { error: interactionMissedError } = await supabaseClient
+          .from('student_interactions')
+          .insert(missedInterviewInteractions)
+
+        if (interactionMissedError) {
+          console.error('Error inserting missed interview interactions:', interactionMissedError)
+        } else {
+          totalInteractions += missedInterviewInteractions.length
+        }
+
+        totalUpdates += studentsToUpdate.length
+      }
+    }
+
+    // Rule 3: Mark students as "atendimento_ha_mais_de_uma_semana" if interview was more than 7 days ago
     const { data: studentsForWeekOld, error: fetchWeekOldError } = await supabaseClient
       .from('students')
       .select('id, student_name, interview_date')
@@ -142,6 +220,7 @@ serve(async (req) => {
         interactions_added: totalInteractions,
         rules_applied: {
           absent: studentsForAbsent?.length || 0,
+          missed_interview: studentsToUpdate?.length || 0,
           week_old_interview: studentsForWeekOld?.length || 0
         }
       }),
