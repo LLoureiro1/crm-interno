@@ -381,7 +381,7 @@ export const StudentsTab = () => {
                       onClick={() => handleOpenStudentPage(student.id)}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
-                      Abrir Página
+                      Gerenciar Aluno
                     </Button>
                   </div>
                 </div>
