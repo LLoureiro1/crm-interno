@@ -27,7 +27,8 @@ export const UserManagement = () => {
     name: '',
     email: '',
     profile: 'padrao' as Tables<'profiles'>['profile'],
-    unit_id: ''
+    unit_id: '',
+    temporaryPassword: ''
   });
 
   useEffect(() => {
@@ -68,6 +69,13 @@ export const UserManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação para criação de usuário
+    if (!editingUser && (!formData.temporaryPassword || formData.temporaryPassword.length < 6)) {
+      toast.error('A senha temporária deve ter pelo menos 6 caracteres');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -85,7 +93,34 @@ export const UserManagement = () => {
         if (error) throw error;
         toast.success('Usuário atualizado com sucesso!');
       } else {
-        toast.info('Funcionalidade de criação de usuário em desenvolvimento');
+        // Criar novo usuário com convite por email
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: formData.email,
+          password: formData.temporaryPassword,
+          email_confirm: true,
+          user_metadata: {
+            name: formData.name,
+            profile: formData.profile,
+            unit_id: formData.unit_id || null
+          }
+        });
+
+        if (authError) throw authError;
+
+        // Criar perfil na tabela profiles
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name: formData.name,
+            email: formData.email,
+            profile: formData.profile,
+            unit_id: formData.unit_id || null
+          });
+
+        if (profileError) throw profileError;
+
+        toast.success('Usuário criado com sucesso! Convite enviado por email.');
       }
 
       setDialogOpen(false);
@@ -105,7 +140,8 @@ export const UserManagement = () => {
       name: user.name,
       email: user.email,
       profile: user.profile,
-      unit_id: user.unit_id || ''
+      unit_id: user.unit_id || '',
+      temporaryPassword: '' // Não preencher senha ao editar
     });
     setDialogOpen(true);
   };
@@ -115,7 +151,8 @@ export const UserManagement = () => {
       name: '',
       email: '',
       profile: 'padrao',
-      unit_id: ''
+      unit_id: '',
+      temporaryPassword: ''
     });
     setEditingUser(null);
   };
@@ -164,6 +201,22 @@ export const UserManagement = () => {
                   required
                 />
               </div>
+              {!editingUser && (
+                <div>
+                  <Label htmlFor="temporaryPassword">Senha Temporária *</Label>
+                  <Input
+                    id="temporaryPassword"
+                    type="password"
+                    value={formData.temporaryPassword}
+                    onChange={(e) => setFormData(prev => ({ ...prev, temporaryPassword: e.target.value }))}
+                    placeholder="Senha temporária para o usuário"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    O usuário receberá um convite por email e poderá alterar esta senha no primeiro login.
+                  </p>
+                </div>
+              )}
               <div>
                 <Label htmlFor="profile">Perfil *</Label>
                 <Select value={formData.profile} onValueChange={(value: any) => setFormData(prev => ({ ...prev, profile: value }))}>
