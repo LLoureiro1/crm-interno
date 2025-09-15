@@ -217,6 +217,7 @@ export const ReportsTab = () => {
     'atendimento_recentemente': 'Atendimento Recente',
     'atendimento_ha_mais_de_uma_semana': 'Atendimento há mais de uma semana',
     'faltou_ao_atendimento': 'Faltou ao Atendimento',
+    'ausente': 'Ausente',
     'desistente': 'Desistente',
     'matriculado': 'Matriculado'
   };
