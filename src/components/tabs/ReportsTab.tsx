@@ -335,12 +335,31 @@ export const ReportsTab = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {Object.entries(reportData.statusCounts).map(([status, count]) => (
-              <div key={status} className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-lg font-semibold text-gray-900">{count}</div>
-                <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
-              </div>
-            ))}
+            {(() => {
+              // Definir a ordem específica dos status
+              const statusOrder = [
+                'nao_confirmado',
+                'confirmado', 
+                'ausente',
+                'nenhum_agendamento',
+                'atendimento_agendado',
+                'faltou_ao_atendimento',
+                'atendimento_recentemente',
+                'atendimento_ha_mais_de_uma_semana',
+                'desistente',
+                'matriculado'
+              ];
+
+              // Filtrar apenas os status que existem nos dados e ordenar conforme a ordem definida
+              return statusOrder
+                .filter(status => reportData.statusCounts[status] !== undefined)
+                .map(status => (
+                  <div key={status} className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
+                    <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
+                  </div>
+                ));
+            })()}
           </div>
         </CardContent>
       </Card>
