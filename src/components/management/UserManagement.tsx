@@ -180,12 +180,12 @@ export const UserManagement = () => {
               </div>
               <div>
                 <Label htmlFor="unit">Unidade</Label>
-                <Select value={formData.unit_id} onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}>
+                <Select value={formData.unit_id} onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value === "none" ? "" : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a unidade (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma unidade</SelectItem>
+                    <SelectItem value="none">Nenhuma unidade</SelectItem>
                     {units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name}
