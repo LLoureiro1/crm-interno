@@ -128,7 +128,7 @@ export const RegistrationForm = () => {
       toast.success('Inscrição realizada com sucesso!');
       
       // Redirecionar para a tela de confirmação
-      navigate('/confirmation', {
+      navigate('/confirmacao', {
         state: {
           classId: formData.classId,
           hasExam: selectedClass?.has_exam
