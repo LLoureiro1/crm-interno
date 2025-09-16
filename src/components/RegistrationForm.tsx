@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,8 @@ import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 type Unit = Tables<'units'>;
 type Serie = Tables<'series'>;
@@ -23,6 +24,7 @@ type Class = Tables<'classes'> & {
 };
 
 export const RegistrationForm = () => {
+  console.log('📝 RegistrationForm renderizado');
   const navigate = useNavigate();
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
@@ -44,7 +46,7 @@ export const RegistrationForm = () => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
 
-  const { series, classes } = useRegistrationData();
+  const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
 
   // Filtrar turmas quando série é selecionada
   useEffect(() => {
@@ -158,6 +160,51 @@ export const RegistrationForm = () => {
     }
   };
 
+  // Mostrar loading enquanto carrega dados iniciais
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen bg-blue-50 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+              <p className="text-gray-600">Carregando dados do formulário...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar erro se houver problema no carregamento
+  if (dataError) {
+    return (
+      <div className="min-h-screen bg-blue-50 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardContent className="py-8">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>Erro ao carregar dados: {dataError}</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refetch}
+                    className="ml-4"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Tentar Novamente
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
@@ -200,9 +247,16 @@ export const RegistrationForm = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={loading}
+                disabled={loading || dataLoading}
               >
-                {loading ? 'Realizando Inscrição...' : 'Realizar Inscrição'}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Realizando Inscrição...
+                  </>
+                ) : (
+                  'Realizar Inscrição'
+                )}
               </Button>
             </form>
           </CardContent>
