@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
@@ -331,6 +331,77 @@ const StudentProfile = () => {
     } catch (error) {
       console.error('Error scheduling interview:', error);
       toast.error('Erro ao agendar entrevista');
+    }
+  };
+
+  const handleCancelInterview = async () => {
+    if (!student?.interview_date) {
+      toast.error('Nenhuma entrevista agendada para cancelar');
+      return;
+    }
+
+    // Confirmar cancelamento
+    if (!confirm(`Tem certeza que deseja cancelar a entrevista agendada para ${formatDateForDisplay(student.interview_date)}?`)) {
+      return;
+    }
+
+    try {
+      // Buscar o agendamento para deletar
+      const { data: appointments, error: fetchError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('student_id', id)
+        .eq('appointment_date', student.interview_date);
+
+      if (fetchError) {
+        console.error('Error fetching appointments:', fetchError);
+      }
+
+      // Deletar o agendamento se existir
+      if (appointments && appointments.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('appointments')
+          .delete()
+          .eq('student_id', id)
+          .eq('appointment_date', student.interview_date);
+
+        if (deleteError) {
+          console.error('Error deleting appointment:', deleteError);
+        }
+      }
+
+      // Atualizar o status do aluno para 'nenhum_agendamento' e limpar a data da entrevista
+      const { error: studentUpdateError } = await supabase
+        .from('students')
+        .update({ 
+          status: 'nenhum_agendamento',
+          interview_date: null
+        })
+        .eq('id', id);
+
+      if (studentUpdateError) throw studentUpdateError;
+
+      // Registrar interação documentando o cancelamento
+      const { error: interactionError } = await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: id,
+          user_id: profile?.id,
+          interaction_type: 'mudanca_status',
+          comments: `Entrevista cancelada. Status alterado para "Nenhum Agendamento". Entrevista estava agendada para ${formatDateForDisplay(student.interview_date)}.`
+        });
+
+      if (interactionError) {
+        console.error('Error inserting interaction:', interactionError);
+        // Não falha a operação se não conseguir registrar a interação
+      }
+
+      toast.success('Entrevista cancelada com sucesso');
+      fetchStudent();
+      fetchInteractions();
+    } catch (error) {
+      console.error('Error canceling interview:', error);
+      toast.error('Erro ao cancelar entrevista');
     }
   };
 
@@ -1007,13 +1078,27 @@ const StudentProfile = () => {
                     </div>
                   )}
                   {student.interview_date && (
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span className="font-medium">Data da Entrevista:</span>
-                      <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
-                        {formatDateForDisplay(student.interview_date)}
-                        {isInterviewDay && ' (HOJE)'}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-medium">Data da Entrevista:</span>
+                        <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
+                          {formatDateForDisplay(student.interview_date)}
+                          {isInterviewDay && ' (HOJE)'}
+                        </p>
+                      </div>
+                      {/* Botão de cancelar entrevista */}
+                      {canRegisterAttendance && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCancelInterview}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Cancelar entrevista"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

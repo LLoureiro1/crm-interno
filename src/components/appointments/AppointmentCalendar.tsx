@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList } from 'lucide-react';
+import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
@@ -364,6 +364,65 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     }
   };
 
+  const handleCancelAppointment = async (appointmentId: string) => {
+    const appointmentToCancel = appointments.find(apt => apt.id === appointmentId);
+    if (!appointmentToCancel) {
+      console.error('Appointment not found for cancellation:', appointmentId);
+      toast.error('Agendamento não encontrado.');
+      return;
+    }
+
+    // Confirmar cancelamento
+    if (!confirm(`Tem certeza que deseja cancelar a entrevista de ${appointmentToCancel.students?.student_name}?`)) {
+      return;
+    }
+
+    try {
+      // Deletar o agendamento da tabela appointments
+      const { error: deleteError } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', appointmentId);
+
+      if (deleteError) throw deleteError;
+
+      // Atualizar o status do aluno para 'nenhum_agendamento' e limpar a data da entrevista
+      const { error: studentUpdateError } = await supabase
+        .from('students')
+        .update({ 
+          status: 'nenhum_agendamento',
+          interview_date: null
+        })
+        .eq('id', appointmentToCancel.student_id);
+
+      if (studentUpdateError) throw studentUpdateError;
+
+      // Registrar interação documentando o cancelamento
+      const { error: interactionError } = await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: appointmentToCancel.student_id,
+          user_id: profile?.id,
+          interaction_type: 'mudanca_status',
+          comments: `Entrevista cancelada. Status alterado para "Nenhum Agendamento". Entrevista estava agendada para ${formatDateForDisplay(appointmentToCancel.appointment_date)} às ${formatTimeForDisplay(appointmentToCancel.appointment_time)}.`
+        });
+
+      if (interactionError) {
+        console.error('Error inserting interaction:', interactionError);
+        // Não falha a operação se não conseguir registrar a interação
+      }
+
+      toast.success('Entrevista cancelada com sucesso');
+      // Recarrega os dados para garantir sincronização
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error canceling appointment:', error);
+      toast.error('Erro ao cancelar entrevista');
+      // Recarrega os dados em caso de erro para restaurar o estado correto
+      fetchAppointments();
+    }
+  };
+
   const getStatusBadge = (status: string, attended: boolean, studentStatus?: string) => {
     // Se o aluno já foi atendido recentemente, mostrar como realizado
     if (studentStatus === 'atendimento_recentemente') {
@@ -536,6 +595,20 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                             Atender
                           </Button>
                         </>
+                      )}
+                      {/* Botão de cancelar - disponível para agendamentos não realizados */}
+                      {appointment.status !== 'realizado' && 
+                       appointment.status !== 'faltou' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleCancelAppointment(appointment.id)}
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={loading}
+                          title="Cancelar entrevista"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
