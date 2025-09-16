@@ -22,6 +22,8 @@ const badgeVariants = cva(
           "border-transparent bg-orange-500 text-primary-foreground hover:bg-orange-500/80",
         ausente:
           "border-transparent text-white hover:opacity-80",
+        cadastro_invalido:
+          "border-transparent text-white hover:opacity-80",
         outline: "text-foreground",
       },
     },
@@ -36,12 +38,16 @@ export interface BadgeProps
     VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  const style = variant === 'ausente' ? { backgroundColor: '#690218' } : undefined;
+  const getStyle = () => {
+    if (variant === 'ausente') return { backgroundColor: '#690218' };
+    if (variant === 'cadastro_invalido') return { backgroundColor: '#000000' };
+    return undefined;
+  };
   
   return (
     <div 
       className={cn(badgeVariants({ variant }), className)} 
-      style={style}
+      style={getStyle()}
       {...props} 
     />
   )

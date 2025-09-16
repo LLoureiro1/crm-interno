@@ -130,10 +130,10 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   };
 
   const getStatusBadge = (status: string) => {
-      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" } } = {
+      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
-        'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'default' },
+        'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
         'matriculado': { label: 'Matriculado', variant: 'success' },
         'desistente': { label: 'Desistente', variant: 'destructive' },
         'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
