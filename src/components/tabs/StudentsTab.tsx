@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Download, Eye, Calendar, ExternalLink, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import type { Tables } from '@/integrations/supabase/types';
 import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
 import { toast } from 'sonner';
@@ -40,6 +41,10 @@ export const StudentsTab = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
 
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
   useEffect(() => {
     fetchStudents();
     fetchUnits();
@@ -49,6 +54,7 @@ export const StudentsTab = () => {
 
   useEffect(() => {
     filterStudents();
+    setCurrentPage(1); // Reset para primeira página quando filtros mudarem
   }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter]);
 
   const fetchStudents = async () => {
@@ -232,6 +238,36 @@ export const StudentsTab = () => {
     fetchStudents();
   };
 
+  // Funções de paginação
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentStudents = filteredStudents.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getVisiblePages = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
   // Agrupar datas de prova únicas
   const uniqueExamDates = Array.from(
     new Map(examDates.map(ed => [ed.exam_date, ed])).values()
@@ -330,11 +366,19 @@ export const StudentsTab = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Alunos ({filteredStudents.length})</CardTitle>
+          <CardTitle>
+            Lista de Alunos ({filteredStudents.length})
+            {totalPages > 1 && (
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                - Página {currentPage} de {totalPages} 
+                ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredStudents.map((student) => {
+            {currentStudents.map((student) => {
               return (
                 <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
@@ -388,6 +432,41 @@ export const StudentsTab = () => {
               );
             })}
           </div>
+          
+          {/* Componente de Paginação */}
+          {totalPages > 1 && (
+            <div className="mt-6">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {getVisiblePages().map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => handlePageChange(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
