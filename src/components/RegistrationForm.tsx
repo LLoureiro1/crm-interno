@@ -113,7 +113,7 @@ export const RegistrationForm = () => {
         email: sanitizedFormData.email,
         city: sanitizedFormData.cityName,
         neighborhood: sanitizedFormData.neighborhood,
-        origin_school: sanitizedFormData.originSchool,
+        origin_school: '', // Campo removido - sempre vazio
         class_id: sanitizedFormData.classId,
         unit_id: sanitizedFormData.unitId,
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const

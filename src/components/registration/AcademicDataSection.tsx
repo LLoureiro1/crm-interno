@@ -1,8 +1,6 @@
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
-import { sanitizePlainText } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
@@ -52,23 +50,6 @@ export const AcademicDataSection = ({
           </AlertDescription>
         </Alert>
       )}
-      
-      <div>
-        <Label htmlFor="originSchool" className={fieldErrors.originSchool ? 'text-red-600' : ''}>
-          Escola de Origem *
-        </Label>
-        <Input
-          id="originSchool"
-          value={formData.originSchool}
-          onChange={(e) => onInputChange('originSchool', sanitizePlainText(e.target.value))}
-          placeholder="Digite a escola de origem"
-          className={fieldErrors.originSchool ? 'border-red-500 focus:border-red-500' : ''}
-          required
-        />
-        {fieldErrors.originSchool && (
-          <p className="text-red-600 text-sm mt-1">{fieldErrors.originSchool}</p>
-        )}
-      </div>
 
       <div>
         <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>

@@ -1,4 +1,3 @@
-
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 
 export const validateForm = (formData: RegistrationFormData): ValidationErrors => {
@@ -35,10 +34,6 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
   
   if (!formData.neighborhood.trim()) {
     errors.neighborhood = 'Bairro é obrigatório';
-  }
-  
-  if (!formData.originSchool.trim()) {
-    errors.originSchool = 'Escola de origem é obrigatória';
   }
   
   if (!formData.seriesId) {
