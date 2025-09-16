@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
-import { sanitizeSchool } from '@/utils/sanitization';
+import { sanitizePlainText } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Serie = Tables<'series'>;
@@ -41,7 +41,7 @@ export const AcademicDataSection = ({
         <Input
           id="originSchool"
           value={formData.originSchool}
-          onChange={(e) => onInputChange('originSchool', sanitizeSchool(e.target.value))}
+          onChange={(e) => onInputChange('originSchool', sanitizePlainText(e.target.value))}
           placeholder="Digite a escola de origem"
           className={fieldErrors.originSchool ? 'border-red-500 focus:border-red-500' : ''}
           required

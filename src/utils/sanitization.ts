@@ -171,7 +171,7 @@ export const sanitizeRegistrationData = (data: any) => {
     phone: sanitizePhone(data.phone || ''),
     cityName: sanitizePlainText(data.cityName || ''),
     neighborhood: sanitizePlainText(data.neighborhood || ''),
-    originSchool: sanitizeSchool(data.originSchool || ''),
+    originSchool: sanitizePlainText(data.originSchool || ''),
   };
 };
 
