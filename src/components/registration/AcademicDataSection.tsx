@@ -30,6 +30,12 @@ export const AcademicDataSection = ({
   availableUnits, 
   onInputChange 
 }: AcademicDataSectionProps) => {
+  console.log('🎓 AcademicDataSection renderizado com:', { 
+    seriesCount: series.length, 
+    series: series,
+    formData: formData 
+  });
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">Dados Acadêmicos</h3>
@@ -53,18 +59,27 @@ export const AcademicDataSection = ({
 
       <div>
         <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>
-          Série *
+          Série * ({series.length} séries disponíveis)
         </Label>
-        <Select value={formData.seriesId} onValueChange={(value) => onInputChange('seriesId', value)}>
+        <Select value={formData.seriesId} onValueChange={(value) => {
+          console.log('🎯 Série selecionada:', value);
+          onInputChange('seriesId', value);
+        }}>
           <SelectTrigger className={fieldErrors.seriesId ? 'border-red-500 focus:border-red-500' : ''}>
             <SelectValue placeholder="Selecione a série" />
           </SelectTrigger>
           <SelectContent>
-            {series.map((serie) => (
-              <SelectItem key={serie.id} value={serie.id}>
-                {serie.name}
+            {series.length === 0 ? (
+              <SelectItem value="no-data" disabled>
+                Nenhuma série disponível
               </SelectItem>
-            ))}
+            ) : (
+              series.map((serie) => (
+                <SelectItem key={serie.id} value={serie.id}>
+                  {serie.name}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
         {fieldErrors.seriesId && (
