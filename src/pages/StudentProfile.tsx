@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
@@ -57,8 +57,22 @@ const StudentProfile = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [showSeriesUnitEditor, setShowSeriesUnitEditor] = useState(false);
 
+  // Estados para edição de dados pessoais
+  const [showPersonalDataEditor, setShowPersonalDataEditor] = useState(false);
+  const [editingPersonalData, setEditingPersonalData] = useState({
+    student_name: '',
+    responsible_name: '',
+    birth_date: '',
+    phone: '',
+    email: '',
+    city: '',
+    neighborhood: '',
+    origin_school: ''
+  });
+
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
+  const canEditPersonalData = profile?.profile === 'admin' || profile?.profile === 'direcao';
   
   // Verificar se hoje é o dia da entrevista
   const today = new Date().toISOString().split('T')[0];
@@ -497,6 +511,79 @@ const StudentProfile = () => {
     }
   };
 
+  // Função para atualizar dados pessoais
+  const handleUpdatePersonalData = async () => {
+    if (!student) return;
+
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({
+          student_name: editingPersonalData.student_name,
+          responsible_name: editingPersonalData.responsible_name,
+          birth_date: editingPersonalData.birth_date,
+          phone: editingPersonalData.phone,
+          email: editingPersonalData.email,
+          city: editingPersonalData.city,
+          neighborhood: editingPersonalData.neighborhood,
+          origin_school: editingPersonalData.origin_school
+        })
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      // Adicionar interação
+      await supabase
+        .from('student_interactions')
+        .insert({
+          student_id: student.id,
+          user_id: profile?.id,
+          interaction_type: 'dados_pessoais_alterados',
+          comments: 'Dados pessoais foram atualizados'
+        });
+
+      toast.success('Dados pessoais atualizados com sucesso');
+      setShowPersonalDataEditor(false);
+      fetchStudent(); // Recarregar dados do estudante
+      fetchInteractions();
+    } catch (error) {
+      console.error('Error updating personal data:', error);
+      toast.error('Erro ao atualizar dados pessoais');
+    }
+  };
+
+  // Função para iniciar edição
+  const startEditingPersonalData = () => {
+    if (student) {
+      setEditingPersonalData({
+        student_name: student.student_name,
+        responsible_name: student.responsible_name,
+        birth_date: student.birth_date,
+        phone: student.phone,
+        email: student.email,
+        city: student.city || '',
+        neighborhood: student.neighborhood,
+        origin_school: student.origin_school
+      });
+      setShowPersonalDataEditor(true);
+    }
+  };
+
+  // Função para cancelar edição
+  const cancelEditingPersonalData = () => {
+    setShowPersonalDataEditor(false);
+    setEditingPersonalData({
+      student_name: '',
+      responsible_name: '',
+      birth_date: '',
+      phone: '',
+      email: '',
+      city: '',
+      neighborhood: '',
+      origin_school: ''
+    });
+  };
+
   const getStatusBadge = (status: string) => {
       const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
@@ -564,49 +651,183 @@ const StudentProfile = () => {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Dados Pessoais</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Dados Pessoais</span>
+                  </div>
+                  {canEditPersonalData && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={showPersonalDataEditor ? cancelEditingPersonalData : startEditingPersonalData}
+                      className="flex items-center space-x-1"
+                    >
+                      {showPersonalDataEditor ? (
+                        <>
+                          <X className="h-3 w-3" />
+                          <span>Cancelar</span>
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-3 w-3" />
+                          <span>Editar</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="font-medium">Nome do Aluno:</span>
-                    <p>{student.student_name}</p>
+                {showPersonalDataEditor ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="student_name">Nome do Aluno</Label>
+                        <Input
+                          id="student_name"
+                          value={editingPersonalData.student_name}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            student_name: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="responsible_name">Responsável</Label>
+                        <Input
+                          id="responsible_name"
+                          value={editingPersonalData.responsible_name}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            responsible_name: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="birth_date">Data de Nascimento</Label>
+                        <Input
+                          id="birth_date"
+                          type="date"
+                          value={editingPersonalData.birth_date}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            birth_date: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">Telefone</Label>
+                        <Input
+                          id="phone"
+                          value={editingPersonalData.phone}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            phone: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={editingPersonalData.email}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            email: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="city">Cidade</Label>
+                        <Input
+                          id="city"
+                          value={editingPersonalData.city}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            city: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="neighborhood">Bairro</Label>
+                        <Input
+                          id="neighborhood"
+                          value={editingPersonalData.neighborhood}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            neighborhood: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="origin_school">Escola de Origem</Label>
+                        <Input
+                          id="origin_school"
+                          value={editingPersonalData.origin_school}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            origin_school: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={handleUpdatePersonalData}
+                        className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="h-3 w-3" />
+                        <span>Salvar</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={cancelEditingPersonalData}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">Responsável:</span>
-                    <p>{student.responsible_name}</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="font-medium">Nome do Aluno:</span>
+                      <p>{student.student_name}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Responsável:</span>
+                      <p>{student.responsible_name}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Data de Nascimento:</span>
+                      <p>{formatDateForDisplay(student.birth_date)}</p>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Phone className="h-3 w-3" />
+                      <span className="font-medium">Telefone:</span>
+                      <p>{student.phone}</p>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Mail className="h-3 w-3" />
+                      <span className="font-medium">Email:</span>
+                      <p>{student.email}</p>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="h-3 w-3" />
+                      <span className="font-medium">Cidade:</span>
+                      <p>{student.city || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Bairro:</span>
+                      <p>{student.neighborhood}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Escola de Origem:</span>
+                      <p>{student.origin_school}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">Data de Nascimento:</span>
-                    <p>{formatDateForDisplay(student.birth_date)}</p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Phone className="h-3 w-3" />
-                    <span className="font-medium">Telefone:</span>
-                    <p>{student.phone}</p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Mail className="h-3 w-3" />
-                    <span className="font-medium">Email:</span>
-                    <p>{student.email}</p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span className="font-medium">Cidade:</span>
-                    <p>{student.city || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Bairro:</span>
-                    <p>{student.neighborhood}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Escola de Origem:</span>
-                    <p>{student.origin_school}</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
