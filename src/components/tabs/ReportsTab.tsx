@@ -174,6 +174,10 @@ export const ReportsTab = () => {
     }
   };
 
+  const getStudentsByStatus = (status: string) => {
+    return studentsData.filter(s => s.status === status);
+  };
+
   const StudentsList = ({ students, title }: { students: Student[], title: string }) => (
     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
       <DialogHeader>
@@ -355,10 +359,18 @@ export const ReportsTab = () => {
               return statusOrder
                 .filter(status => reportData.statusCounts[status] !== undefined)
                 .map(status => (
-                  <div key={status} className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
-                    <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
-                  </div>
+                  <Dialog key={status}>
+                    <DialogTrigger asChild>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow">
+                        <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
+                        <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
+                      </div>
+                    </DialogTrigger>
+                    <StudentsList 
+                      students={getStudentsByStatus(status)} 
+                      title={`Alunos com Status: ${statusLabels[status] || status}`} 
+                    />
+                  </Dialog>
                 ));
             })()}
           </div>
