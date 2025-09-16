@@ -74,6 +74,7 @@ export const GradeUpload = () => {
 
       let successCount = 0;
       let errorCount = 0;
+      let statusUpdatedCount = 0;
 
       for (const student of studentsToUpdate) {
         if (!student.code) {
@@ -82,12 +83,38 @@ export const GradeUpload = () => {
         }
 
         try {
+          // Primeiro, buscar o aluno atual para verificar o status
+          const { data: currentStudent, error: fetchError } = await supabase
+            .from('students')
+            .select('id, status, student_name')
+            .eq('code', student.code)
+            .single();
+
+          if (fetchError) {
+            console.error(`Erro ao buscar aluno ${student.code}:`, fetchError);
+            errorCount++;
+            continue;
+          }
+
+          // Verificar se o aluno tem um dos status que devem ser alterados
+          const statusesToUpdate = ['nao_confirmado', 'confirmado', 'ausente', 'desistente'];
+          const shouldUpdateStatus = statusesToUpdate.includes(currentStudent.status);
+
+          // Preparar dados para atualização
+          const updateData: any = {
+            math_grade: student.math_grade || null,
+            portuguese_grade: student.portuguese_grade || null
+          };
+
+          // Se deve atualizar o status, adicionar à atualização
+          if (shouldUpdateStatus) {
+            updateData.status = 'nenhum_agendamento';
+          }
+
+          // Atualizar o aluno
           const { error } = await supabase
             .from('students')
-            .update({
-              math_grade: student.math_grade || null,
-              portuguese_grade: student.portuguese_grade || null
-            })
+            .update(updateData)
             .eq('code', student.code);
 
           if (error) {
@@ -95,6 +122,23 @@ export const GradeUpload = () => {
             errorCount++;
           } else {
             successCount++;
+            
+            // Se o status foi alterado, registrar uma interação
+            if (shouldUpdateStatus) {
+              statusUpdatedCount++;
+              
+              const { error: interactionError } = await supabase
+                .from('student_interactions')
+                .insert({
+                  student_id: currentStudent.id,
+                  interaction_type: 'mudanca_status',
+                  comments: `Status automaticamente alterado para "Nenhum Agendamento" após upload de notas. Status anterior: ${currentStudent.status}`
+                });
+
+              if (interactionError) {
+                console.error(`Erro ao registrar interação para aluno ${student.code}:`, interactionError);
+              }
+            }
           }
         } catch (error) {
           console.error(`Erro ao processar aluno ${student.code}:`, error);
@@ -102,7 +146,12 @@ export const GradeUpload = () => {
         }
       }
 
-      toast.success(`Upload concluído! ${successCount} alunos atualizados, ${errorCount} erros.`);
+      // Mensagem de sucesso com informações sobre mudanças de status
+      let successMessage = `Upload concluído! ${successCount} alunos atualizados, ${errorCount} erros.`;
+      if (statusUpdatedCount > 0) {
+        successMessage += ` ${statusUpdatedCount} alunos tiveram status alterado para "Nenhum Agendamento".`;
+      }
+      toast.success(successMessage);
       
       // Limpar formulário
       setFile(null);
