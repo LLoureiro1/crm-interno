@@ -72,7 +72,7 @@ export const AcademicDataSection = ({
 
       <div>
         <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>
-          Série * ({series.length} séries disponíveis)
+          Série *
         </Label>
         <Select 
           value={formData.seriesId} 
@@ -107,7 +107,7 @@ export const AcademicDataSection = ({
       {formData.seriesId && (
         <div>
           <Label htmlFor="unit" className={fieldErrors.unitId ? 'text-red-600' : ''}>
-            Unidade * ({availableUnits.length} unidades disponíveis)
+            Unidade *
           </Label>
           <Select 
             value={formData.unitId} 
@@ -143,7 +143,7 @@ export const AcademicDataSection = ({
       {(formData.unitId || formData.seriesId) && (
         <div>
           <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
-            Turma * ({availableClasses.length} turmas disponíveis)
+            Turma *
           </Label>
           <Select 
             value={formData.classId} 
