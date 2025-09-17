@@ -58,7 +58,7 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange }:
 
       <div>
         <Label htmlFor="email" className={fieldErrors.email ? 'text-red-600' : ''}>
-          E-mail *
+          E-mail
         </Label>
         <Input
           id="email"
@@ -67,7 +67,6 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange }:
           onChange={(e) => onInputChange('email', sanitizeEmail(e.target.value))}
           placeholder="email@exemplo.com"
           className={fieldErrors.email ? 'border-red-500 focus:border-red-500' : ''}
-          required
         />
         {fieldErrors.email && (
           <p className="text-red-600 text-sm mt-1">{fieldErrors.email}</p>

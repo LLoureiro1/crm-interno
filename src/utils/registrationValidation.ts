@@ -20,11 +20,9 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.phone = 'Telefone válido é obrigatório (11 dígitos com DDD)';
   }
   
-  // Validar formato do email
+  // Validar formato do email (opcional)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!formData.email.trim()) {
-    errors.email = 'E-mail é obrigatório';
-  } else if (!emailRegex.test(formData.email)) {
+  if (formData.email.trim() && !emailRegex.test(formData.email)) {
     errors.email = 'E-mail deve ter um formato válido';
   }
   
