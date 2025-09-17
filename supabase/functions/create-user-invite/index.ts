@@ -120,13 +120,28 @@ serve(async (req) => {
       )
     }
 
-    // Check if user already exists in profiles table (more efficient than listing all users)
+    // Check if user already exists in auth system
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+    const authUserExists = existingUsers.users.some(u => u.email === email.toLowerCase().trim())
+    
+    // Check if profile already exists
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('email', email.toLowerCase().trim())
       .single()
     
+    // If user exists in auth but not in profiles, it's an orphaned user
+    if (authUserExists && !existingProfile) {
+      // Find the auth user and delete it to start fresh
+      const orphanedUser = existingUsers.users.find(u => u.email === email.toLowerCase().trim())
+      if (orphanedUser) {
+        console.log(`Cleaning up orphaned auth user: ${orphanedUser.id}`)
+        await supabaseAdmin.auth.admin.deleteUser(orphanedUser.id)
+      }
+    }
+    
+    // If profile exists, user is fully created
     if (existingProfile) {
       return new Response(
         JSON.stringify({ error: 'User with this email already exists' }),
@@ -169,7 +184,7 @@ serve(async (req) => {
       )
     }
 
-    // Create profile in the profiles table
+    // Create profile in the profiles table with better error handling
     const { error: profileCreateError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -183,8 +198,24 @@ serve(async (req) => {
     if (profileCreateError) {
       console.error('Error creating profile:', profileCreateError)
       
-      // Rollback: delete the auth user if profile creation failed
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      // Enhanced rollback: delete the auth user if profile creation failed
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        console.log(`Rolled back auth user: ${authData.user.id}`)
+      } catch (rollbackError) {
+        console.error('Failed to rollback auth user:', rollbackError)
+      }
+      
+      // Return more specific error message
+      if (profileCreateError.code === '23505') {
+        return new Response(
+          JSON.stringify({ error: 'User profile already exists. Please try again.' }),
+          { 
+            status: 409, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
       
       return new Response(
         JSON.stringify({ error: 'Failed to create user profile: ' + profileCreateError.message }),
