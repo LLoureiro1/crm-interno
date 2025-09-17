@@ -1,5 +1,6 @@
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -55,31 +56,22 @@ export const AcademicDataSection = ({
         <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>
           Série *
         </Label>
-        <Select 
-          value={formData.seriesId} 
+        <Combobox
+          options={series.map((serie) => ({
+            value: serie.id,
+            label: serie.name
+          }))}
+          value={formData.seriesId}
           onValueChange={(value) => {
             console.log('🎯 Série selecionada:', value);
             onInputChange('seriesId', value);
           }}
+          placeholder={series.length === 0 ? "Nenhuma série disponível" : "Selecione a série"}
+          searchPlaceholder="Buscar série..."
+          emptyMessage="Nenhuma série encontrada."
           disabled={series.length === 0}
-        >
-          <SelectTrigger className={fieldErrors.seriesId ? 'border-red-500 focus:border-red-500' : ''}>
-            <SelectValue placeholder={series.length === 0 ? "Nenhuma série disponível" : "Selecione a série"} />
-          </SelectTrigger>
-          <SelectContent>
-            {series.length === 0 ? (
-              <SelectItem value="no-data" disabled>
-                Nenhuma série disponível
-              </SelectItem>
-            ) : (
-              series.map((serie) => (
-                <SelectItem key={serie.id} value={serie.id}>
-                  {serie.name}
-                </SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
+          error={!!fieldErrors.seriesId}
+        />
         {fieldErrors.seriesId && (
           <p className="text-red-600 text-sm mt-1">{fieldErrors.seriesId}</p>
         )}
