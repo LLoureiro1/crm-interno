@@ -11,7 +11,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   name: string;
   email: string;
-  profile: 'admin' | 'direcao' | 'secretaria' | 'padrao';
+  profile: 'admin' | 'direcao' | 'entrevistador' | 'padrao';
   unit_id?: string;
 }
 
@@ -97,7 +97,7 @@ serve(async (req) => {
     }
 
     // Validate profile value
-    const validProfiles = ['admin', 'direcao', 'secretaria', 'padrao'];
+    const validProfiles = ['admin', 'direcao', 'entrevistador', 'padrao'];
     if (!validProfiles.includes(userProfile)) {
       return new Response(
         JSON.stringify({ error: 'Invalid profile. Must be one of: ' + validProfiles.join(', ') }),

@@ -152,7 +152,7 @@ export const UserManagement = () => {
   const profileLabels = {
     admin: 'Administrador',
     direcao: 'Direção',
-    secretaria: 'Secretaria',
+    entrevistador: 'Entrevistador',
     padrao: 'Padrão'
   };
 
@@ -223,7 +223,7 @@ export const UserManagement = () => {
                   <SelectContent>
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="direcao">Direção</SelectItem>
-                    <SelectItem value="secretaria">Secretaria</SelectItem>
+                    <SelectItem value="entrevistador">Entrevistador</SelectItem>
                     <SelectItem value="padrao">Padrão</SelectItem>
                   </SelectContent>
                 </Select>

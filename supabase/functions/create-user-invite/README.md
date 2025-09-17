@@ -23,7 +23,7 @@ Content-Type: application/json
 {
   "name": "Nome do Usuário",
   "email": "usuario@exemplo.com",
-  "profile": "admin|direcao|secretaria|padrao",
+  "profile": "admin|direcao|entrevistador|padrao",
   "unit_id": "uuid-da-unidade" // opcional
 }
 ```
