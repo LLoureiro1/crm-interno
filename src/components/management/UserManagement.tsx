@@ -6,9 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
 import { sanitizeName, sanitizeEmail } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -18,6 +20,7 @@ type Profile = Tables<'profiles'> & {
 type Unit = Tables<'units'>;
 
 export const UserManagement = () => {
+  const { profile } = useAuth();
   const [users, setUsers] = useState<Profile[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,8 +30,7 @@ export const UserManagement = () => {
     name: '',
     email: '',
     profile: 'padrao' as Tables<'profiles'>['profile'],
-    unit_id: '',
-    temporaryPassword: ''
+    unit_id: ''
   });
 
   useEffect(() => {
@@ -70,9 +72,10 @@ export const UserManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validação para criação de usuário
-    if (!editingUser && (!formData.temporaryPassword || formData.temporaryPassword.length < 6)) {
-      toast.error('A senha temporária deve ter pelo menos 6 caracteres');
+    // Sanitizar e validar email antes do envio
+    const sanitizedEmail = sanitizeEmail(formData.email);
+    if (!sanitizedEmail) {
+      toast.error('Por favor, insira um email válido');
       return;
     }
     
@@ -84,7 +87,7 @@ export const UserManagement = () => {
           .from('profiles')
           .update({
             name: formData.name,
-            email: formData.email,
+            email: sanitizedEmail,
             profile: formData.profile,
             unit_id: formData.unit_id || null
           })
@@ -93,34 +96,25 @@ export const UserManagement = () => {
         if (error) throw error;
         toast.success('Usuário atualizado com sucesso!');
       } else {
-        // Criar novo usuário com convite por email
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
-          password: formData.temporaryPassword,
-          email_confirm: true,
-          user_metadata: {
+        // Criar novo usuário usando Edge Function
+        const { data, error } = await supabase.functions.invoke('create-user-invite', {
+          body: {
             name: formData.name,
+            email: sanitizedEmail,
             profile: formData.profile,
             unit_id: formData.unit_id || null
           }
         });
 
-        if (authError) throw authError;
+        if (error) {
+          throw new Error(error.message || 'Erro ao criar usuário');
+        }
 
-        // Criar perfil na tabela profiles
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            name: formData.name,
-            email: formData.email,
-            profile: formData.profile,
-            unit_id: formData.unit_id || null
-          });
-
-        if (profileError) throw profileError;
-
-        toast.success('Usuário criado com sucesso! Convite enviado por email.');
+        if (data?.invite_error) {
+          toast.success('Usuário criado com sucesso, mas houve problema ao enviar o convite por email. O usuário pode solicitar um novo convite.');
+        } else {
+          toast.success('Usuário criado com sucesso! Convite enviado por email.');
+        }
       }
 
       setDialogOpen(false);
@@ -140,8 +134,7 @@ export const UserManagement = () => {
       name: user.name,
       email: user.email,
       profile: user.profile,
-      unit_id: user.unit_id || '',
-      temporaryPassword: '' // Não preencher senha ao editar
+      unit_id: user.unit_id || ''
     });
     setDialogOpen(true);
   };
@@ -151,8 +144,7 @@ export const UserManagement = () => {
       name: '',
       email: '',
       profile: 'padrao',
-      unit_id: '',
-      temporaryPassword: ''
+      unit_id: ''
     });
     setEditingUser(null);
   };
@@ -164,17 +156,30 @@ export const UserManagement = () => {
     padrao: 'Padrão'
   };
 
+  // Verificar se o usuário tem permissões de admin
+  const isAdmin = profile?.profile === 'admin';
+
   return (
     <div className="space-y-6">
+      {!isAdmin && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Apenas usuários com perfil de administrador podem gerenciar usuários.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Gestão de Usuários</h3>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
+        {isAdmin && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Usuário
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -197,23 +202,15 @@ export const UserManagement = () => {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: sanitizeEmail(e.target.value) }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="usuario@exemplo.com"
                   required
                 />
               </div>
               {!editingUser && (
-                <div>
-                  <Label htmlFor="temporaryPassword">Senha Temporária *</Label>
-                  <Input
-                    id="temporaryPassword"
-                    type="password"
-                    value={formData.temporaryPassword}
-                    onChange={(e) => setFormData(prev => ({ ...prev, temporaryPassword: e.target.value }))}
-                    placeholder="Senha temporária para o usuário"
-                    required
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    O usuário receberá um convite por email e poderá alterar esta senha no primeiro login.
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Sistema de Convites:</strong> O usuário receberá um email com link para definir sua própria senha de forma segura.
                   </p>
                 </div>
               )}
@@ -257,14 +254,16 @@ export const UserManagement = () => {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Usuários</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lista de Usuários</CardTitle>
+          </CardHeader>
+          <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -297,7 +296,8 @@ export const UserManagement = () => {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 };

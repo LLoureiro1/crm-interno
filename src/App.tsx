@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Registration from "./pages/Registration";
 import StudentProfile from "./pages/StudentProfile";
+import SetPassword from "./pages/SetPassword";
 import NotFound from "./pages/NotFound";
 import Confirmation from './components/registration/Confirmation';
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/inscricao" element={<Registration />} />
           <Route path="/student/:id" element={<StudentProfile />} />
+          <Route path="/set-password" element={<SetPassword />} />
           <Route path="/confirmacao" element={<Confirmation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
