@@ -1,11 +1,12 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 interface CreateUserRequest {
@@ -19,6 +20,17 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
   }
 
   try {
@@ -43,8 +55,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     
     if (authError || !user) {
+      console.error('Authentication error:', authError?.message)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized - Invalid or missing authentication token' }),
         { 
           status: 401, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -60,6 +73,7 @@ serve(async (req) => {
       .single()
 
     if (profileError || !profile || profile.profile !== 'admin') {
+      console.error('Permission error:', profileError?.message, 'User profile:', profile?.profile)
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions. Only admin users can create new users.' }),
         { 
@@ -149,9 +163,12 @@ serve(async (req) => {
     })
 
     if (createError) {
-      console.error('Error creating user:', createError)
+      console.error('Error creating user:', createError.message, createError)
       return new Response(
-        JSON.stringify({ error: 'Failed to create user: ' + createError.message }),
+        JSON.stringify({ 
+          error: 'Failed to create user: ' + createError.message,
+          details: createError.code || 'unknown_error'
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -181,13 +198,21 @@ serve(async (req) => {
       })
 
     if (profileCreateError) {
-      console.error('Error creating profile:', profileCreateError)
+      console.error('Error creating profile:', profileCreateError.message, profileCreateError)
       
       // Rollback: delete the auth user if profile creation failed
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        console.log('Rollback successful: deleted auth user')
+      } catch (rollbackError) {
+        console.error('Rollback failed:', rollbackError)
+      }
       
       return new Response(
-        JSON.stringify({ error: 'Failed to create user profile: ' + profileCreateError.message }),
+        JSON.stringify({ 
+          error: 'Failed to create user profile: ' + profileCreateError.message,
+          details: profileCreateError.code || 'unknown_error'
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -206,7 +231,7 @@ serve(async (req) => {
     })
 
     if (inviteError) {
-      console.error('Error generating invite link:', inviteError)
+      console.error('Error generating invite link:', inviteError.message, inviteError)
       // Don't fail the entire operation if invite generation fails
       // The user was created successfully, just log the error
     }
