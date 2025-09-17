@@ -48,11 +48,10 @@ export const RegistrationForm = () => {
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
 
-  // Filtrar turmas quando série é selecionada
+  // Filtrar unidades quando série é selecionada
   useEffect(() => {
     if (formData.seriesId) {
       const filteredClasses = classes.filter(cls => cls.series_id === formData.seriesId);
-      setAvailableClasses(filteredClasses);
       
       // Extrair unidades únicas das turmas filtradas
       const uniqueUnits = filteredClasses
@@ -60,21 +59,27 @@ export const RegistrationForm = () => {
         .filter((unit, index, arr) => arr.findIndex(u => u.id === unit.id) === index);
       setAvailableUnits(uniqueUnits);
       
-      // Limpar seleções dependentes
+      // Limpar seleções dependentes e não mostrar turmas ainda
       setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
+      setAvailableClasses([]);
     } else {
       setAvailableClasses([]);
       setAvailableUnits([]);
     }
   }, [formData.seriesId, classes]);
 
-  // Filtrar turmas quando unidade é selecionada
+  // Filtrar turmas apenas quando unidade E série são selecionadas
   useEffect(() => {
     if (formData.unitId && formData.seriesId) {
       const filteredClasses = classes.filter(
         cls => cls.series_id === formData.seriesId && cls.unit_id === formData.unitId
       );
       setAvailableClasses(filteredClasses);
+      
+      // Limpar seleção de turma quando unidade muda
+      setFormData(prev => ({ ...prev, classId: '' }));
+    } else {
+      setAvailableClasses([]);
     }
   }, [formData.unitId, formData.seriesId, classes]);
 

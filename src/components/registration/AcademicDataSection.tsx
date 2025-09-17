@@ -121,7 +121,7 @@ export const AcademicDataSection = ({
         </div>
       )}
 
-      {(formData.unitId || formData.seriesId) && (
+      {formData.unitId && formData.seriesId && (
         <div>
           <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
             Turma *
