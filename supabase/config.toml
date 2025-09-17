@@ -1,5 +1,8 @@
 project_id = "jfpzbsfywfcuylqgafpp"
 
+[functions.create-user-invite]
+verify_jwt = true
+
 [functions.check-missed-interviews]
 verify_jwt = false
 
