@@ -370,8 +370,7 @@ export const StudentsTab = () => {
             Lista de Alunos ({filteredStudents.length})
             {totalPages > 1 && (
               <span className="text-sm font-normal text-gray-600 ml-2">
-                - Página {currentPage} de {totalPages} 
-                ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
+                - Página {currentPage} de {totalPages}  ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
               </span>
             )}
           </CardTitle>
