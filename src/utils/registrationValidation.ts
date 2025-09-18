@@ -42,9 +42,7 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.unitId = 'Unidade é obrigatória';
   }
   
-  if (!formData.classId) {
-    errors.classId = 'Turma é obrigatória';
-  }
+  // Turma não é mais obrigatória - sistema resolve automaticamente
 
   return errors;
 };

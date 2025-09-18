@@ -43,6 +43,7 @@ export const RegistrationForm = () => {
 
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
+  const [showClassSelector, setShowClassSelector] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
 
@@ -68,18 +69,32 @@ export const RegistrationForm = () => {
     }
   }, [formData.seriesId, classes]);
 
-  // Filtrar turmas apenas quando unidade E série são selecionadas
+  // Lógica inteligente de seleção de turma
   useEffect(() => {
     if (formData.unitId && formData.seriesId) {
       const filteredClasses = classes.filter(
         cls => cls.series_id === formData.seriesId && cls.unit_id === formData.unitId
       );
+      
       setAvailableClasses(filteredClasses);
       
-      // Limpar seleção de turma quando unidade muda
-      setFormData(prev => ({ ...prev, classId: '' }));
+      if (filteredClasses.length === 1) {
+        // ✅ Apenas 1 turma → Auto-atribuir
+        setFormData(prev => ({ ...prev, classId: filteredClasses[0].id }));
+        setShowClassSelector(false);
+      } else if (filteredClasses.length > 1) {
+        // ⚠️ Múltiplas turmas → Mostrar seletor
+        setFormData(prev => ({ ...prev, classId: '' }));
+        setShowClassSelector(true);
+      } else {
+        // ❌ Nenhuma turma → Limpar
+        setFormData(prev => ({ ...prev, classId: '' }));
+        setShowClassSelector(false);
+      }
     } else {
       setAvailableClasses([]);
+      setShowClassSelector(false);
+      setFormData(prev => ({ ...prev, classId: '' }));
     }
   }, [formData.unitId, formData.seriesId, classes]);
 
@@ -98,6 +113,12 @@ export const RegistrationForm = () => {
     const sanitizedFormData = sanitizeRegistrationData(formData);
     
     const errors = validateForm(sanitizedFormData);
+    
+    // Validação adicional: se há múltiplas turmas, uma deve ser selecionada
+    if (showClassSelector && !sanitizedFormData.classId) {
+      errors.classId = 'Selecione uma turma';
+    }
+    
     setFieldErrors(errors);
     
     if (Object.keys(errors).length > 0) {
@@ -246,6 +267,7 @@ export const RegistrationForm = () => {
                 series={series}
                 availableClasses={availableClasses}
                 availableUnits={availableUnits}
+                showClassSelector={showClassSelector}
                 onInputChange={handleInputChange}
               />
 

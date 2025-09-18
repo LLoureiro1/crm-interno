@@ -19,6 +19,7 @@ interface AcademicDataSectionProps {
   series: Serie[];
   availableClasses: Class[];
   availableUnits: Unit[];
+  showClassSelector: boolean;
   onInputChange: (field: string, value: string) => void;
 }
 
@@ -28,6 +29,7 @@ export const AcademicDataSection = ({
   series, 
   availableClasses, 
   availableUnits, 
+  showClassSelector,
   onInputChange 
 }: AcademicDataSectionProps) => {
   console.log('🎓 AcademicDataSection renderizado com:', { 
@@ -115,36 +117,62 @@ export const AcademicDataSection = ({
 
       {formData.unitId && formData.seriesId && (
         <div>
-          <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
-            Turma *
-          </Label>
-          <Select 
-            value={formData.classId} 
-            onValueChange={(value) => {
-              console.log('🎓 Turma selecionada:', value);
-              onInputChange('classId', value);
-            }}
-            disabled={availableClasses.length === 0}
-          >
-            <SelectTrigger className={fieldErrors.classId ? 'border-red-500 focus:border-red-500' : ''}>
-              <SelectValue placeholder={availableClasses.length === 0 ? "Nenhuma turma disponível" : "Selecione a turma"} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableClasses.length === 0 ? (
-                <SelectItem value="no-classes" disabled>
-                  Nenhuma turma disponível para esta série e unidade
-                </SelectItem>
-              ) : (
-                availableClasses.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))
+          {/* Mostrar informação da turma auto-selecionada */}
+          {availableClasses.length === 1 && formData.classId && (
+            <div>
+              <Label>Turma</Label>
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-green-800 font-medium">
+                    {availableClasses[0].name} (atribuída automaticamente)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mostrar seletor quando há múltiplas turmas */}
+          {showClassSelector && availableClasses.length > 1 && (
+            <div>
+              <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
+                Selecione a Turma *
+              </Label>
+              <Select 
+                value={formData.classId} 
+                onValueChange={(value) => {
+                  console.log('🎓 Turma selecionada:', value);
+                  onInputChange('classId', value);
+                }}
+              >
+                <SelectTrigger className={fieldErrors.classId ? 'border-red-500 focus:border-red-500' : ''}>
+                  <SelectValue placeholder="Selecione a turma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableClasses.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.classId && (
+                <p className="text-red-600 text-sm mt-1">{fieldErrors.classId}</p>
               )}
-            </SelectContent>
-          </Select>
-          {fieldErrors.classId && (
-            <p className="text-red-600 text-sm mt-1">{fieldErrors.classId}</p>
+            </div>
+          )}
+
+          {/* Mostrar aviso quando não há turmas */}
+          {availableClasses.length === 0 && (
+            <div>
+              <Label>Turma</Label>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Nenhuma turma disponível para esta combinação de série e unidade. Entre em contato com o administrador.
+                </AlertDescription>
+              </Alert>
+            </div>
           )}
         </div>
       )}
