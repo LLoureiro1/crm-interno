@@ -468,7 +468,7 @@ export type Database = {
     Enums: {
       dropout_reason:
         | "impossibilidade_contato"
-        | "cadastro_duplicado"
+        | "mudanca_de_endereco"
         | "matriculou_outra_escola"
         | "motivos_financeiros"
         | "falta_vaga"
@@ -621,7 +621,7 @@ export const Constants = {
     Enums: {
       dropout_reason: [
         "impossibilidade_contato",
-        "cadastro_duplicado",
+        "mudanca_de_endereco",
         "matriculou_outra_escola",
         "motivos_financeiros",
         "falta_vaga",
