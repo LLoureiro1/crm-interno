@@ -640,7 +640,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                   </div>
 
                   <div className="text-sm">
-                    <span className="font-medium">Entrevistador:</span> 
+                    <span className="font-medium">Entrevistador: </span> 
                     {appointment.profiles?.name || 
                      appointment.interviewer?.name || 
                      'Não informado'}
