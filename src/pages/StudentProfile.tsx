@@ -936,6 +936,11 @@ const StudentProfile = () => {
                     <span className="font-medium">Turma:</span>
                     <p>{student.classes.name}</p>
                   </div>
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span className="font-medium">Data da Inscrição:</span>
+                    <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
+                  </div>
                   
                   {/* Editor de série e unidade */}
                   {showSeriesUnitEditor && (
@@ -1021,11 +1026,6 @@ const StudentProfile = () => {
                     <Percent className="h-3 w-3" />
                     <span className="font-medium">Desconto:</span>
                     <p>{student.discount_percentage}%</p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span className="font-medium">Data da Inscrição:</span>
-                    <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
                   </div>
                   {student.classes?.has_exam && (
                     <div className="col-span-2">
