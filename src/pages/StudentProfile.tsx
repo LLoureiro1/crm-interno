@@ -1233,8 +1233,6 @@ const StudentProfile = () => {
                       <SelectItem value="confirmado">Confirmado</SelectItem>
                       <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
                       <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                      <SelectItem value="atendimento_agendado">Atendimento Agendado</SelectItem>
-                      <SelectItem value="faltou_ao_atendimento">Faltou ao Atendimento</SelectItem>
                       <SelectItem value="desistente">Desistente</SelectItem>
                       {canUpdateToMatriculado && (
                         <SelectItem value="matriculado">Matriculado</SelectItem>
