@@ -41,6 +41,7 @@ const StudentProfile = () => {
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [customDropoutReason, setCustomDropoutReason] = useState<string>('');
+  const [invalidReason, setInvalidReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
@@ -496,6 +497,11 @@ const StudentProfile = () => {
       return;
     }
 
+    if (newStatus === 'cadastro_invalido' && !invalidReason) {
+      toast.error('Selecione o motivo do cadastro inválido');
+      return;
+    }
+
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
@@ -503,6 +509,9 @@ const StudentProfile = () => {
         if (dropoutReason === 'outro' && customDropoutReason.trim()) {
           updateData.dropout_comment = customDropoutReason.trim();
         }
+      }
+      if (newStatus === 'cadastro_invalido') {
+        updateData.invalid_reason = invalidReason;
       }
 
       const { error } = await supabase
@@ -519,7 +528,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''})` : ''}`
+          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -528,6 +537,7 @@ const StudentProfile = () => {
       // Limpar campos após sucesso
       setDropoutReason('');
       setCustomDropoutReason('');
+      setInvalidReason('');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
@@ -1289,6 +1299,21 @@ const StudentProfile = () => {
                         />
                       </div>
                     )}
+                  </div>
+                )}
+
+                {newStatus === 'cadastro_invalido' && (
+                  <div>
+                    <Label htmlFor="invalid-reason">Motivo do Cadastro Inválido</Label>
+                    <Select value={invalidReason} onValueChange={setInvalidReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o motivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
+                        <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
