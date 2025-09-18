@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2 } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
@@ -1022,11 +1022,6 @@ const StudentProfile = () => {
                       </div>
                     </>
                   )}
-                  <div className="flex items-center space-x-1">
-                    <Percent className="h-3 w-3" />
-                    <span className="font-medium">Desconto:</span>
-                    <p>{student.discount_percentage}%</p>
-                  </div>
                   {student.classes?.has_exam && (
                     <div className="col-span-2">
                       <span className="font-medium">Data da Prova:</span>
@@ -1105,6 +1100,25 @@ const StudentProfile = () => {
                       )}
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Financial Data */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Dados Financeiros</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center space-x-1">
+                    <Percent className="h-3 w-3" />
+                    <span className="font-medium">Desconto:</span>
+                    <p>{student.discount_percentage}%</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
