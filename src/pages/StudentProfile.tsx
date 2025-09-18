@@ -40,6 +40,7 @@ const StudentProfile = () => {
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
+  const [customDropoutReason, setCustomDropoutReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
@@ -490,10 +491,18 @@ const StudentProfile = () => {
       return;
     }
 
+    if (newStatus === 'desistente' && dropoutReason === 'outro' && !customDropoutReason.trim()) {
+      toast.error('Especifique o motivo da desistência');
+      return;
+    }
+
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
         updateData.dropout_reason = dropoutReason;
+        if (dropoutReason === 'outro' && customDropoutReason.trim()) {
+          updateData.dropout_comment = customDropoutReason.trim();
+        }
       }
 
       const { error } = await supabase
@@ -510,12 +519,15 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason})` : ''}`
+          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
       fetchStudent();
       fetchInteractions();
+      // Limpar campos após sucesso
+      setDropoutReason('');
+      setCustomDropoutReason('');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
@@ -1242,21 +1254,41 @@ const StudentProfile = () => {
                 </div>
 
                 {newStatus === 'desistente' && (
-                  <div>
-                    <Label htmlFor="dropout-reason">Motivo da Desistência</Label>
-                    <Select value={dropoutReason} onValueChange={(value) => setDropoutReason(value as Enums<'dropout_reason'>)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o motivo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
-                        <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
-                        <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
-                        <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
-                        <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="dropout-reason">Motivo da Desistência</Label>
+                      <Select value={dropoutReason} onValueChange={(value) => {
+                        setDropoutReason(value as Enums<'dropout_reason'>);
+                        if (value !== 'outro') {
+                          setCustomDropoutReason(''); // Limpa o motivo customizado se não for "outro"
+                        }
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o motivo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
+                          <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
+                          <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
+                          <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
+                          <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {dropoutReason === 'outro' && (
+                      <div>
+                        <Label htmlFor="custom-dropout-reason">Especifique o motivo</Label>
+                        <Input
+                          id="custom-dropout-reason"
+                          value={customDropoutReason}
+                          onChange={(e) => setCustomDropoutReason(e.target.value)}
+                          placeholder="Digite o motivo da desistência..."
+                          maxLength={200}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
