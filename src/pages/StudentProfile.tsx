@@ -932,6 +932,10 @@ const StudentProfile = () => {
                     <span className="font-medium">Unidade:</span>
                     <p>{student.classes.units.name}</p>
                   </div>
+                  <div>
+                    <span className="font-medium">Turma:</span>
+                    <p>{student.classes.name}</p>
+                  </div>
                   
                   {/* Editor de série e unidade */}
                   {showSeriesUnitEditor && (
