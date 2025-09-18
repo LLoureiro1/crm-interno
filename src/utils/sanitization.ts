@@ -62,7 +62,7 @@ export const sanitizeAndLimit = (input: string, maxLength: number = 1000): strin
 };
 
 /**
- * Valida e sanitiza email
+ * Sanitiza email (sem validação de formato durante digitação)
  */
 export const sanitizeEmail = (email: string): string => {
   if (!email || typeof email !== 'string') return '';
@@ -74,9 +74,17 @@ export const sanitizeEmail = (email: string): string => {
     .replace(/[<>\"'&]/g, '')
     .substring(0, 254); // Limite RFC para emails
   
-  // Valida formato básico
+  return sanitized;
+};
+
+/**
+ * Valida formato de email (para usar na validação do formulário)
+ */
+export const validateEmailFormat = (email: string): boolean => {
+  if (!email || typeof email !== 'string') return false;
+  
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(sanitized) ? sanitized : '';
+  return emailRegex.test(email.trim());
 };
 
 /**

@@ -1,4 +1,5 @@
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
+import { validateEmailFormat } from '@/utils/sanitization';
 
 export const validateForm = (formData: RegistrationFormData): ValidationErrors => {
   const errors: ValidationErrors = {};
@@ -21,8 +22,7 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
   }
   
   // Validar formato do email (opcional)
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (formData.email.trim() && !emailRegex.test(formData.email)) {
+  if (formData.email.trim() && !validateEmailFormat(formData.email)) {
     errors.email = 'E-mail deve ter um formato válido';
   }
   
