@@ -117,22 +117,7 @@ export const AcademicDataSection = ({
 
       {formData.unitId && formData.seriesId && (
         <div>
-          {/* Mostrar informação da turma auto-selecionada */}
-          {availableClasses.length === 1 && formData.classId && (
-            <div>
-              <Label>Turma</Label>
-              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-green-800 font-medium">
-                    {availableClasses[0].name} (atribuída automaticamente)
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mostrar seletor quando há múltiplas turmas */}
+          {/* Mostrar seletor apenas quando há múltiplas turmas */}
           {showClassSelector && availableClasses.length > 1 && (
             <div>
               <Label htmlFor="class" className={fieldErrors.classId ? 'text-red-600' : ''}>
