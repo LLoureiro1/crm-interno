@@ -240,7 +240,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div className="flex items-center space-x-1">
                     <Percent className="h-3 w-3" />
                     <span className="font-medium">Desconto:</span>
-                    <p>{student.discount_percentage}%</p>
+                    <p>{student.discount_percentage !== null ? `${student.discount_percentage}%` : '-'}</p>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />

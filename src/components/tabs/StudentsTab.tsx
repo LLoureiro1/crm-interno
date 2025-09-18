@@ -170,7 +170,7 @@ export const StudentsTab = () => {
       'Nota Português': student.portuguese_grade || '',
       'Nota Matemática': student.math_grade || '',
       'Data de Inscrição': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
-      'Percentual de Desconto': student.discount_percentage ? `${student.discount_percentage}%` : '0%'
+      'Percentual de Desconto': student.discount_percentage !== null ? `${student.discount_percentage}%` : '-'
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
