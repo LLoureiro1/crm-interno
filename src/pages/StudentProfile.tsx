@@ -461,7 +461,37 @@ const StudentProfile = () => {
     }
 
     try {
-      // Update student with discount and status
+      // 1. Buscar e atualizar appointment se existir
+      const { data: appointments, error: fetchAppointmentError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('student_id', id)
+        .eq('appointment_date', student?.interview_date);
+
+      if (fetchAppointmentError) {
+        console.error('Error fetching appointment:', fetchAppointmentError);
+      }
+
+      // Atualizar appointment se existir
+      if (appointments && appointments.length > 0) {
+        const { error: appointmentError } = await supabase
+          .from('appointments')
+          .update({
+            status: 'realizado',
+            attended: true,
+            discount_percentage: discount,
+            comments: comments.trim(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', appointments[0].id);
+
+        if (appointmentError) {
+          console.error('Error updating appointment:', appointmentError);
+          // Continuar mesmo se falhar a atualização do appointment para não bloquear o fluxo
+        }
+      }
+
+      // 2. Update student with discount and status
       const { error: studentError } = await supabase
         .from('students')
         .update({
@@ -472,7 +502,7 @@ const StudentProfile = () => {
 
       if (studentError) throw studentError;
 
-      // Add interaction
+      // 3. Add interaction
       const { error: interactionError } = await supabase
         .from('student_interactions')
         .insert({
