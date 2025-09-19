@@ -44,6 +44,7 @@ const StudentProfile = () => {
   const [customDropoutReason, setCustomDropoutReason] = useState<string>('');
   const [invalidReason, setInvalidReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
+  const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewerId, setInterviewerId] = useState('');
@@ -163,7 +164,15 @@ const StudentProfile = () => {
       .eq('student_id', id)
       .order('created_at', { ascending: false });
 
-    if (data) setInteractions(data);
+    if (data) {
+      setInteractions(data);
+      
+      // Verificar se o aluno teve entrevista baseado nas interações
+      const hasAttendimentoInteraction = data.some(
+        interaction => interaction.interaction_type === 'atendimento'
+      );
+      setHasHadInterview(hasAttendimentoInteraction);
+    }
   };
 
   const fetchAvailableExamDates = async () => {
@@ -1143,7 +1152,7 @@ const StudentProfile = () => {
                   showAnnualSavings={true}
                   showClassName={true}
                   className={student.classes.name}
-                  studentStatus={student.status}
+                  hasHadInterview={hasHadInterview}
                 />
               </CardContent>
             </Card>

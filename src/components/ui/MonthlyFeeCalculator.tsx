@@ -8,7 +8,7 @@ interface MonthlyFeeCalculatorProps {
   showAnnualSavings?: boolean;
   showClassName?: boolean;
   className?: string;
-  studentStatus?: string;
+  hasHadInterview?: boolean;
 }
 
 export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
@@ -18,7 +18,7 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   showAnnualSavings = true,
   showClassName = false,
   className,
-  studentStatus
+  hasHadInterview = false
 }) => {
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -30,15 +30,7 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   const finalFee = hasDiscount ? calculateMonthlyFeeWithDiscount(originalFee, discountPercentage) : originalFee;
   const savings = originalFee - finalFee;
 
-  // Determinar se o aluno teve entrevista baseado no status
-  const hasHadInterview = studentStatus && [
-    'atendimento_recentemente',
-    'atendimento_ha_mais_de_uma_semana', 
-    'faltou_ao_atendimento',
-    'matriculado'
-  ].includes(studentStatus);
-
-  // Determinar a mensagem adequada
+  // Determinar a mensagem adequada baseada em hasHadInterview
   const getNoDiscountMessage = () => {
     if (!hasHadInterview) {
       return "Aluno não teve atendimento";
