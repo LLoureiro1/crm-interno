@@ -8,6 +8,7 @@ interface MonthlyFeeCalculatorProps {
   showAnnualSavings?: boolean;
   showClassName?: boolean;
   className?: string;
+  studentStatus?: string;
 }
 
 export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
@@ -16,7 +17,8 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   containerClassName,
   showAnnualSavings = true,
   showClassName = false,
-  className
+  className,
+  studentStatus
 }) => {
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -27,6 +29,22 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   const hasDiscount = discountPercentage && discountPercentage > 0;
   const finalFee = hasDiscount ? calculateMonthlyFeeWithDiscount(originalFee, discountPercentage) : originalFee;
   const savings = originalFee - finalFee;
+
+  // Determinar se o aluno teve entrevista baseado no status
+  const hasHadInterview = studentStatus && [
+    'atendimento_recentemente',
+    'atendimento_ha_mais_de_uma_semana', 
+    'faltou_ao_atendimento',
+    'matriculado'
+  ].includes(studentStatus);
+
+  // Determinar a mensagem adequada
+  const getNoDiscountMessage = () => {
+    if (!hasHadInterview) {
+      return "Aluno não teve atendimento";
+    }
+    return "Nenhum desconto aplicado";
+  };
 
   return (
     <div className={`space-y-4 ${containerClassName || ''}`}>
@@ -84,7 +102,7 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
             <Percent className="h-4 w-4 text-gray-600" />
             <span className="font-medium text-gray-900">Desconto</span>
           </div>
-          <p className="text-gray-600">Nenhum desconto aplicado</p>
+          <p className="text-gray-600">{getNoDiscountMessage()}</p>
         </div>
       )}
     </div>

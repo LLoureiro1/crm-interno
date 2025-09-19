@@ -1143,6 +1143,7 @@ const StudentProfile = () => {
                   showAnnualSavings={true}
                   showClassName={true}
                   className={student.classes.name}
+                  studentStatus={student.status}
                 />
               </CardContent>
             </Card>
