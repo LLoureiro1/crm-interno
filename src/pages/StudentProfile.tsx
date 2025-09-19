@@ -975,7 +975,7 @@ const StudentProfile = () => {
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent side="bottom">
                               {availableUnits.map(unit => (
                                 <SelectItem key={unit.id} value={unit.id}>
                                   {unit.name}
@@ -991,7 +991,7 @@ const StudentProfile = () => {
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent side="bottom">
                               {availableSeries.map(series => (
                                 <SelectItem key={series.id} value={series.id}>
                                   {series.name}
@@ -1011,7 +1011,7 @@ const StudentProfile = () => {
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione turma" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent side="bottom">
                               {availableClasses.map(cls => (
                                 <SelectItem key={cls.id} value={cls.id}>
                                   {cls.name}
@@ -1077,7 +1077,7 @@ const StudentProfile = () => {
                               <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="Selecione uma nova data" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent side="bottom">
                                 {availableExamDates.map(examDate => (
                                   <SelectItem key={examDate.id} value={examDate.id}>
                                     {formatDateForDisplay(examDate.exam_date)} às {examDate.exam_time.substring(0, 5)}
@@ -1179,13 +1179,13 @@ const StudentProfile = () => {
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom">
                         {interviewers.map(interviewer => (
                           <SelectItem key={interviewer.id} value={interviewer.id}>
                             {interviewer.name}
                           </SelectItem>
                         ))}
-                      </SelectContent>
+                              </SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -1250,7 +1250,7 @@ const StudentProfile = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent side="bottom">
                       <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
                       <SelectItem value="confirmado">Confirmado</SelectItem>
                       <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
@@ -1259,7 +1259,7 @@ const StudentProfile = () => {
                       {canUpdateToMatriculado && (
                         <SelectItem value="matriculado">Matriculado</SelectItem>
                       )}
-                   </SelectContent>
+                              </SelectContent>
                   </Select>
                 </div>
 
@@ -1276,14 +1276,14 @@ const StudentProfile = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o motivo" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent side="bottom">
                           <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
                           <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
                           <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
                           <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
                           <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
-                        </SelectContent>
+                              </SelectContent>
                       </Select>
                     </div>
                     
@@ -1309,10 +1309,10 @@ const StudentProfile = () => {
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom">
                         <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
                         <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
-                      </SelectContent>
+                              </SelectContent>
                     </Select>
                   </div>
                 )}

@@ -220,7 +220,7 @@ export const UserManagement = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o perfil" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent side="bottom">
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="direcao">Direção</SelectItem>
                     <SelectItem value="entrevistador">Entrevistador</SelectItem>
@@ -234,7 +234,7 @@ export const UserManagement = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a unidade (opcional)" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent side="bottom">
                     <SelectItem value="none">Nenhuma unidade</SelectItem>
                     {units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>

@@ -276,7 +276,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent side="bottom">
                       <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
                       <SelectItem value="confirmado">Confirmado</SelectItem>
                       <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
@@ -297,7 +297,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom">
                         <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
                         <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
                         <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>

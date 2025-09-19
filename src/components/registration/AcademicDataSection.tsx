@@ -95,7 +95,7 @@ export const AcademicDataSection = ({
             <SelectTrigger className={fieldErrors.unitId ? 'border-red-500 focus:border-red-500' : ''}>
               <SelectValue placeholder={availableUnits.length === 0 ? "Nenhuma unidade disponível" : "Selecione a unidade"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom">
               {availableUnits.length === 0 ? (
                 <SelectItem value="no-units" disabled>
                   Nenhuma unidade disponível para esta série
@@ -133,7 +133,7 @@ export const AcademicDataSection = ({
                 <SelectTrigger className={fieldErrors.classId ? 'border-red-500 focus:border-red-500' : ''}>
                   <SelectValue placeholder="Selecione a turma" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent side="bottom">
                   {availableClasses.map((cls) => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.name}

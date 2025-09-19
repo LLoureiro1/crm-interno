@@ -434,7 +434,7 @@ export const AdvancedReportsTab = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as unidades" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent side="bottom">
                   <SelectItem value="all">Todas as unidades</SelectItem>
                   {units.map((unit) => (
                     <SelectItem key={unit.id} value={unit.id}>
@@ -453,7 +453,7 @@ export const AdvancedReportsTab = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as turmas" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent side="bottom">
                   <SelectItem value="all">Todas as turmas</SelectItem>
                   {filteredClasses.map((cls) => (
                     <SelectItem key={cls.id} value={cls.id}>

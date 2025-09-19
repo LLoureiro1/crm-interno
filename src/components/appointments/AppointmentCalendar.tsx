@@ -492,7 +492,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as unidades" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent side="bottom">
                       <SelectItem value="all">Todas as unidades</SelectItem>
                       {units.map(unit => (
                         <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
@@ -507,7 +507,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     <SelectTrigger>
                       <SelectValue placeholder="Todas as séries" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent side="bottom">
                       <SelectItem value="all">Todas as séries</SelectItem>
                       {series.map(serie => (
                         <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
@@ -522,7 +522,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     <SelectTrigger>
                       <SelectValue placeholder="Todos os entrevistadores" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent side="bottom">
                       <SelectItem value="all">Todos os entrevistadores</SelectItem>
                       {interviewers.map(interviewer => (
                         <SelectItem key={interviewer.id} value={interviewer.id}>{interviewer.name}</SelectItem>

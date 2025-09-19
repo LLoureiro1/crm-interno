@@ -239,7 +239,7 @@ export const ReportsTab = () => {
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Selecione a unidade" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent side="bottom">
             <SelectItem value="all">Todas as unidades</SelectItem>
             {units.map(unit => (
               <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
@@ -251,7 +251,7 @@ export const ReportsTab = () => {
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Selecione a série" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent side="bottom">
             <SelectItem value="all">Todas as séries</SelectItem>
             {series.map(serie => (
               <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
