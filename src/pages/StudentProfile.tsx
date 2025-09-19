@@ -1255,12 +1255,50 @@ const StudentProfile = () => {
                       type="number"
                       min="0"
                       max="100"
-                      step="2.5"
+                      step="0.1"
                       value={discountPercentage}
                       onChange={(e) => setDiscountPercentage(e.target.value)}
                       placeholder="Ex: 10.0"
                     />
                   </div>
+
+                  {/* Cálculo em tempo real da mensalidade */}
+                  {discountPercentage && student?.classes?.monthly_fee && (
+                    <div className="bg-green-50 p-4 rounded-lg border">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                        <span className="font-medium text-green-900">Mensalidade com Desconto</span>
+                      </div>
+                      {(() => {
+                        const discount = parseFloat(discountPercentage);
+                        const originalFee = student.classes.monthly_fee;
+                        const finalFee = originalFee * (1 - (discount / 100));
+                        const savings = originalFee - finalFee;
+                        
+                        return (
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Mensalidade Original:</span>
+                              <p className="font-semibold text-lg">R$ {originalFee.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Valor Final:</span>
+                              <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Economia Mensal:</span>
+                              <p className="font-semibold text-lg text-green-600">R$ {savings.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Economia Anual:</span>
+                              <p className="font-semibold text-lg text-green-600">R$ {(savings * 12).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   <div>
                     <Label htmlFor="attendance-comments">Comentários</Label>
                     <Textarea
