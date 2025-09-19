@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
+import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
@@ -79,6 +80,7 @@ const StudentProfile = () => {
   // Verificar se hoje é o dia da entrevista
   const today = new Date().toISOString().split('T')[0];
   const isInterviewDay = student?.interview_date === today;
+
 
   useEffect(() => {
     if (id) {
@@ -1134,14 +1136,14 @@ const StudentProfile = () => {
                   <span>Dados Financeiros</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center space-x-1">
-                    <Percent className="h-3 w-3" />
-                    <span className="font-medium">Desconto:</span>
-                    <p>{student.discount_percentage !== null ? `${student.discount_percentage}%` : '-'}</p>
-                  </div>
-                </div>
+              <CardContent>
+                <MonthlyFeeCalculator
+                  originalFee={student.classes.monthly_fee}
+                  discountPercentage={student.discount_percentage}
+                  showAnnualSavings={true}
+                  showClassName={true}
+                  className={student.classes.name}
+                />
               </CardContent>
             </Card>
 
