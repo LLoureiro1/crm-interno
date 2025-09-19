@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent side="bottom", SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -202,13 +202,13 @@ export const ClassManagement = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a série" />
                   </SelectTrigger>
-                  <SelectContent side="bottom">
+                  <SelectContent>
                     {series.map((serie) => (
                       <SelectItem key={serie.id} value={serie.id}>
                         {serie.name}
                       </SelectItem>
                     ))}
-                  </SelectContent side="bottom">
+                  </SelectContent>
                 </Select>
               </div>
               <div>
@@ -217,13 +217,13 @@ export const ClassManagement = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a unidade" />
                   </SelectTrigger>
-                  <SelectContent side="bottom">
+                  <SelectContent>
                     {units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name}
                       </SelectItem>
                     ))}
-                  </SelectContent side="bottom">
+                  </SelectContent>
                 </Select>
               </div>
               <div>
