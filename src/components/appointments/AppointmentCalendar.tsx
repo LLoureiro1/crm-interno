@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2 } from 'lucide-react';
+import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
@@ -72,6 +72,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [currentAppointment, setCurrentAppointment] = useState<Appointment | null>(null);
   const [attendanceDiscount, setAttendanceDiscount] = useState('');
   const [attendanceComments, setAttendanceComments] = useState('');
+
+  // Função para calcular mensalidade com desconto
+  const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
+    const discountMultiplier = 1 - (discountPercentage / 100);
+    return originalFee * discountMultiplier;
+  };
 
   useEffect(() => {
     fetchFiltersData();
@@ -247,6 +253,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
   const handleOpenAttendanceModal = (appointment: Appointment) => {
     setCurrentAppointment(appointment);
+    setAttendanceDiscount('');
+    setAttendanceComments('');
     setShowAttendanceModal(true);
   };
 
@@ -679,6 +687,26 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Informações da Mensalidade */}
+            {currentAppointment?.students?.classes?.monthly_fee && (
+              <div className="bg-blue-50 p-4 rounded-lg border">
+                <div className="flex items-center space-x-2 mb-3">
+                  <DollarSign className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900">Informações da Mensalidade</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Mensalidade Original:</span>
+                    <p className="font-semibold text-lg">R$ {currentAppointment.students.classes.monthly_fee.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Turma:</span>
+                    <p className="font-medium">{currentAppointment.students.classes.name}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="discount" className="text-right">Percentual de Desconto</label>
               <Input
@@ -688,8 +716,41 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                 onChange={(e) => setAttendanceDiscount(e.target.value)}
                 className="col-span-3"
                 placeholder="Ex: 10, 20, 50"
+                min="0"
+                max="100"
+                step="0.1"
               />
             </div>
+
+            {/* Cálculo em tempo real */}
+            {attendanceDiscount && currentAppointment?.students?.classes?.monthly_fee && (
+              <div className="bg-green-50 p-4 rounded-lg border">
+                <div className="flex items-center space-x-2 mb-2">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-green-900">Mensalidade com Desconto</span>
+                </div>
+                {(() => {
+                  const discount = parseFloat(attendanceDiscount);
+                  const originalFee = currentAppointment.students.classes.monthly_fee;
+                  const finalFee = calculateMonthlyFeeWithDiscount(originalFee, discount);
+                  const savings = originalFee - finalFee;
+                  
+                  return (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Valor Final:</span>
+                        <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Economia:</span>
+                        <p className="font-semibold text-lg text-green-600">R$ {savings.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="comments" className="text-right">Comentários</label>
               <Textarea
