@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
+import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
@@ -937,10 +938,11 @@ const StudentProfile = () => {
                       <span className="font-medium">Data de Nascimento:</span>
                       <p>{formatDateForDisplay(student.birth_date)}</p>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Phone className="h-3 w-3" />
-                      <span className="font-medium">Telefone:</span>
-                      <p>{student.phone}</p>
+                    <div className="col-span-2">
+                      <StudentPhoneManager 
+                        studentId={student.id}
+                        disabled={!canEditPersonalData}
+                      />
                     </div>
                     <div className="flex items-center space-x-1">
                       <Mail className="h-3 w-3" />

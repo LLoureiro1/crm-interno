@@ -2,21 +2,17 @@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
-import { formatPhone } from '@/utils/registrationFormatters';
-import { sanitizeEmail, sanitizePhone } from '@/utils/sanitization';
+import { sanitizeEmail } from '@/utils/sanitization';
+import { MultiplePhones } from '@/components/ui/MultiplePhones';
 
 interface ResponsibleDataSectionProps {
   formData: RegistrationFormData;
   fieldErrors: ValidationErrors;
   onInputChange: (field: string, value: string) => void;
+  onAdditionalPhonesChange: (phones: string[]) => void;
 }
 
-export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange }: ResponsibleDataSectionProps) => {
-  const handlePhoneChange = (value: string) => {
-    const formatted = formatPhone(value);
-    onInputChange('phone', formatted);
-  };
-
+export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange, onAdditionalPhonesChange }: ResponsibleDataSectionProps) => {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">Dados do Responsável</h3>
@@ -38,23 +34,13 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange }:
         )}
       </div>
 
-      <div>
-        <Label htmlFor="phone" className={fieldErrors.phone ? 'text-red-600' : ''}>
-          Telefone *
-        </Label>
-        <Input
-          id="phone"
-          value={formData.phone}
-          onChange={(e) => handlePhoneChange(e.target.value)}
-          placeholder="(XX) XXXXX-XXXX"
-          maxLength={15}
-          className={fieldErrors.phone ? 'border-red-500 focus:border-red-500' : ''}
-          required
-        />
-        {fieldErrors.phone && (
-          <p className="text-red-600 text-sm mt-1">{fieldErrors.phone}</p>
-        )}
-      </div>
+      <MultiplePhones
+        primaryPhone={formData.phone}
+        additionalPhones={formData.additionalPhones || []}
+        onPrimaryPhoneChange={(phone) => onInputChange('phone', phone)}
+        onAdditionalPhonesChange={onAdditionalPhonesChange}
+        fieldErrors={fieldErrors}
+      />
 
       <div>
         <Label htmlFor="email" className={fieldErrors.email ? 'text-red-600' : ''}>

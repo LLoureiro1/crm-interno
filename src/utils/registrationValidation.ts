@@ -17,8 +17,18 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.birthDate = 'Data de nascimento válida é obrigatória (DD/MM/YYYY)';
   }
   
+  // Validar telefone principal (obrigatório)
   if (!formData.phone || formData.phone.replace(/\D/g, '').length !== 11) {
-    errors.phone = 'Telefone válido é obrigatório (11 dígitos com DDD)';
+    errors.phone = 'Telefone principal é obrigatório (11 dígitos com DDD)';
+  }
+
+  // Validar telefones adicionais (opcionais, mas se preenchidos devem ser válidos)
+  if (formData.additionalPhones && formData.additionalPhones.length > 0) {
+    formData.additionalPhones.forEach((phone, index) => {
+      if (phone && phone.replace(/\D/g, '').length !== 11) {
+        errors[`additionalPhones.${index}`] = 'Telefone deve ter 11 dígitos com DDD';
+      }
+    });
   }
   
   // Validar formato do email (opcional)

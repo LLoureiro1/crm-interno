@@ -31,6 +31,7 @@ export const RegistrationForm = () => {
     responsibleName: '',
     birthDate: '',
     phone: '',
+    additionalPhones: [],
     email: '',
     cityId: '',
     cityName: '',
@@ -106,6 +107,20 @@ export const RegistrationForm = () => {
     }
   };
 
+  const handleAdditionalPhonesChange = (additionalPhones: string[]) => {
+    setFormData(prev => ({ ...prev, additionalPhones }));
+    
+    // Limpar erros relacionados a telefones adicionais
+    const phoneErrorKeys = Object.keys(fieldErrors).filter(key => key.startsWith('additionalPhones.'));
+    if (phoneErrorKeys.length > 0) {
+      setFieldErrors(prev => {
+        const updated = { ...prev };
+        phoneErrorKeys.forEach(key => delete updated[key]);
+        return updated;
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -145,11 +160,36 @@ export const RegistrationForm = () => {
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
-      const { error } = await supabase
+      const { data: studentResult, error } = await supabase
         .from('students')
-        .insert(studentData);
+        .insert(studentData)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Inserir telefones adicionais na tabela student_phones
+      if (sanitizedFormData.additionalPhones && sanitizedFormData.additionalPhones.length > 0) {
+        const validAdditionalPhones = sanitizedFormData.additionalPhones.filter(phone => 
+          phone && phone.replace(/\D/g, '').length === 11
+        );
+
+        if (validAdditionalPhones.length > 0) {
+          const phoneInserts = validAdditionalPhones.map(phone => ({
+            student_id: studentResult.id,
+            phone_number: phone
+          }));
+
+          const { error: phoneError } = await supabase
+            .from('student_phones')
+            .insert(phoneInserts);
+
+          if (phoneError) {
+            console.error('Erro ao inserir telefones adicionais:', phoneError);
+            // Não falha a inscrição se houver erro nos telefones adicionais
+          }
+        }
+      }
 
       toast.success('Inscrição realizada com sucesso!');
       
@@ -167,6 +207,7 @@ export const RegistrationForm = () => {
         responsibleName: '',
         birthDate: '',
         phone: '',
+        additionalPhones: [],
         email: '',
         cityId: '',
         cityName: '',
@@ -248,11 +289,12 @@ export const RegistrationForm = () => {
                 onInputChange={handleInputChange}
               />
 
-              <ResponsibleDataSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                onInputChange={handleInputChange}
-              />
+        <ResponsibleDataSection
+          formData={formData}
+          fieldErrors={fieldErrors}
+          onInputChange={handleInputChange}
+          onAdditionalPhonesChange={handleAdditionalPhonesChange}
+        />
 
               <AddressSection
                 formData={formData}
