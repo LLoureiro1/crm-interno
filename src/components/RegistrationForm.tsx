@@ -168,6 +168,12 @@ export const RegistrationForm = () => {
 
       if (error) throw error;
 
+      // DEBUG TEMPORÁRIO
+      console.log('=== DEBUG STUDENT INSERT ===');
+      console.log('studentResult:', studentResult);
+      console.log('studentResult.id:', studentResult?.id);
+      console.log('typeof studentResult.id:', typeof studentResult?.id);
+
       // Inserir telefones adicionais na tabela student_phones
       if (sanitizedFormData.additionalPhones && sanitizedFormData.additionalPhones.length > 0) {
         const validAdditionalPhones = sanitizedFormData.additionalPhones.filter(phone => 
@@ -179,6 +185,11 @@ export const RegistrationForm = () => {
             student_id: studentResult.id,
             phone_number: phone
           }));
+
+          // DEBUG TEMPORÁRIO
+          console.log('=== DEBUG PHONE INSERTS ===');
+          console.log('phoneInserts:', phoneInserts);
+          console.log('studentResult.id:', studentResult.id);
 
           const { error: phoneError } = await supabase
             .from('student_phones')
