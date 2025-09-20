@@ -124,10 +124,20 @@ export const RegistrationForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // DEBUG TEMPORÁRIO - INÍCIO DO SUBMIT
+    console.log('=== DEBUG INÍCIO DO SUBMIT ===');
+    console.log('formData original:', formData);
+    
     // Sanitizar dados do formulário antes da validação
     const sanitizedFormData = sanitizeRegistrationData(formData);
     
+    console.log('=== DEBUG APÓS SANITIZAÇÃO ===');
+    console.log('sanitizedFormData:', sanitizedFormData);
+    
     const errors = validateForm(sanitizedFormData);
+    
+    console.log('=== DEBUG APÓS VALIDAÇÃO ===');
+    console.log('errors:', errors);
     
     // Validação adicional: se há múltiplas turmas, uma deve ser selecionada
     if (showClassSelector && !sanitizedFormData.classId) {
@@ -137,6 +147,8 @@ export const RegistrationForm = () => {
     setFieldErrors(errors);
     
     if (Object.keys(errors).length > 0) {
+      console.log('=== DEBUG ERRO DE VALIDAÇÃO ===');
+      console.log('Erros encontrados, não prosseguindo com INSERT');
       toast.error('Por favor, corrija os campos destacados em vermelho');
       return;
     }
@@ -160,11 +172,22 @@ export const RegistrationForm = () => {
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
+      // DEBUG TEMPORÁRIO - ANTES DO INSERT
+      console.log('=== DEBUG ANTES DO INSERT ===');
+      console.log('studentData:', studentData);
+      console.log('selectedClass:', selectedClass);
+      console.log('Vai tentar fazer INSERT na tabela students...');
+
       const { data: studentResult, error } = await supabase
         .from('students')
         .insert(studentData)
         .select('id')
         .single();
+
+      // DEBUG TEMPORÁRIO - APÓS O INSERT
+      console.log('=== DEBUG APÓS O INSERT ===');
+      console.log('studentResult:', studentResult);
+      console.log('error:', error);
 
       if (error) throw error;
 
@@ -231,6 +254,7 @@ export const RegistrationForm = () => {
       setFieldErrors({});
 
     } catch (error) {
+      console.error('=== DEBUG ERRO NO CATCH ===');
       console.error('Erro ao realizar inscrição:', error);
       toast.error('Erro ao realizar inscrição. Tente novamente.');
     } finally {
