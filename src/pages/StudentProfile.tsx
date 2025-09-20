@@ -457,7 +457,7 @@ const StudentProfile = () => {
 
     const discount = parseFloat(discountPercentage);
     if (isNaN(discount) || discount < 0 || discount > 100) {
-      toast.error('Percentual de desconto inválido');
+      toast.error('Percentual de desconto deve estar entre 0% e 100%');
       return;
     }
 
@@ -1259,7 +1259,13 @@ const StudentProfile = () => {
                       max="100"
                       step="0.1"
                       value={discountPercentage}
-                      onChange={(e) => setDiscountPercentage(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const numValue = parseFloat(value);
+                        if (value === '' || (numValue >= 0 && numValue <= 100)) {
+                          setDiscountPercentage(value);
+                        }
+                      }}
                       placeholder="Ex: 10.0"
                     />
                   </div>

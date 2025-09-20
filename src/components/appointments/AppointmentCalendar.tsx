@@ -267,7 +267,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
     const discount = parseFloat(attendanceDiscount);
     if (isNaN(discount) || discount < 0 || discount > 100) {
-      toast.error('Percentual de desconto inválido');
+      toast.error('Percentual de desconto deve estar entre 0% e 100%');
       return;
     }
 
@@ -713,7 +713,13 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                 id="discount"
                 type="number"
                 value={attendanceDiscount}
-                onChange={(e) => setAttendanceDiscount(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = parseFloat(value);
+                  if (value === '' || (numValue >= 0 && numValue <= 100)) {
+                    setAttendanceDiscount(value);
+                  }
+                }}
                 className="col-span-3"
                 placeholder="Ex: 10, 20, 50"
                 min="0"
