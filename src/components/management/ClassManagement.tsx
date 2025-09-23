@@ -35,7 +35,8 @@ export const ClassManagement = () => {
     monthly_fee: '',
     annuity: '',
     parcelas: '',
-    material_didatico_anual: ''
+    material_didatico_anual: '',
+    material_didatico_mes: ''
   });
 
   useEffect(() => {
@@ -62,6 +63,25 @@ export const ClassManagement = () => {
       setFormData(prev => ({ ...prev, monthly_fee: '' }));
     }
   }, [formData.annuity, formData.parcelas]);
+
+  // Calcular material didático mensal automaticamente baseado no material anual e parcelas
+  useEffect(() => {
+    if (formData.material_didatico_anual && formData.parcelas) {
+      const materialAnualValue = parseFloat(formData.material_didatico_anual);
+      const parcelasValue = parseInt(formData.parcelas);
+      
+      if (!isNaN(materialAnualValue) && !isNaN(parcelasValue) && parcelasValue > 0 && materialAnualValue > 0) {
+        const materialMensalCalculado = materialAnualValue / parcelasValue;
+        setFormData(prev => ({ ...prev, material_didatico_mes: materialMensalCalculado.toFixed(2) }));
+      } else {
+        // Limpar material mensal se os valores não forem válidos
+        setFormData(prev => ({ ...prev, material_didatico_mes: '' }));
+      }
+    } else {
+      // Limpar material mensal se algum campo estiver vazio
+      setFormData(prev => ({ ...prev, material_didatico_mes: '' }));
+    }
+  }, [formData.material_didatico_anual, formData.parcelas]);
 
   const fetchClasses = async () => {
     const { data, error } = await supabase
@@ -122,7 +142,8 @@ export const ClassManagement = () => {
         monthly_fee: parseFloat(formData.monthly_fee),
         annuity: parseFloat(formData.annuity),
         parcelas: parseInt(formData.parcelas),
-        material_didatico_anual: parseFloat(formData.material_didatico_anual)
+        material_didatico_anual: parseFloat(formData.material_didatico_anual),
+        material_didatico_mes: parseFloat(formData.material_didatico_mes)
       };
 
       if (editingClass) {
@@ -157,6 +178,7 @@ export const ClassManagement = () => {
     setEditingClass(classItem);
     const annuity = (classItem as any).annuity?.toString() || '0';
     const parcelas = (classItem as any).parcelas?.toString() || '1';
+    const materialAnual = (classItem as any).material_didatico_anual?.toString() || '0';
     
     setFormData({
       name: classItem.name,
@@ -166,7 +188,8 @@ export const ClassManagement = () => {
       monthly_fee: '', // Será calculado pelo useEffect
       annuity: annuity,
       parcelas: parcelas,
-      material_didatico_anual: (classItem as any).material_didatico_anual?.toString() || '0'
+      material_didatico_anual: materialAnual,
+      material_didatico_mes: '' // Será calculado pelo useEffect
     });
     setDialogOpen(true);
   };
@@ -198,7 +221,8 @@ export const ClassManagement = () => {
       monthly_fee: '',
       annuity: '',
       parcelas: '',
-      material_didatico_anual: ''
+      material_didatico_anual: '',
+      material_didatico_mes: ''
     });
     setEditingClass(null);
   };
@@ -305,6 +329,18 @@ export const ClassManagement = () => {
                   required
                 />
               </div>
+              <div>
+                <Label htmlFor="material_didatico_mes">Material Didático Mensal (R$) - Calculado automaticamente</Label>
+                <Input
+                  id="material_didatico_mes"
+                  type="number"
+                  step="0.01"
+                  value={formData.material_didatico_mes}
+                  readOnly
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Será calculado automaticamente"
+                />
+              </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="has_exam"
@@ -340,7 +376,8 @@ export const ClassManagement = () => {
                 <TableHead>Mensalidade</TableHead>
                 <TableHead>Anuidade</TableHead>
                 <TableHead>Parcelas</TableHead>
-                <TableHead>Material Didático</TableHead>
+                <TableHead>Material Anual</TableHead>
+                <TableHead>Material Mensal</TableHead>
                 <TableHead>Tem Prova</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -355,6 +392,7 @@ export const ClassManagement = () => {
                   <TableCell>R$ {((classItem as any).annuity || 0).toFixed(2)}</TableCell>
                   <TableCell>{(classItem as any).parcelas || 1}</TableCell>
                   <TableCell>R$ {((classItem as any).material_didatico_anual || 0).toFixed(2)}</TableCell>
+                  <TableCell>R$ {((classItem as any).material_didatico_mes || 0).toFixed(2)}</TableCell>
                   <TableCell>{classItem.has_exam ? 'Sim' : 'Não'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end space-x-2">
