@@ -56,9 +56,12 @@ export const RegistrationForm = () => {
       const filteredClasses = classes.filter(cls => cls.series_id === formData.seriesId);
       
       // Extrair unidades únicas das turmas filtradas
-      const uniqueUnits = filteredClasses
+      // Filtrar turmas que têm unidades válidas (não null)
+      const validClasses = filteredClasses.filter(cls => cls.units !== null);
+      
+      const uniqueUnits = validClasses
         .map(cls => cls.units)
-        .filter((unit, index, arr) => arr.findIndex(u => u.id === unit.id) === index);
+        .filter((unit, index, arr) => arr.findIndex(u => u?.id === unit?.id) === index);
       setAvailableUnits(uniqueUnits);
       
       // Limpar seleções dependentes e não mostrar turmas ainda
@@ -74,7 +77,9 @@ export const RegistrationForm = () => {
   useEffect(() => {
     if (formData.unitId && formData.seriesId) {
       const filteredClasses = classes.filter(
-        cls => cls.series_id === formData.seriesId && cls.unit_id === formData.unitId
+        cls => cls.series_id === formData.seriesId 
+          && cls.unit_id === formData.unitId
+          && cls.units !== null // Adicionar verificação para units não nulo
       );
       
       setAvailableClasses(filteredClasses);
