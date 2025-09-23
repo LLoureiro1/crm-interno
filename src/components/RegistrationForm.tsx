@@ -61,7 +61,11 @@ export const RegistrationForm = () => {
       
       const uniqueUnits = validClasses
         .map(cls => cls.units)
-        .filter((unit, index, arr) => arr.findIndex(u => u?.id === unit?.id) === index);
+        .filter((unit, index, arr) => {
+          // Verificar se unit é válido antes de usar
+          if (!unit || !unit.id) return false;
+          return arr.findIndex(u => u && u.id && u.id === unit.id) === index;
+        });
       setAvailableUnits(uniqueUnits);
       
       // Limpar seleções dependentes e não mostrar turmas ainda
