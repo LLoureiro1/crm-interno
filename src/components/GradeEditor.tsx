@@ -27,18 +27,18 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
   const validateGrade = (value: string): boolean => {
     if (value === '') return true; // Permitir campo vazio
     const num = parseFloat(value);
-    return !isNaN(num) && num >= 0 && num <= 10;
+    return !isNaN(num) && num >= 0 && num <= 15;
   };
 
   const handleSave = async () => {
     // Validações
     if (!validateGrade(portugueseGrade)) {
-      toast.error('Nota de Português deve estar entre 0 e 10');
+      toast.error('Nota de Português deve estar entre 0 e 15');
       return;
     }
     
     if (!validateGrade(mathGrade)) {
-      toast.error('Nota de Matemática deve estar entre 0 e 10');
+      toast.error('Nota de Matemática deve estar entre 0 e 15');
       return;
     }
 
@@ -119,11 +119,11 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
               id="portuguese-grade"
               type="number"
               min="0"
-              max="10"
-              step="0.1"
+              max="15"
+              step="1"
               value={portugueseGrade}
               onChange={(e) => setPortugueseGrade(e.target.value)}
-              placeholder="0.0 - 10.0"
+              placeholder="Insira a nota de Português"
               className={!validateGrade(portugueseGrade) ? 'border-red-500' : ''}
             />
           ) : (
@@ -140,11 +140,11 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
               id="math-grade"
               type="number"
               min="0"
-              max="10"
-              step="0.1"
+              max="15"
+              step="1"
               value={mathGrade}
               onChange={(e) => setMathGrade(e.target.value)}
-              placeholder="0.0 - 10.0"
+              placeholder="Insira a nota de Matemática"
               className={!validateGrade(mathGrade) ? 'border-red-500' : ''}
             />
           ) : (
