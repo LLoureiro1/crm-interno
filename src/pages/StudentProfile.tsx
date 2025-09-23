@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
+import { GradeEditor } from '@/components/GradeEditor';
 import { toast } from 'sonner';
 import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
@@ -1082,16 +1083,9 @@ const StudentProfile = () => {
                     </div>
                   )}
                   {student.classes?.has_exam && (
-                    <>
-                      <div>
-                        <span className="font-medium">Nota Português:</span>
-                        <p>{student.portuguese_grade || 'Não informado'}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium">Nota Matemática:</span>
-                        <p>{student.math_grade || 'Não informado'}</p>
-                      </div>
-                    </>
+                    <div className="col-span-2">
+                      <GradeEditor student={student} onUpdate={fetchStudent} variant="inline" />
+                    </div>
                   )}
                   {student.classes?.has_exam && (
                     <div className="col-span-2">

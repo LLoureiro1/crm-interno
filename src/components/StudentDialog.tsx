@@ -19,6 +19,7 @@ import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent } from 'luc
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay } from '@/utils/dateUtils';
+import { GradeEditor } from '@/components/GradeEditor';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -235,13 +236,8 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <span className="font-medium">Unidade:</span>
                     <p>{student.classes.units.name}</p>
                   </div>
-                  <div>
-                    <span className="font-medium">Nota Português:</span>
-                    <p>{student.portuguese_grade || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Nota Matemática:</span>
-                    <p>{student.math_grade || 'Não informado'}</p>
+                  <div className="col-span-2">
+                    <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
                   </div>
                   <div className="flex items-center space-x-1">
                     <Percent className="h-3 w-3" />
