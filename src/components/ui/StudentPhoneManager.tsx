@@ -88,16 +88,22 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
       setLoading(true);
 
       // Validar telefone principal
-      if (!editingPrimaryPhone || editingPrimaryPhone.replace(/\D/g, '').length !== 11) {
-        toast.error('Telefone principal deve ter 11 dígitos com DDD');
+      if (!editingPrimaryPhone) {
+        toast.error('Telefone principal é obrigatório');
+        return;
+      }
+      const primaryPhoneDigits = editingPrimaryPhone.replace(/\D/g, '');
+      if (primaryPhoneDigits.length !== 10 && primaryPhoneDigits.length !== 11) {
+        toast.error('Telefone principal deve ter 10 ou 11 dígitos com DDD');
         return;
       }
 
       // Validar telefones adicionais
       const validAdditionalPhones = editingAdditionalPhones.filter(phone => {
         if (!phone) return false;
-        if (phone.replace(/\D/g, '').length !== 11) {
-          toast.error('Todos os telefones adicionais devem ter 11 dígitos com DDD');
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+          toast.error('Todos os telefones adicionais devem ter 10 ou 11 dígitos com DDD');
           return false;
         }
         return true;

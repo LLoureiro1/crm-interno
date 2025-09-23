@@ -1,6 +1,12 @@
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import { validateEmailFormat } from '@/utils/sanitization';
 
+// Função auxiliar para validar telefone (aceita 10 ou 11 dígitos)
+const isValidPhone = (phone: string): boolean => {
+  const digitsOnly = phone.replace(/\D/g, '');
+  return digitsOnly.length === 10 || digitsOnly.length === 11;
+};
+
 export const validateForm = (formData: RegistrationFormData): ValidationErrors => {
   const errors: ValidationErrors = {};
   
@@ -18,15 +24,15 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
   }
   
   // Validar telefone principal (obrigatório)
-  if (!formData.phone || formData.phone.replace(/\D/g, '').length !== 11) {
-    errors.phone = 'Telefone principal é obrigatório (11 dígitos com DDD)';
+  if (!formData.phone || !isValidPhone(formData.phone)) {
+    errors.phone = 'Telefone principal é obrigatório (10 ou 11 dígitos com DDD)';
   }
 
   // Validar telefones adicionais (opcionais, mas se preenchidos devem ser válidos)
   if (formData.additionalPhones && formData.additionalPhones.length > 0) {
     formData.additionalPhones.forEach((phone, index) => {
-      if (phone && phone.replace(/\D/g, '').length !== 11) {
-        errors[`additionalPhones.${index}`] = 'Telefone deve ter 11 dígitos com DDD';
+      if (phone && !isValidPhone(phone)) {
+        errors[`additionalPhones.${index}`] = 'Telefone deve ter 10 ou 11 dígitos com DDD';
       }
     });
   }

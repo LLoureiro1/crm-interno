@@ -170,9 +170,11 @@ export const RegistrationForm = () => {
 
       // Inserir telefones adicionais na tabela student_phones
       if (sanitizedFormData.additionalPhones && sanitizedFormData.additionalPhones.length > 0) {
-        const validAdditionalPhones = sanitizedFormData.additionalPhones.filter(phone => 
-          phone && phone.replace(/\D/g, '').length === 11
-        );
+        const validAdditionalPhones = sanitizedFormData.additionalPhones.filter(phone => {
+          if (!phone) return false;
+          const digitsOnly = phone.replace(/\D/g, '');
+          return digitsOnly.length === 10 || digitsOnly.length === 11;
+        });
 
         if (validAdditionalPhones.length > 0) {
           const phoneInserts = validAdditionalPhones.map(phone => ({
