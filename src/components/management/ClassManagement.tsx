@@ -32,7 +32,10 @@ export const ClassManagement = () => {
     series_id: '',
     unit_id: '',
     has_exam: true,
-    monthly_fee: ''
+    monthly_fee: '',
+    annuity: '',
+    parcelas: '',
+    material_didatico_anual: ''
   });
 
   useEffect(() => {
@@ -97,7 +100,10 @@ export const ClassManagement = () => {
         series_id: formData.series_id,
         unit_id: formData.unit_id,
         has_exam: formData.has_exam,
-        monthly_fee: parseFloat(formData.monthly_fee)
+        monthly_fee: parseFloat(formData.monthly_fee),
+        annuity: parseFloat(formData.annuity),
+        parcelas: parseInt(formData.parcelas),
+        material_didatico_anual: parseFloat(formData.material_didatico_anual)
       };
 
       if (editingClass) {
@@ -135,7 +141,10 @@ export const ClassManagement = () => {
       series_id: classItem.series_id,
       unit_id: classItem.unit_id,
       has_exam: classItem.has_exam,
-      monthly_fee: classItem.monthly_fee.toString()
+      monthly_fee: classItem.monthly_fee.toString(),
+      annuity: (classItem as any).annuity?.toString() || '0',
+      parcelas: (classItem as any).parcelas?.toString() || '1',
+      material_didatico_anual: (classItem as any).material_didatico_anual?.toString() || '0'
     });
     setDialogOpen(true);
   };
@@ -164,7 +173,10 @@ export const ClassManagement = () => {
       series_id: '',
       unit_id: '',
       has_exam: true,
-      monthly_fee: ''
+      monthly_fee: '',
+      annuity: '',
+      parcelas: '',
+      material_didatico_anual: ''
     });
     setEditingClass(null);
   };
@@ -237,6 +249,39 @@ export const ClassManagement = () => {
                   required
                 />
               </div>
+              <div>
+                <Label htmlFor="annuity">Anuidade (R$) *</Label>
+                <Input
+                  id="annuity"
+                  type="number"
+                  step="0.01"
+                  value={formData.annuity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, annuity: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="parcelas">Número de Parcelas *</Label>
+                <Input
+                  id="parcelas"
+                  type="number"
+                  min="1"
+                  value={formData.parcelas}
+                  onChange={(e) => setFormData(prev => ({ ...prev, parcelas: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="material_didatico_anual">Material Didático Anual (R$) *</Label>
+                <Input
+                  id="material_didatico_anual"
+                  type="number"
+                  step="0.01"
+                  value={formData.material_didatico_anual}
+                  onChange={(e) => setFormData(prev => ({ ...prev, material_didatico_anual: e.target.value }))}
+                  required
+                />
+              </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="has_exam"
@@ -270,6 +315,9 @@ export const ClassManagement = () => {
                 <TableHead>Série</TableHead>
                 <TableHead>Unidade</TableHead>
                 <TableHead>Mensalidade</TableHead>
+                <TableHead>Anuidade</TableHead>
+                <TableHead>Parcelas</TableHead>
+                <TableHead>Material Didático</TableHead>
                 <TableHead>Tem Prova</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -281,6 +329,9 @@ export const ClassManagement = () => {
                   <TableCell>{classItem.series.name}</TableCell>
                   <TableCell>{classItem.units.name}</TableCell>
                   <TableCell>R$ {classItem.monthly_fee.toFixed(2)}</TableCell>
+                  <TableCell>R$ {((classItem as any).annuity || 0).toFixed(2)}</TableCell>
+                  <TableCell>{(classItem as any).parcelas || 1}</TableCell>
+                  <TableCell>R$ {((classItem as any).material_didatico_anual || 0).toFixed(2)}</TableCell>
                   <TableCell>{classItem.has_exam ? 'Sim' : 'Não'}</TableCell>
                   <TableCell className="text-right">
                     <Button
