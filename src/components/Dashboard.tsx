@@ -1,18 +1,15 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { ReportsTab } from './tabs/ReportsTab';
 import { StudentsTab } from './tabs/StudentsTab';
 import { AppointmentsTab } from './tabs/AppointmentsTab';
 import { ConfigTab } from './tabs/ConfigTab';
 import { AdvancedReportsTab } from './tabs/AdvancedReportsTab';
 import { BarChart3, Users, Calendar, Settings, TrendingUp, UserPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
   const { profile } = useAuth();
-  const navigate = useNavigate();
 
   const canAccessAdvancedReports = profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
@@ -82,13 +79,13 @@ export const Dashboard = () => {
       {/* Botão de Inscrição na parte inferior */}
       <div className="mt-8 pt-6 border-t border-gray-200">
         <div className="flex justify-center">
-          <Button 
-            onClick={() => navigate('/inscricao')}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200"
+          <a 
+            href="/inscricao"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer inline-block"
           >
             <UserPlus className="h-5 w-5" />
             <span>Nova Inscrição</span>
-          </Button>
+          </a>
         </div>
       </div>
     </div>
