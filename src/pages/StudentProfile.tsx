@@ -13,6 +13,7 @@ import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, Arr
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { toast } from 'sonner';
+import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatDateForDisplay } from '@/utils/dateUtils';
@@ -79,8 +80,8 @@ const StudentProfile = () => {
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
   const canEditPersonalData = profile?.profile === 'admin' || profile?.profile === 'direcao';
   
-  // Verificar se hoje é o dia da entrevista
-  const today = new Date().toISOString().split('T')[0];
+  // Verificar se hoje é o dia da entrevista (usando data local)
+  const today = getCurrentDate();
   const isInterviewDay = student?.interview_date === today;
 
 
@@ -183,7 +184,7 @@ const StudentProfile = () => {
       .from('exam_dates')
       .select('*')
       .eq('unit_id', student.classes.unit_id)
-      .gte('exam_date', new Date().toISOString().split('T')[0])
+      .gte('exam_date', getCurrentDate())
       .order('exam_date', { ascending: true })
       .order('exam_time', { ascending: true });
 

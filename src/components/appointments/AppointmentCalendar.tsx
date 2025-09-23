@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate, dateToLocalString } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Appointment = Tables<'appointments'> & {
@@ -139,7 +139,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
   const fetchAppointments = async () => {
     setLoading(true);
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    // Usar data local para evitar problemas de timezone
+    const dateStr = dateToLocalString(selectedDate);
     
     // Verificar se o usuário está autenticado antes de fazer a consulta
     const { data: sessionData } = await supabase.auth.getSession();
@@ -245,7 +246,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     console.log('Date selected:', date);
     if (date) {
       setSelectedDate(date);
-      const dateStr = date.toISOString().split('T')[0];
+      // Usar data local para evitar problemas de timezone
+      const dateStr = dateToLocalString(date);
       console.log('Formatted date for API:', dateStr);
       onDateSelect?.(dateStr);
     }
@@ -557,7 +559,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <ClipboardList className="h-5 w-5" />
-            <span>Agendamentos para {formatDateForDisplay(selectedDate.toISOString().split('T')[0])}</span>
+            <span>Agendamentos para {formatDateForDisplay(dateToLocalString(selectedDate))}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
+import { getCurrentDate } from '@/utils/dateUtils';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -67,7 +68,7 @@ export const ReportsTab = () => {
       const { data: nextExamDate, error } = await supabase
         .from('exam_dates')
         .select('exam_date')
-        .gte('exam_date', new Date().toISOString().split('T')[0])
+        .gte('exam_date', getCurrentDate())
         .order('exam_date', { ascending: true })
         .limit(1)
         .single();
@@ -113,7 +114,7 @@ export const ReportsTab = () => {
     if (students) {
       setStudentsData(students as Student[]);
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = getCurrentDate();
       
       const totalInscricoes = students.length;
       const alunosProximaProva = await getNextExamStudentCount(students);

@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import type { Tables } from '@/integrations/supabase/types';
-import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 
 type Student = Tables<'students'> & {
@@ -125,7 +125,7 @@ export const StudentsTab = () => {
     }
 
     if (examDateFilter.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getCurrentDate();
       filtered = filtered.filter(student => {
         return examDateFilter.some(filter => {
           switch (filter) {
@@ -176,7 +176,7 @@ export const StudentsTab = () => {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
-    XLSX.writeFile(wb, `alunos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `alunos_${getCurrentDate()}.xlsx`);
   };
 
   const getStatusBadge = (status: string) => {

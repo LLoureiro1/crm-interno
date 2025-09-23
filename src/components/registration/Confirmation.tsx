@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { getCurrentDate } from '@/utils/dateUtils';
 
 const Confirmation: React.FC = () => {
   const location = useLocation();
@@ -34,7 +35,7 @@ const Confirmation: React.FC = () => {
             .from('exam_dates')
             .select('*, units(*)')
             .eq('unit_id', classData.unit_id)
-            .gte('exam_date', new Date().toISOString().split('T')[0])
+            .gte('exam_date', getCurrentDate())
             .order('exam_date', { ascending: true })
             .limit(1)
             .single();

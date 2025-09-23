@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Download } from 'lucide-react';
+import { getCurrentDate } from '@/utils/dateUtils';
 
 interface StudentGrade {
   code: string;
@@ -23,7 +24,7 @@ export const GradeUpload = () => {
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo Notas');
-    XLSX.writeFile(wb, `modelo_notas_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `modelo_notas_${getCurrentDate()}.xlsx`);
   };
 
   const [file, setFile] = useState<File | null>(null);
