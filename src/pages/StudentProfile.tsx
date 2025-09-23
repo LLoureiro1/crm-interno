@@ -43,6 +43,7 @@ const StudentProfile = () => {
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
+  const [dropoutComment, setDropoutComment] = useState<string>('');
   const [customDropoutReason, setCustomDropoutReason] = useState<string>('');
   const [invalidReason, setInvalidReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
@@ -552,6 +553,10 @@ const StudentProfile = () => {
         if (dropoutReason === 'outro' && customDropoutReason.trim()) {
           updateData.dropout_comment = customDropoutReason.trim();
         }
+        // Adicionar comentário se for motivos financeiros e houver texto
+        if (dropoutReason === 'motivos_financeiros' && dropoutComment.trim()) {
+          updateData.dropout_comment = dropoutComment.trim();
+        }
       }
       if (newStatus === 'cadastro_invalido') {
         updateData.invalid_reason = invalidReason;
@@ -571,7 +576,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : ''}`
+          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : dropoutReason === 'motivos_financeiros' && dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -1361,6 +1366,9 @@ const StudentProfile = () => {
                         if (value !== 'outro') {
                           setCustomDropoutReason(''); // Limpa o motivo customizado se não for "outro"
                         }
+                        if (value !== 'motivos_financeiros') {
+                          setDropoutComment(''); // Limpa o comentário se não for "motivos_financeiros"
+                        }
                       }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o motivo" />
@@ -1385,6 +1393,20 @@ const StudentProfile = () => {
                           onChange={(e) => setCustomDropoutReason(e.target.value)}
                           placeholder="Digite o motivo da desistência..."
                           maxLength={200}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Campo de texto para motivos financeiros */}
+                    {dropoutReason === 'motivos_financeiros' && (
+                      <div>
+                        <Label htmlFor="dropout-comment">Detalhe os motivos financeiros (opcional)</Label>
+                        <Textarea
+                          id="dropout-comment"
+                          value={dropoutComment}
+                          onChange={(e) => setDropoutComment(e.target.value)}
+                          placeholder="Ex: Dificuldades financeiras, perda de emprego, etc."
+                          rows={3}
                         />
                       </div>
                     )}

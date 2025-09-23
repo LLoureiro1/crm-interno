@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +39,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   const [comments, setComments] = useState('');
   const [newStatus, setNewStatus] = useState<Enums<'student_status'>>(student.status);
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
+  const [dropoutComment, setDropoutComment] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
@@ -101,6 +103,10 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
         updateData.dropout_reason = dropoutReason;
+        // Adicionar comentário se for motivos financeiros e houver texto
+        if (dropoutReason === 'motivos_financeiros' && dropoutComment.trim()) {
+          updateData.dropout_comment = dropoutComment.trim();
+        }
       }
 
       const { error } = await supabase
@@ -117,7 +123,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason})` : ''}`
+          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'motivos_financeiros' && dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -293,7 +299,13 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
 
                 {newStatus === 'desistente' && (
                   <div>
-                    <Select value={dropoutReason} onValueChange={(value) => setDropoutReason(value as Enums<'dropout_reason'>)}>
+                    <Select value={dropoutReason} onValueChange={(value) => {
+                      setDropoutReason(value as Enums<'dropout_reason'>);
+                      // Limpar comentário se mudar de motivos financeiros
+                      if (value !== 'motivos_financeiros') {
+                        setDropoutComment('');
+                      }
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
@@ -306,6 +318,21 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                         <SelectItem value="outro">Outro</SelectItem>
                       </SelectContent>
                     </Select>
+                    
+                    {/* Campo de texto para motivos financeiros */}
+                    {dropoutReason === 'motivos_financeiros' && (
+                      <div className="mt-3">
+                        <Label htmlFor="dropout-comment">Detalhe os motivos financeiros (opcional)</Label>
+                        <Textarea
+                          id="dropout-comment"
+                          value={dropoutComment}
+                          onChange={(e) => setDropoutComment(e.target.value)}
+                          placeholder="Ex: Dificuldades financeiras, perda de emprego, etc."
+                          className="mt-1"
+                          rows={3}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
