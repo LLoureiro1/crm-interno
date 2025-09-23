@@ -42,15 +42,31 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
       return;
     }
 
+    // Verificar se ambas as notas foram inseridas
+    const hasPortugueseGrade = portugueseGrade !== '';
+    const hasMathGrade = mathGrade !== '';
+    const hasBothGrades = hasPortugueseGrade && hasMathGrade;
+    const hasOnlyOneGrade = (hasPortugueseGrade && !hasMathGrade) || (!hasPortugueseGrade && hasMathGrade);
+
+    // Não permitir salvar se apenas uma nota foi inserida
+    if (hasOnlyOneGrade) {
+      toast.error('É necessário inserir ambas as notas (Português e Matemática) para salvar');
+      return;
+    }
+
+    // Não permitir limpar notas se já existem notas preenchidas
+    const hasExistingGrades = student.portuguese_grade !== null || student.math_grade !== null;
+    const tryingToClearBothGrades = !hasPortugueseGrade && !hasMathGrade;
+    
+    if (hasExistingGrades && tryingToClearBothGrades) {
+      toast.error('Não é possível limpar as notas já preenchidas');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Verificar se ambas as notas foram inseridas
-      const hasPortugueseGrade = portugueseGrade !== '';
-      const hasMathGrade = mathGrade !== '';
-      const hasBothGrades = hasPortugueseGrade && hasMathGrade;
-
-      // Verificar se o status deve ser alterado
+      // Verificar se o status deve ser alterado (só acontece se ambas as notas foram inseridas)
       const statusesToUpdate = ['nao_confirmado', 'confirmado', 'ausente'];
       const shouldUpdateStatus = statusesToUpdate.includes(student.status) && hasBothGrades;
 
