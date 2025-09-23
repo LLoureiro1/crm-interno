@@ -45,10 +45,24 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
     setLoading(true);
 
     try {
+      // Verificar se ambas as notas foram inseridas
+      const hasPortugueseGrade = portugueseGrade !== '';
+      const hasMathGrade = mathGrade !== '';
+      const hasBothGrades = hasPortugueseGrade && hasMathGrade;
+
+      // Verificar se o status deve ser alterado
+      const statusesToUpdate = ['nao_confirmado', 'confirmado', 'ausente'];
+      const shouldUpdateStatus = statusesToUpdate.includes(student.status) && hasBothGrades;
+
       const updateData: any = {
         portuguese_grade: portugueseGrade === '' ? null : parseFloat(portugueseGrade),
         math_grade: mathGrade === '' ? null : parseFloat(mathGrade)
       };
+
+      // Se deve atualizar o status, adicionar à atualização
+      if (shouldUpdateStatus) {
+        updateData.status = 'nenhum_agendamento';
+      }
 
       const { error } = await supabase
         .from('students')
@@ -58,16 +72,26 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
       if (error) throw error;
 
       // Adicionar interação
+      let interactionComment = `Notas atualizadas - Português: ${updateData.portuguese_grade || 'Não informado'}, Matemática: ${updateData.math_grade || 'Não informado'}`;
+      
+      if (shouldUpdateStatus) {
+        interactionComment += ` | Status alterado automaticamente de '${student.status}' para 'nenhum_agendamento' devido à inserção de ambas as notas`;
+      }
+
       await supabase
         .from('student_interactions')
         .insert({
           student_id: student.id,
           user_id: (await supabase.auth.getUser()).data.user?.id,
           interaction_type: 'notas_alteradas',
-          comments: `Notas atualizadas - Português: ${updateData.portuguese_grade || 'Não informado'}, Matemática: ${updateData.math_grade || 'Não informado'}`
+          comments: interactionComment
         });
 
-      toast.success('Notas atualizadas com sucesso');
+      const successMessage = shouldUpdateStatus 
+        ? 'Ambas as notas inseridas com sucesso. Status alterado automaticamente para "nenhum_agendamento".'
+        : 'Notas atualizadas com sucesso';
+      
+      toast.success(successMessage);
       setIsEditing(false);
       onUpdate();
       
