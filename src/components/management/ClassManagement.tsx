@@ -44,6 +44,25 @@ export const ClassManagement = () => {
     fetchSeries();
   }, []);
 
+  // Calcular mensalidade automaticamente baseado na anuidade e parcelas
+  useEffect(() => {
+    if (formData.annuity && formData.parcelas) {
+      const annuityValue = parseFloat(formData.annuity);
+      const parcelasValue = parseInt(formData.parcelas);
+      
+      if (!isNaN(annuityValue) && !isNaN(parcelasValue) && parcelasValue > 0 && annuityValue > 0) {
+        const mensalidadeCalculada = annuityValue / parcelasValue;
+        setFormData(prev => ({ ...prev, monthly_fee: mensalidadeCalculada.toFixed(2) }));
+      } else {
+        // Limpar mensalidade se os valores não forem válidos
+        setFormData(prev => ({ ...prev, monthly_fee: '' }));
+      }
+    } else {
+      // Limpar mensalidade se algum campo estiver vazio
+      setFormData(prev => ({ ...prev, monthly_fee: '' }));
+    }
+  }, [formData.annuity, formData.parcelas]);
+
   const fetchClasses = async () => {
     const { data, error } = await supabase
       .from('classes')
@@ -136,14 +155,17 @@ export const ClassManagement = () => {
 
   const handleEdit = (classItem: Class) => {
     setEditingClass(classItem);
+    const annuity = (classItem as any).annuity?.toString() || '0';
+    const parcelas = (classItem as any).parcelas?.toString() || '1';
+    
     setFormData({
       name: classItem.name,
       series_id: classItem.series_id,
       unit_id: classItem.unit_id,
       has_exam: classItem.has_exam,
-      monthly_fee: classItem.monthly_fee.toString(),
-      annuity: (classItem as any).annuity?.toString() || '0',
-      parcelas: (classItem as any).parcelas?.toString() || '1',
+      monthly_fee: '', // Será calculado pelo useEffect
+      annuity: annuity,
+      parcelas: parcelas,
       material_didatico_anual: (classItem as any).material_didatico_anual?.toString() || '0'
     });
     setDialogOpen(true);
@@ -239,14 +261,15 @@ export const ClassManagement = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="monthly_fee">Mensalidade (R$) *</Label>
+                <Label htmlFor="monthly_fee">Mensalidade (R$) - Calculada automaticamente</Label>
                 <Input
                   id="monthly_fee"
                   type="number"
                   step="0.01"
                   value={formData.monthly_fee}
-                  onChange={(e) => setFormData(prev => ({ ...prev, monthly_fee: e.target.value }))}
-                  required
+                  readOnly
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Será calculada automaticamente"
                 />
               </div>
               <div>
