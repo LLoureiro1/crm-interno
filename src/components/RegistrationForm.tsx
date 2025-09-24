@@ -286,6 +286,15 @@ export const RegistrationForm = () => {
   return (
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
+        {/* Logo do Apogeu */}
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/Logo Apogeu.jpeg" 
+            alt="Logo Apogeu" 
+            className="h-20 w-auto object-contain"
+          />
+        </div>
+        
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl text-center text-gray-900">
