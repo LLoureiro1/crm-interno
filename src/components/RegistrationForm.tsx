@@ -289,8 +289,8 @@ export const RegistrationForm = () => {
         {/* Logo do Apogeu */}
         <div className="flex justify-center mb-6">
           <img 
-            src="/Logo Apogeu.jpeg" 
-            alt="Logo Apogeu" 
+            src="/logo_apogeu_nobg.png" 
+            alt="Rede de Ensino Apogeu" 
             className="h-20 w-auto object-contain"
           />
         </div>
