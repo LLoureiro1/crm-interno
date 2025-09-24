@@ -91,29 +91,41 @@ export type Database = {
       }
       classes: {
         Row: {
+          annuity: number | null
           created_at: string
           has_exam: boolean
           id: string
+          material_didatico_anual: number | null
+          material_didatico_mes: number | null
           monthly_fee: number
           name: string
+          parcelas: number | null
           series_id: string
           unit_id: string
         }
         Insert: {
+          annuity?: number | null
           created_at?: string
           has_exam?: boolean
           id?: string
+          material_didatico_anual?: number | null
+          material_didatico_mes?: number | null
           monthly_fee: number
           name: string
+          parcelas?: number | null
           series_id: string
           unit_id: string
         }
         Update: {
+          annuity?: number | null
           created_at?: string
           has_exam?: boolean
           id?: string
+          material_didatico_anual?: number | null
+          material_didatico_mes?: number | null
           monthly_fee?: number
           name?: string
+          parcelas?: number | null
           series_id?: string
           unit_id?: string
         }

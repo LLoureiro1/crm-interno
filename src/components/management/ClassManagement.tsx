@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
+import { ClassUpload } from './ClassUpload';
 
 type Class = Tables<'classes'> & {
   series: { name: string };
@@ -231,13 +233,23 @@ export const ClassManagement = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Gestão de Turmas</h3>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Turma
-            </Button>
-          </DialogTrigger>
+      </div>
+
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="list">Lista de Turmas</TabsTrigger>
+          <TabsTrigger value="upload">Upload em Massa</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="list" className="space-y-6">
+          <div className="flex justify-end">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Turma
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -418,6 +430,12 @@ export const ClassManagement = () => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+        
+        <TabsContent value="upload">
+          <ClassUpload />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
