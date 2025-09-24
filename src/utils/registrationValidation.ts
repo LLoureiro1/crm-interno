@@ -46,9 +46,6 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.cityName = 'Cidade é obrigatória';
   }
   
-  if (!formData.neighborhood.trim()) {
-    errors.neighborhood = 'Bairro é obrigatório';
-  }
   
   if (!formData.seriesId) {
     errors.seriesId = 'Série é obrigatória';
