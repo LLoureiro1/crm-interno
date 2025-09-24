@@ -35,8 +35,7 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">Endereço</h3>
-      
+            
       <div className="relative">
         <Label htmlFor="city" className={fieldErrors.cityName ? 'text-red-600' : ''}>
           Cidade *
@@ -52,22 +51,7 @@ export const AddressSection = ({ formData, fieldErrors, cities, onInputChange }:
           <p className="text-red-600 text-sm mt-1">{fieldErrors.cityName}</p>
         )}
       </div>
-
-      <div>
-        <Label htmlFor="neighborhood" className={fieldErrors.neighborhood ? 'text-red-600' : ''}>
-          Bairro
-        </Label>
-        <Input
-          id="neighborhood"
-          value={formData.neighborhood}
-          onChange={(e) => onInputChange('neighborhood', sanitizePlainText(e.target.value))}
-          placeholder="Digite o bairro"
-          className={fieldErrors.neighborhood ? 'border-red-500 focus:border-red-500' : ''}
-        />
-        {fieldErrors.neighborhood && (
-          <p className="text-red-600 text-sm mt-1">{fieldErrors.neighborhood}</p>
-        )}
-      </div>
     </div>
+    
   );
 };
