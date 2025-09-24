@@ -20,7 +20,11 @@ interface ClassData {
   tem_prova: boolean;
 }
 
-export const ClassUpload = () => {
+interface ClassUploadProps {
+  onUploadSuccess?: () => void;
+}
+
+export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
   const downloadTemplate = () => {
     const headers = [
       "Nome", 
@@ -177,6 +181,10 @@ export const ClassUpload = () => {
       // Mostrar resultado
       if (successCount > 0) {
         toast.success(`Upload concluído! ${successCount} turmas criadas.`);
+        // Chamar callback para atualizar a lista
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
       }
       
       if (errorCount > 0) {

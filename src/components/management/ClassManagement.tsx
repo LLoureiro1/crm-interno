@@ -433,7 +433,7 @@ export const ClassManagement = () => {
         </TabsContent>
         
         <TabsContent value="upload">
-          <ClassUpload />
+          <ClassUpload onUploadSuccess={fetchClasses} />
         </TabsContent>
       </Tabs>
     </div>
