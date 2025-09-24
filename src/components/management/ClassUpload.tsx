@@ -44,12 +44,14 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<ClassData[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
     setFile(selectedFile);
+    setErrors([]); // Limpar erros anteriores
 
     try {
       const data = await selectedFile.arrayBuffer();
@@ -96,12 +98,12 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
 
       let successCount = 0;
       let errorCount = 0;
-      const errors: string[] = [];
+      const uploadErrors: string[] = [];
 
       for (const classData of classesToCreate) {
         if (!classData.name || !classData.series || !classData.unit) {
           errorCount++;
-          errors.push(`Turma sem nome, série ou unidade: ${classData.name || 'N/A'}`);
+          uploadErrors.push(`Turma sem nome, série ou unidade: ${classData.name || 'N/A'}`);
           continue;
         }
 
@@ -115,7 +117,7 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
 
           if (seriesError || !seriesData) {
             errorCount++;
-            errors.push(`Série não encontrada: ${classData.series}`);
+            uploadErrors.push(`Série não encontrada: ${classData.series}`);
             continue;
           }
 
@@ -127,7 +129,7 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
 
           if (unitError || !unitData) {
             errorCount++;
-            errors.push(`Unidade não encontrada: ${classData.unit}`);
+            uploadErrors.push(`Unidade não encontrada: ${classData.unit}`);
             continue;
           }
 
@@ -141,7 +143,7 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
 
           if (existingClass) {
             errorCount++;
-            errors.push(`Turma já existe: ${classData.name} na unidade ${unitData.name}`);
+            uploadErrors.push(`Turma já existe: ${classData.name} na unidade ${unitData.name}`);
             continue;
           }
 
@@ -167,14 +169,14 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
           if (error) {
             console.error(`Erro ao criar turma ${classData.name}:`, error);
             errorCount++;
-            errors.push(`Erro ao criar turma ${classData.name}: ${error.message}`);
+            uploadErrors.push(`Erro ao criar turma ${classData.name}: ${error.message}`);
           } else {
             successCount++;
           }
         } catch (error) {
           console.error(`Erro ao processar turma ${classData.name}:`, error);
           errorCount++;
-          errors.push(`Erro ao processar turma ${classData.name}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+          uploadErrors.push(`Erro ao processar turma ${classData.name}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
         }
       }
 
@@ -188,8 +190,10 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
       }
       
       if (errorCount > 0) {
-        toast.error(`${errorCount} erros encontrados. Verifique o console para detalhes.`);
-        console.error('Erros detalhados:', errors);
+        setErrors(uploadErrors);
+        toast.error(`${errorCount} erros encontrados. Verifique os detalhes.`);
+      } else {
+        setErrors([]);
       }
       
       // Limpar formulário
@@ -301,6 +305,19 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
                   </div>
                 ))}
                 {preview.length === 5 && <div className="text-sm text-gray-500 mt-2">... e mais</div>}
+              </div>
+            </div>
+          )}
+
+          {errors.length > 0 && (
+            <div>
+              <h4 className="font-semibold mb-2 text-red-600">Erros encontrados:</h4>
+              <div className="border border-red-200 rounded p-4 bg-red-50 max-h-40 overflow-y-auto">
+                {errors.map((error, index) => (
+                  <div key={index} className="text-sm text-red-700 mb-1">
+                    • {error}
+                  </div>
+                ))}
               </div>
             </div>
           )}
