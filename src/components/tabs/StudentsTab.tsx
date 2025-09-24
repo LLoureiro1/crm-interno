@@ -229,6 +229,16 @@ export const StudentsTab = () => {
     navigate(`/student/${studentId}`);
   };
 
+  const handleOpenStudentPageInNewTab = (studentId: string) => {
+    const url = `/student/${studentId}`;
+    window.open(url, '_blank');
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, studentId: string) => {
+    e.preventDefault();
+    handleOpenStudentPageInNewTab(studentId);
+  };
+
   const handleCloseDialog = () => {
     setShowStudentDialog(false);
     setSelectedStudent(null);
@@ -422,6 +432,8 @@ export const StudentsTab = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => handleOpenStudentPage(student.id)}
+                      onContextMenu={(e) => handleContextMenu(e, student.id)}
+                      title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Gerenciar Aluno
