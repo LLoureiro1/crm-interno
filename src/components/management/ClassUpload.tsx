@@ -229,12 +229,12 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
               A planilha deve conter as colunas:
               <ul className="list-disc list-inside mt-2">
                 <li><strong>Nome</strong>: Nome da turma</li>
-                <li><strong>Série</strong>: Nome da série</li>
-                <li><strong>Unidade</strong>: Nome da unidade</li>
+                <li><strong>Série</strong>: Nome da série (Deve estar igual ao nome da série no sistema)</li>
+                <li><strong>Unidade</strong>: Nome da unidade (Deve estar igual ao nome da unidade no sistema)</li>
                 <li><strong>Anuidade</strong>: Valor da anuidade</li>
                 <li><strong>Parcelas</strong>: Número de parcelas</li>
                 <li><strong>Material Anual</strong>: Valor do material anual</li>
-                <li><strong>Tem Prova</strong>: Sim/Não</li>
+                <li><strong>Tem Prova</strong>: Sim/Não (Preencher com Sim ou Não)</li>
               </ul>
               <p className="mt-2 text-sm">
                 <strong>Nota:</strong> Mensalidade e Material Mensal são calculados automaticamente.
