@@ -255,12 +255,28 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="class-file">Arquivo Excel (.xlsx)</Label>
-            <Input
-              id="class-file"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileSelect}
-            />
+            <div className="flex items-center space-x-4">
+              <Input
+                id="class-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => document.getElementById('class-file')?.click()}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Escolher Arquivo
+              </Button>
+              {file && (
+                <span className="text-sm text-gray-600">
+                  {file.name}
+                </span>
+              )}
+            </div>
           </div>
 
           {preview.length > 0 && (

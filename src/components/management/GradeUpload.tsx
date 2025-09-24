@@ -210,12 +210,28 @@ export const GradeUpload = () => {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="grade-file">Arquivo Excel (.xlsx)</Label>
-            <Input
-              id="grade-file"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileSelect}
-            />
+            <div className="flex items-center space-x-4">
+              <Input
+                id="grade-file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => document.getElementById('grade-file')?.click()}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Escolher Arquivo
+              </Button>
+              {file && (
+                <span className="text-sm text-gray-600">
+                  {file.name}
+                </span>
+              )}
+            </div>
           </div>
 
           {preview.length > 0 && (
