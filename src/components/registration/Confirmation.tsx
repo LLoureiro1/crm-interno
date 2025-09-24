@@ -99,7 +99,7 @@ const Confirmation: React.FC = () => {
               className="w-full bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
             >
               <a 
-                href="https://wa.me/553284829353" 
+                href="https://wa.me/553284193583" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2"
