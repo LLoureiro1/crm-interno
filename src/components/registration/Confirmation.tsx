@@ -64,7 +64,7 @@ const Confirmation: React.FC = () => {
         </CardHeader>
         <CardContent className="text-center">
           <p className="text-lg mb-3">
-            Você deu o primeiro passo rumo a uma jornada de aprendizado transformadora. Estamos muito felizes em ter você conosco!
+            Estamos muito felizes em ter você conosco!
           </p>
           {hasExam ? (
             examDetails && (
