@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
+import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { GradeEditor } from '@/components/GradeEditor';
 import { toast } from 'sonner';
@@ -1186,6 +1187,16 @@ const StudentProfile = () => {
                   className={student.classes.name}
                   hasHadInterview={hasHadInterview}
                 />
+                
+                <div className="mt-6">
+                  <MaterialDidaticoCalculator
+                    materialAnual={student.classes.material_didatico_anual || 0}
+                    materialMensal={student.classes.material_didatico_mes || 0}
+                    discountPercentage={student.discount_percentage}
+                    showAnnualSavings={true}
+                    hasHadInterview={hasHadInterview}
+                  />
+                </div>
               </CardContent>
             </Card>
 

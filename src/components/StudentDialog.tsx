@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 import { GradeEditor } from '@/components/GradeEditor';
+import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -264,6 +265,25 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Financial Data */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Percent className="h-4 w-4" />
+                  <span>Dados Financeiros</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MaterialDidaticoCalculator
+                  materialAnual={student.classes.material_didatico_anual || 0}
+                  materialMensal={student.classes.material_didatico_mes || 0}
+                  discountPercentage={student.discount_percentage}
+                  showAnnualSavings={false}
+                  hasHadInterview={false}
+                />
               </CardContent>
             </Card>
 
