@@ -4,9 +4,8 @@ import { BookOpen, Percent } from 'lucide-react';
 interface MaterialDidaticoCalculatorProps {
   materialAnual: number;
   materialMensal: number;
-  discountPercentage: number | null;
+  discountMaterial: number | null;
   containerClassName?: string;
-  showAnnualSavings?: boolean;
   className?: string;
   hasHadInterview?: boolean;
 }
@@ -14,9 +13,8 @@ interface MaterialDidaticoCalculatorProps {
 export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProps> = ({
   materialAnual,
   materialMensal,
-  discountPercentage,
+  discountMaterial,
   containerClassName,
-  showAnnualSavings = true,
   className,
   hasHadInterview = false
 }) => {
@@ -26,11 +24,10 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
     return originalValue * discountMultiplier;
   };
 
-  const hasDiscount = discountPercentage && discountPercentage > 0;
-  const finalMaterialAnual = hasDiscount ? calculateMaterialWithDiscount(materialAnual, discountPercentage) : materialAnual;
-  const finalMaterialMensal = hasDiscount ? calculateMaterialWithDiscount(materialMensal, discountPercentage) : materialMensal;
+  const hasDiscount = discountMaterial && discountMaterial > 0;
+  const finalMaterialAnual = hasDiscount ? calculateMaterialWithDiscount(materialAnual, discountMaterial) : materialAnual;
+  const finalMaterialMensal = hasDiscount ? calculateMaterialWithDiscount(materialMensal, discountMaterial) : materialMensal;
   
-  const savingsAnual = materialAnual - finalMaterialAnual;
   const savingsMensal = materialMensal - finalMaterialMensal;
 
   // Determinar a mensagem adequada baseada em hasHadInterview
@@ -71,7 +68,7 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Desconto Aplicado:</span>
-              <p className="font-semibold text-lg text-green-700">{discountPercentage}%</p>
+              <p className="font-semibold text-lg text-green-700">{discountMaterial}%</p>
             </div>
             <div>
               <span className="text-gray-600">Material Anual Final:</span>
@@ -85,16 +82,6 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
               <span className="text-gray-600">Economia Mensal:</span>
               <p className="font-semibold text-lg text-green-600">R$ {savingsMensal.toFixed(2)}</p>
             </div>
-            <div>
-              <span className="text-gray-600">Economia Anual:</span>
-              <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
-            </div>
-            {showAnnualSavings && (
-              <div>
-                <span className="text-gray-600">Economia Total Anual:</span>
-                <p className="font-semibold text-lg text-green-600">R$ {(savingsAnual + savingsMensal * 12).toFixed(2)}</p>
-              </div>
-            )}
           </div>
         </div>
       ) : (

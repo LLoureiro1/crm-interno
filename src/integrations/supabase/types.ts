@@ -358,6 +358,7 @@ export type Database = {
           code: string | null
           created_at: string
           discount_percentage: number | null
+          discount_material: number | null
           dropout_reason: Database["public"]["Enums"]["dropout_reason"] | null
           email: string
           exam_date: string | null
@@ -381,6 +382,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           discount_percentage?: number | null
+          discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
           email: string
           exam_date?: string | null
@@ -404,6 +406,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           discount_percentage?: number | null
+          discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
           email?: string
           exam_date?: string | null

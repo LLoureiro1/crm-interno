@@ -1192,8 +1192,7 @@ const StudentProfile = () => {
                   <MaterialDidaticoCalculator
                     materialAnual={student.classes.material_didatico_anual || 0}
                     materialMensal={student.classes.material_didatico_mes || 0}
-                    discountPercentage={student.discount_percentage}
-                    showAnnualSavings={true}
+                    discountMaterial={student.discount_material || 0}
                     hasHadInterview={hasHadInterview}
                   />
                 </div>

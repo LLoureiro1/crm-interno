@@ -280,8 +280,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 <MaterialDidaticoCalculator
                   materialAnual={student.classes.material_didatico_anual || 0}
                   materialMensal={student.classes.material_didatico_mes || 0}
-                  discountPercentage={student.discount_percentage}
-                  showAnnualSavings={false}
+                  discountMaterial={student.discount_material || 0}
                   hasHadInterview={false}
                 />
               </CardContent>
