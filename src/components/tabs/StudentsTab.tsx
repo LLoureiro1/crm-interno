@@ -426,7 +426,7 @@ export const StudentsTab = () => {
                       onClick={() => handleViewStudent(student)}
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalhes
+                      Ver Resumo
                     </Button>
                     <Button
                       variant="outline"
