@@ -116,10 +116,6 @@ export const InterviewerAvailability = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Disponibilidade dos Entrevistadores</h2>
-          <p className="text-gray-600">Gerencie os horários disponíveis para agendamentos</p>
-        </div>
         <Button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-orange-500 hover:bg-orange-600"
