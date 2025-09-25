@@ -67,13 +67,18 @@ export const StudentImport = () => {
 
   // Status válidos
   const validStatuses = [
-    'inscrito',
-    'confirmado',
     'nao_confirmado',
-    'matriculado',
+    'confirmado',
+    'cadastro_invalido',
+    'nenhum_agendamento',
+    'atendimento_agendado',
+    'atendimento_recentemente',
+    'atendimento_ha_mais_de_uma_semana',
+    'faltou_ao_atendimento',
     'desistente',
+    'matriculado',
     'ausente',
-    'atendimento_ha_mais_de_uma_semana'
+    'processo_anos_anteriores'
   ];
 
   const loadReferenceData = async () => {
@@ -356,11 +361,10 @@ export const StudentImport = () => {
         email: 'joao@email.com',
         phone: '(11) 99999-9999',
         birth_date: '2010-05-15',
-        status: 'inscrito',
-        tag: 'Inscrito para 2025',
-        ano_letivo: '2025',
-        unidade: 'Central',
-        serie: 'Ensino Fundamental - 6º Ano',
+        status: 'processo_anos_anteriores',
+        tag: 'VIP',
+        ano_letivo: '2026',
+        unidade: 'Unidade Centro',
         turma: '6º Ano'
       }
     ];
