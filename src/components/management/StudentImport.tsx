@@ -291,21 +291,23 @@ export const StudentImport = () => {
       for (let i = 0; i < validData.length; i++) {
         const item = validData[i];
         
-        try {
-          const { error } = await supabase
-            .from('students')
-            .insert({
-              student_name: item.student_name,
-              responsible_name: item.responsible_name,
-              email: item.email,
-              phone: item.phone,
-              birth_date: item.birth_date,
-              status: item.status as any,
-              tag: item.tag,
-              ano_letivo: item.ano_letivo,
-              unit_id: item.unit_id,
-              class_id: item.class_id
-            });
+         try {
+           const { error } = await supabase
+             .from('students')
+             .insert({
+               student_name: item.student_name,
+               responsible_name: item.responsible_name,
+               email: item.email,
+               phone: item.phone,
+               birth_date: item.birth_date,
+               status: item.status as any,
+               tag: item.tag,
+               ano_letivo: item.ano_letivo,
+               unit_id: item.unit_id,
+               class_id: item.class_id,
+               neighborhood: '', // Campo obrigatório, será preenchido com valor padrão
+               origin_school: '' // Campo obrigatório, será preenchido com valor padrão
+             });
 
           if (error) {
             console.error(`Erro ao inserir aluno ${item.student_name}:`, error);
@@ -355,10 +357,11 @@ export const StudentImport = () => {
         phone: '(11) 99999-9999',
         birth_date: '2010-05-15',
         status: 'inscrito',
-        tag: 'VIP',
-        ano_letivo: '2026',
-        unidade: 'Unidade Centro',
-        turma: '6º Ano A'
+        tag: 'Inscrito para 2025',
+        ano_letivo: '2025',
+        unidade: 'Central',
+        serie: 'Ensino Fundamental - 6º Ano',
+        turma: '6º Ano'
       }
     ];
 
@@ -486,17 +489,19 @@ export const StudentImport = () => {
             {/* Tabela de preview */}
             <div className="max-h-96 overflow-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Linha</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Unidade</TableHead>
-                    <TableHead>Turma</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Validação</TableHead>
-                  </TableRow>
-                </TableHeader>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Linha</TableHead>
+                     <TableHead>Nome</TableHead>
+                     <TableHead>Email</TableHead>
+                     <TableHead>Unidade</TableHead>
+                     <TableHead>Turma</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead>Tag</TableHead>
+                     <TableHead>Ano Letivo</TableHead>
+                     <TableHead>Validação</TableHead>
+                   </TableRow>
+                 </TableHeader>
                 <TableBody>
                   {mappedData.map((item, index) => (
                     <TableRow key={index}>
@@ -507,6 +512,12 @@ export const StudentImport = () => {
                       <TableCell>{item.turma}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{item.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.tag && <Badge variant="secondary">{item.tag}</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        {item.ano_letivo && <Badge variant="outline">{item.ano_letivo}</Badge>}
                       </TableCell>
                       <TableCell>
                         {item.errors && item.errors.length > 0 ? (

@@ -372,6 +372,8 @@ export type Database = {
           responsible_name: string
           status: Database["public"]["Enums"]["student_status"]
           student_name: string
+          tag: string | null
+          ano_letivo: string | null
           unit_id: string
           updated_at: string
         }
@@ -396,6 +398,8 @@ export type Database = {
           responsible_name: string
           status?: Database["public"]["Enums"]["student_status"]
           student_name: string
+          tag?: string | null
+          ano_letivo?: string | null
           unit_id: string
           updated_at?: string
         }
@@ -420,6 +424,8 @@ export type Database = {
           responsible_name?: string
           status?: Database["public"]["Enums"]["student_status"]
           student_name?: string
+          tag?: string | null
+          ano_letivo?: string | null
           unit_id?: string
           updated_at?: string
         }
