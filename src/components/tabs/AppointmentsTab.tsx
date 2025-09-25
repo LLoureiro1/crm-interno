@@ -27,13 +27,6 @@ export const AppointmentsTab = () => {
           <h2 className="text-xl font-semibold text-gray-900">Gestão de Agendamentos</h2>
           <p className="text-gray-600">Visualize e gerencie todos os agendamentos de entrevistas</p>
         </div>
-        <Button 
-          onClick={handleCheckMissedInterviews}
-          className="bg-orange-500 hover:bg-orange-600"
-        >
-          <AlertCircle className="h-4 w-4 mr-2" />
-          Verificar Entrevistas Perdidas
-        </Button>
       </div>
 
       <Card>
