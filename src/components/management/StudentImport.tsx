@@ -362,9 +362,9 @@ export const StudentImport = () => {
         phone: '(11) 99999-9999',
         birth_date: '2010-05-15',
         status: 'processo_anos_anteriores',
-        tag: 'VIP',
-        ano_letivo: '2026',
-        unidade: 'Unidade Centro',
+        tag: 'Inscrito para 2025',
+        ano_letivo: '2025',
+        unidade: 'Central',
         turma: '6º Ano'
       }
     ];
