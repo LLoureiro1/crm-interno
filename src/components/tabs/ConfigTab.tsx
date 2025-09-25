@@ -8,6 +8,7 @@ import { ClassManagement } from '@/components/management/ClassManagement';
 import { InterviewerAvailability } from '@/components/management/InterviewerAvailability';
 import { GradeUpload } from '@/components/management/GradeUpload';
 import { ExamDateManagement } from '@/components/management/ExamDateManagement';
+import { StudentImport } from '@/components/management/StudentImport';
 
 export const ConfigTab = () => {
   return (
@@ -18,13 +19,14 @@ export const ConfigTab = () => {
       </div>
       
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="units">Unidades</TabsTrigger>
           <TabsTrigger value="classes">Turmas</TabsTrigger>
           <TabsTrigger value="exam-dates">Datas de Provas</TabsTrigger>
           <TabsTrigger value="availability">Disponibilidade</TabsTrigger>
           <TabsTrigger value="grades">Notas</TabsTrigger>
+          <TabsTrigger value="import">Importação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -109,6 +111,10 @@ export const ConfigTab = () => {
               <GradeUpload />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="import">
+          <StudentImport />
         </TabsContent>
       </Tabs>
     </div>
