@@ -291,10 +291,6 @@ export const StudentsTab = () => {
           <p className="text-gray-600">Visualize e gerencie todos os alunos cadastrados</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleManualStatusUpdate} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar Status
-          </Button>
           <Button onClick={exportToExcel} className="bg-orange-500 hover:bg-orange-600">
             <Download className="h-4 w-4 mr-2" />
             Exportar Excel
