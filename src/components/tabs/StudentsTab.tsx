@@ -36,8 +36,10 @@ export const StudentsTab = () => {
   const [unitFilter, setUnitFilter] = useState<string[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<string[]>([]);
   const [examDateFilter, setExamDateFilter] = useState<string[]>([]);
+  const [academicYearFilter, setAcademicYearFilter] = useState<string>('');
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
+  const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
 
@@ -45,17 +47,32 @@ export const StudentsTab = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
+  // Função para calcular o ano letivo atual
+  const getCurrentAcademicYear = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
+    // Se é agosto ou depois, o ano letivo é o próximo ano
+    if (currentMonth >= 8) {
+      return String(currentYear + 1);
+    }
+    // Caso contrário, é o ano atual
+    return String(currentYear);
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchUnits();
     fetchSeries();
     fetchExamDates();
+    fetchAvailableAcademicYears();
   }, []);
 
   useEffect(() => {
     filterStudents();
     setCurrentPage(1); // Reset para primeira página quando filtros mudarem
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter]);
+  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -86,6 +103,31 @@ export const StudentsTab = () => {
   const fetchSeries = async () => {
     const { data } = await supabase.from('series').select('*');
     if (data) setSeries(data);
+  };
+
+  const fetchAvailableAcademicYears = async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('ano_letivo')
+      .not('ano_letivo', 'is', null)
+      .order('ano_letivo', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching academic years:', error);
+      return;
+    }
+
+    const years = Array.from(new Set(data.map(item => item.ano_letivo))).filter(Boolean) as string[];
+    setAvailableAcademicYears(years);
+
+    // Definir o ano letivo atual como padrão
+    const currentAcademicYear = getCurrentAcademicYear();
+    if (years.includes(currentAcademicYear)) {
+      setAcademicYearFilter(currentAcademicYear);
+    } else if (years.length > 0) {
+      // Se o ano atual não estiver disponível, usar o mais recente
+      setAcademicYearFilter(years[0]);
+    }
   };
 
   const fetchExamDates = async () => {
@@ -148,6 +190,11 @@ export const StudentsTab = () => {
       });
     }
 
+    // Filtro por ano letivo (filtro supremo)
+    if (academicYearFilter) {
+      filtered = filtered.filter(student => student.ano_letivo === academicYearFilter);
+    }
+
     setFilteredStudents(filtered);
   };
 
@@ -170,7 +217,9 @@ export const StudentsTab = () => {
       'Nota Português': student.portuguese_grade || '',
       'Nota Matemática': student.math_grade || '',
       'Data de Inscrição': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
-      'Percentual de Desconto': student.discount_percentage !== null ? `${student.discount_percentage}%` : '-'
+      'Percentual de Desconto': student.discount_percentage !== null ? `${student.discount_percentage}%` : '-',
+      'Ano Letivo': student.ano_letivo || '',
+      'Tag': student.tag || ''
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -303,7 +352,20 @@ export const StudentsTab = () => {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Ano Letivo" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableAcademicYears.map(year => (
+                  <SelectItem key={year} value={year}>
+                    {year} {year === getCurrentAcademicYear() && '(Vigente)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
