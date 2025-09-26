@@ -12,6 +12,20 @@ export const AdvancedReportsTab = () => {
     const [averageDiscount, setAverageDiscount] = useState(0);
     const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
     const [interviewerStats, setInterviewerStats] = useState<Array<{name: string, conversion: number, total: number, enrolled: number}>>([]);
+
+    // Função para calcular o ano letivo atual
+    const getCurrentAcademicYear = () => {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // 1-12
+
+        // Se é agosto ou depois, o ano letivo é o próximo ano
+        if (currentMonth >= 8) {
+            return String(currentYear + 1);
+        }
+        // Caso contrário, é o ano atual
+        return String(currentYear);
+    };
     
     // Estados dos filtros
     const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
@@ -74,6 +88,14 @@ export const AdvancedReportsTab = () => {
 
     // Função para aplicar filtros nas queries
     const applyFilters = (query: any) => {
+        // Sempre filtrar por ano letivo atual
+        const currentAcademicYear = getCurrentAcademicYear();
+        console.log('🔍 Debug Relatórios Avançados:');
+        console.log('📅 Data atual:', new Date().toLocaleDateString());
+        console.log('📚 Ano letivo calculado:', currentAcademicYear);
+        
+        query = query.eq('ano_letivo', parseInt(currentAcademicYear));
+        
         if (selectedUnitId !== 'all') {
             query = query.eq('unit_id', selectedUnitId);
         }

@@ -32,6 +32,20 @@ export const ReportsTab = () => {
   const [series, setSeries] = useState<Series[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<string>('all');
+
+  // Função para calcular o ano letivo atual
+  const getCurrentAcademicYear = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
+    // Se é agosto ou depois, o ano letivo é o próximo ano
+    if (currentMonth >= 8) {
+      return String(currentYear + 1);
+    }
+    // Caso contrário, é o ano atual
+    return String(currentYear);
+  };
   const [reportData, setReportData] = useState<ReportData>({
     totalInscricoes: 0,
     alunosProximaProva: 0,
@@ -109,9 +123,20 @@ export const ReportsTab = () => {
       query = query.eq('classes.series_id', selectedSeries);
     }
 
-    const { data: students } = await query;
+    const { data: allStudents } = await query;
 
-    if (students) {
+    if (allStudents) {
+      // Filtrar apenas alunos do ano letivo atual
+      const currentAcademicYear = getCurrentAcademicYear();
+      console.log('🔍 Debug Relatórios:');
+      console.log('📅 Data atual:', new Date().toLocaleDateString());
+      console.log('📚 Ano letivo calculado:', currentAcademicYear);
+      console.log('👥 Total de alunos carregados:', allStudents.length);
+      console.log('📊 Anos letivos disponíveis:', [...new Set(allStudents.map(s => s.ano_letivo))]);
+      
+      const students = allStudents.filter(s => String(s.ano_letivo) === currentAcademicYear);
+      console.log('✅ Alunos filtrados para ano letivo atual:', students.length);
+      
       setStudentsData(students as Student[]);
       
       const today = getCurrentDate();
