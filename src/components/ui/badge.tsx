@@ -24,6 +24,8 @@ const badgeVariants = cva(
           "border-transparent text-white hover:opacity-80",
         cadastro_invalido:
           "border-transparent text-white hover:opacity-80",
+        processo_anos_anteriores:
+          "border-transparent text-white hover:opacity-80",
         outline: "text-foreground",
       },
     },
@@ -41,6 +43,7 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   const getStyle = () => {
     if (variant === 'ausente') return { backgroundColor: '#690218' };
     if (variant === 'cadastro_invalido') return { backgroundColor: '#000000' };
+    if (variant === 'processo_anos_anteriores') return { backgroundColor: '#999999' };
     return undefined;
   };
   
