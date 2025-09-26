@@ -353,21 +353,23 @@ export const StudentsTab = () => {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ano Letivo" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableAcademicYears.map(year => (
-                  <SelectItem key={year} value={year}>
-                    {year} {year === getCurrentAcademicYear() && '(Vigente)'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="md:col-span-1">
+              <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Ano Letivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAcademicYears.map(year => (
+                    <SelectItem key={year} value={year}>
+                      {year} {year === getCurrentAcademicYear() && '(Vigente)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Buscar por nome ou código..."
@@ -377,58 +379,66 @@ export const StudentsTab = () => {
               />
             </div>
             
-            <MultiSelect
-              options={[
-                { value: 'nao_confirmado', label: 'Não Confirmado' },
-                { value: 'confirmado', label: 'Confirmado' },
-                { value: 'cadastro_invalido', label: 'Cadastro Inválido' },
-                { value: 'matriculado', label: 'Matriculado' },
-                { value: 'desistente', label: 'Desistente' },
-                { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },
-                { value: 'atendimento_agendado', label: 'Atendimento Agendado' },
-                { value: 'faltou_ao_atendimento', label: 'Faltou ao Atendimento' },
-                { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' },
-                { value: 'atendimento_ha_mais_de_uma_semana', label: 'Atendimento há mais de uma semana' },
-                { value: 'ausente', label: 'Ausente' }
-              ]}
-              selected={statusFilter}
-              onChange={setStatusFilter}
-              placeholder="Status"
-              className="w-full"
-            />
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={[
+                  { value: 'nao_confirmado', label: 'Não Confirmado' },
+                  { value: 'confirmado', label: 'Confirmado' },
+                  { value: 'cadastro_invalido', label: 'Cadastro Inválido' },
+                  { value: 'matriculado', label: 'Matriculado' },
+                  { value: 'desistente', label: 'Desistente' },
+                  { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },
+                  { value: 'atendimento_agendado', label: 'Atendimento Agendado' },
+                  { value: 'faltou_ao_atendimento', label: 'Faltou ao Atendimento' },
+                  { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' },
+                  { value: 'atendimento_ha_mais_de_uma_semana', label: 'Atendimento há mais de uma semana' },
+                  { value: 'ausente', label: 'Ausente' }
+                ]}
+                selected={statusFilter}
+                onChange={setStatusFilter}
+                placeholder="Status"
+                className="w-full"
+              />
+            </div>
 
-            <MultiSelect
-              options={units.map(unit => ({ value: unit.id, label: unit.name }))}
-              selected={unitFilter}
-              onChange={setUnitFilter}
-              placeholder="Unidade"
-              className="w-full"
-            />
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={units.map(unit => ({ value: unit.id, label: unit.name }))}
+                selected={unitFilter}
+                onChange={setUnitFilter}
+                placeholder="Unidade"
+                className="w-full"
+              />
+            </div>
 
-            <MultiSelect
-              options={series.map(_series => ({ value: _series.id, label: _series.name }))}
-              selected={seriesFilter}
-              onChange={setSeriesFilter}
-              placeholder="Série"
-              className="w-full"
-            />
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={series.map(_series => ({ value: _series.id, label: _series.name }))}
+                selected={seriesFilter}
+                onChange={setSeriesFilter}
+                placeholder="Série"
+                className="w-full"
+              />
+            </div>
 
-            <MultiSelect
-              options={[
-                { value: 'sem_data', label: 'Sem Data' },
-                { value: 'hoje', label: 'Hoje' },
-                { value: 'futuras', label: 'Futuras' },
-                { value: 'passadas', label: 'Passadas' },
-                ...uniqueExamDates.map(date => ({
-                  value: `date_${date.exam_date}`,
-                  label: formatDateForDisplay(date.exam_date),
-                })),
-              ]}
-              selected={examDateFilter}
-              onChange={setExamDateFilter}
-              placeholder="Data da Prova"
-              className="w-full"
-            />
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={[
+                  { value: 'sem_data', label: 'Sem Data' },
+                  { value: 'hoje', label: 'Hoje' },
+                  { value: 'futuras', label: 'Futuras' },
+                  { value: 'passadas', label: 'Passadas' },
+                  ...uniqueExamDates.map(date => ({
+                    value: `date_${date.exam_date}`,
+                    label: formatDateForDisplay(date.exam_date),
+                  })),
+                ]}
+                selected={examDateFilter}
+                onChange={setExamDateFilter}
+                placeholder="Data da Prova"
+                className="w-full"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
