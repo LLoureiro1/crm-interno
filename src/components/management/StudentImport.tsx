@@ -83,21 +83,47 @@ export const StudentImport = () => {
 
   const loadReferenceData = async () => {
     try {
+      console.log('🔄 Carregando dados de referência...');
+      
       // Carregar unidades
-      const { data: unitsData } = await supabase.from('units').select('*');
+      const { data: unitsData, error: unitsError } = await supabase.from('units').select('*');
+      if (unitsError) {
+        console.error('❌ Erro ao carregar unidades:', unitsError);
+        toast.error('Erro ao carregar unidades');
+        return { units: [], classes: [] };
+      }
+      
+      console.log('✅ Unidades carregadas:', unitsData?.map(u => ({ id: u.id, name: u.name })));
       setUnits(unitsData || []);
 
       // Carregar turmas com unidades
-      const { data: classesData } = await supabase
+      const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select(`
           *,
           units(*)
         `);
+      if (classesError) {
+        console.error('❌ Erro ao carregar turmas:', classesError);
+        toast.error('Erro ao carregar turmas');
+        return { units: unitsData || [], classes: [] };
+      }
+      
+      console.log('✅ Turmas carregadas:', classesData?.map(c => ({ 
+        id: c.id, 
+        name: c.name, 
+        unit_id: c.unit_id,
+        unit_name: c.units?.name 
+      })));
       setClasses(classesData || []);
+      
+      // Retornar os dados diretamente para uso na validação
+      return { units: unitsData || [], classes: classesData || [] };
+      
     } catch (error) {
-      console.error('Erro ao carregar dados de referência:', error);
+      console.error('❌ Erro ao carregar dados de referência:', error);
       toast.error('Erro ao carregar dados de referência');
+      return { units: [], classes: [] };
     }
   };
 
@@ -132,6 +158,8 @@ export const StudentImport = () => {
         const headers = jsonData[0] as string[];
         const rows = jsonData.slice(1) as any[][];
 
+        console.log('📋 Cabeçalhos encontrados:', headers);
+
         // Verificar se todos os campos obrigatórios estão presentes
         const missingFields = requiredFields.filter(field => 
           !headers.some(header => header?.toLowerCase().trim() === field)
@@ -154,6 +182,7 @@ export const StudentImport = () => {
           return rowData as ImportData;
         }).filter(row => row.student_name); // Filtrar linhas vazias
 
+        console.log('📊 Dados parseados:', parsedData);
         setImportData(parsedData);
         toast.success(`${parsedData.length} registros carregados da planilha`);
       } catch (error) {
@@ -174,15 +203,22 @@ export const StudentImport = () => {
     setValidationErrors([]);
 
     try {
-      await loadReferenceData();
+      // Carregar dados de referência e usar diretamente na validação
+      const { units: loadedUnits, classes: loadedClasses } = await loadReferenceData();
       
       const errors: ValidationError[] = [];
       const mapped: MappedData[] = [];
+
+      console.log('🔍 Iniciando validação...');
+      console.log('📚 Unidades disponíveis:', loadedUnits.map(u => u.name));
+      console.log('🏫 Turmas disponíveis:', loadedClasses.map(c => `${c.name} (${c.units?.name})`));
 
       for (let i = 0; i < importData.length; i++) {
         const row = importData[i];
         const rowErrors: string[] = [];
         const rowNumber = i + 2; // +2 porque a planilha começa na linha 1 e pula o cabeçalho
+
+        console.log(`🔍 Validando linha ${rowNumber}:`, row);
 
         // Validar campos obrigatórios
         requiredFields.forEach(field => {
@@ -229,29 +265,46 @@ export const StudentImport = () => {
           }
         }
 
-        // Mapear unidade
-        const unit = units.find(u => u.name.toLowerCase().trim() === row.unidade.toLowerCase().trim());
+        // Mapear unidade - usando dados carregados diretamente
+        console.log(`🔍 Buscando unidade: "${row.unidade}"`);
+        const unit = loadedUnits.find(u => {
+          const match = u.name.toLowerCase().trim() === row.unidade.toLowerCase().trim();
+          console.log(`  - Comparando: "${u.name.toLowerCase().trim()}" === "${row.unidade.toLowerCase().trim()}" = ${match}`);
+          return match;
+        });
+        
         if (!unit) {
+          console.log(`❌ Unidade "${row.unidade}" não encontrada`);
           errors.push({
             row: rowNumber,
             field: 'unidade',
-            message: `Unidade "${row.unidade}" não encontrada`
+            message: `Unidade "${row.unidade}" não encontrada. Unidades disponíveis: ${loadedUnits.map(u => u.name).join(', ')}`
           });
           rowErrors.push(`Unidade "${row.unidade}" não encontrada`);
+        } else {
+          console.log(`✅ Unidade encontrada:`, unit);
         }
 
-        // Mapear turma
-        const classItem = classes.find(c => 
-          c.name.toLowerCase().trim() === row.turma.toLowerCase().trim() &&
-          c.unit_id === unit?.id
-        );
+        // Mapear turma - usando dados carregados diretamente
+        console.log(`🔍 Buscando turma: "${row.turma}" na unidade: "${unit?.name}"`);
+        const classItem = loadedClasses.find(c => {
+          const nameMatch = c.name.toLowerCase().trim() === row.turma.toLowerCase().trim();
+          const unitMatch = c.unit_id === unit?.id;
+          console.log(`  - Turma: "${c.name.toLowerCase().trim()}" === "${row.turma.toLowerCase().trim()}" = ${nameMatch}`);
+          console.log(`  - Unidade: "${c.unit_id}" === "${unit?.id}" = ${unitMatch}`);
+          return nameMatch && unitMatch;
+        });
+        
         if (!classItem) {
+          console.log(`❌ Turma "${row.turma}" não encontrada na unidade "${row.unidade}"`);
           errors.push({
             row: rowNumber,
             field: 'turma',
-            message: `Turma "${row.turma}" não encontrada na unidade "${row.unidade}"`
+            message: `Turma "${row.turma}" não encontrada na unidade "${row.unidade}". Turmas disponíveis: ${loadedClasses.filter(c => c.unit_id === unit?.id).map(c => c.name).join(', ')}`
           });
           rowErrors.push(`Turma "${row.turma}" não encontrada na unidade "${row.unidade}"`);
+        } else {
+          console.log(`✅ Turma encontrada:`, classItem);
         }
 
         mapped.push({
@@ -365,7 +418,7 @@ export const StudentImport = () => {
         tag: 'Inscrito para 2025',
         ano_letivo: '2025',
         unidade: 'Central',
-        turma: '6º Ano'
+        turma: '6º ano'
       }
     ];
 
