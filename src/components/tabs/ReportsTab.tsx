@@ -116,7 +116,10 @@ export const ReportsTab = () => {
       
       const today = getCurrentDate();
       
-      const totalInscricoes = students.length;
+      const totalInscricoes = students.filter(s => 
+        s.status !== 'cadastro_invalido' && 
+        s.status !== 'processo_anos_anteriores'
+      ).length;
       const alunosProximaProva = await getNextExamStudentCount(students);
       const matriculados = students.filter(s => s.status === 'matriculado').length;
 

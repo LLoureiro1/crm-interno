@@ -544,6 +544,7 @@ export type Database = {
         | "desistente"
         | "matriculado"
         | "ausente"
+        | "processo_anos_anteriores"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
     }
     CompositeTypes: {
@@ -699,6 +700,7 @@ export const Constants = {
         "desistente",
         "matriculado",
         "ausente",
+        "processo_anos_anteriores",
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
     },

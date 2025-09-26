@@ -85,10 +85,11 @@ export const AdvancedReportsTab = () => {
 
     const fetchConversionRate = async () => {
         try {
-            // Query base para total de estudantes
+            // Query base para total de estudantes (excluindo cadastro_invalido e processo_anos_anteriores)
             let totalQuery = supabase
                 .from('students')
-                .select('*', { count: 'exact', head: true });
+                .select('*', { count: 'exact', head: true })
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
             
             // Query base para estudantes matriculados
             let enrolledQuery = supabase
@@ -253,9 +254,15 @@ export const AdvancedReportsTab = () => {
                 return;
             }
 
-            // Filtrar interações baseado nos filtros selecionados
+            // Filtrar interações baseado nos filtros selecionados e excluir status indesejados
             const filteredInteractions = interactions.filter(interaction => {
                 if (!interaction.students) return false;
+                
+                // Excluir alunos com status cadastro_invalido e processo_anos_anteriores
+                if (interaction.students.status === 'cadastro_invalido' || 
+                    interaction.students.status === 'processo_anos_anteriores') {
+                    return false;
+                }
                 
                 if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
                     return false;
@@ -317,11 +324,12 @@ export const AdvancedReportsTab = () => {
 
     const fetchInterviewStats = async () => {
         try {
-            // Buscar entrevistas marcadas (alunos com interview_date)
+            // Buscar entrevistas marcadas (alunos com interview_date, excluindo cadastro_invalido e processo_anos_anteriores)
             let scheduledQuery = supabase
                 .from('students')
                 .select('*', { count: 'exact', head: true })
-                .not('interview_date', 'is', null);
+                .not('interview_date', 'is', null)
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
             
             // Buscar entrevistas realizadas através de student_interactions
             // Contar alunos únicos que tiveram interação do tipo "atendimento"
