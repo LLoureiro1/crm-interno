@@ -170,13 +170,44 @@ export const StudentImport = () => {
           return;
         }
 
+        // Função para converter data do Excel para formato ISO
+        const convertExcelDate = (excelValue: any): string => {
+          if (!excelValue) return '';
+          
+          // Se já é uma string no formato de data, retornar como está
+          if (typeof excelValue === 'string') {
+            // Verificar se é um número de série do Excel (ex: "40445")
+            if (/^\d+$/.test(excelValue)) {
+              const excelDate = parseInt(excelValue);
+              const date = new Date((excelDate - 25569) * 86400 * 1000);
+              return date.toISOString().split('T')[0];
+            }
+            return excelValue;
+          }
+          
+          // Se é um número (número de série do Excel)
+          if (typeof excelValue === 'number') {
+            const date = new Date((excelValue - 25569) * 86400 * 1000);
+            return date.toISOString().split('T')[0];
+          }
+          
+          return String(excelValue);
+        };
+
         // Converter dados para o formato esperado
         const parsedData: ImportData[] = rows.map((row, index) => {
           const rowData: any = {};
           headers.forEach((header, colIndex) => {
             const fieldName = header?.toLowerCase().trim();
             if (requiredFields.includes(fieldName)) {
-              rowData[fieldName] = row[colIndex] || '';
+              let value = row[colIndex] || '';
+              
+              // Converter data de nascimento se necessário
+              if (fieldName === 'birth_date') {
+                value = convertExcelDate(value);
+              }
+              
+              rowData[fieldName] = value;
             }
           });
           return rowData as ImportData;
