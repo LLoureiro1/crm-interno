@@ -505,13 +505,29 @@ export const StudentImport = () => {
           {/* Upload do arquivo */}
           <div className="space-y-2">
             <Label htmlFor="file-upload">Arquivo Excel (.xlsx ou .xls)</Label>
-            <Input
-              id="file-upload"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-            />
+            <div className="flex items-center space-x-4">
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                ref={fileInputRef}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Escolher Arquivo
+              </Button>
+              {file && (
+                <span className="text-sm text-gray-600">
+                  {file.name}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Campos obrigatórios */}
