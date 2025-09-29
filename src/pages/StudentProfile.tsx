@@ -1091,24 +1091,26 @@ const StudentProfile = () => {
                   )}
                   {student.classes?.has_exam && (
                     <div className="col-span-2">
-                      <span className="font-medium">Data da Prova:</span>
-                      {student.exam_date ? (
-                        <div className="flex items-center space-x-2 mt-1">
-                          <p>{formatDateForDisplay(student.exam_date)}</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              fetchAvailableExamDates();
-                              setShowExamDateEditor(!showExamDateEditor);
-                            }}
-                          >
-                            {showExamDateEditor ? 'Cancelar' : 'Alterar'}
-                          </Button>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium">Data da Prova:</span>
+                          {student.exam_date ? (
+                            <p className="mt-1">{formatDateForDisplay(student.exam_date)}</p>
+                          ) : (
+                            <p className="mt-1 text-gray-500">Não informado</p>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-gray-500">Não informado</p>
-                      )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            fetchAvailableExamDates();
+                            setShowExamDateEditor(!showExamDateEditor);
+                          }}
+                        >
+                          {showExamDateEditor ? 'Cancelar' : 'Alterar'}
+                        </Button>
+                      </div>
                       
                       {/* Editor de data da prova */}
                       {showExamDateEditor && availableExamDates.length > 0 && (
