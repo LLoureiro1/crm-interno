@@ -518,7 +518,15 @@ export const StudentImport = () => {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Campos obrigatórios:</strong> {requiredFields.join(', ')}
+              <strong>Campos obrigatórios:</strong> student_name (Nome do aluno), responsible_name (Nome do responsável), email, phone (telefone principal), birth_date (data de nascimento), status, ano_letivo, unidade, serie, turma.
+              <br />
+              <strong>Campos opcionais:</strong> tag (tag do aluno).
+              <br />
+              <strong>Atenção:</strong> Siga o template de importação para garantir que os dados estarão corretos. Utilize o mesmo formato de data e telefone. 
+              <br />
+              <p>Para preencher Unidade, Série e Turma, utilize exatamente o mesmo nome que está no sistema para evitar erros na importação.</p>
+              <br />
+              <p>Após fazer o upload do arquivo, clique em "Validar Dados" para verificar se os dados estão corretos. Caso algum campo esteja incorreto, corrija-o e clique em "Validar Dados" novamente.</p>
             </AlertDescription>
           </Alert>
 
