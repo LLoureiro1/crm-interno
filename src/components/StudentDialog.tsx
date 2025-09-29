@@ -44,6 +44,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [dropoutComment, setDropoutComment] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
+  const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   
@@ -63,7 +64,15 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       .eq('student_id', student.id)
       .order('created_at', { ascending: false });
 
-    if (data) setInteractions(data);
+    if (data) {
+      setInteractions(data);
+      
+      // Verificar se o aluno teve entrevista baseado nas interações
+      const hasAttendimentoInteraction = data.some(
+        interaction => interaction.interaction_type === 'atendimento'
+      );
+      setHasHadInterview(hasAttendimentoInteraction);
+    }
   };
 
   const handleAddInteraction = async () => {
@@ -288,7 +297,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <MonthlyFeeCalculator
                     originalFee={student.classes.monthly_fee || 0}
                     discountPercentage={student.discount_percentage || 0}
-                    hasHadInterview={false}
+                    hasHadInterview={hasHadInterview}
                   />
                 </div>
 
@@ -302,7 +311,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     materialAnual={student.classes.material_didatico_anual || 0}
                     materialMensal={student.classes.material_didatico_mes || 0}
                     discountMaterial={student.discount_material || 0}
-                    hasHadInterview={false}
+                    hasHadInterview={hasHadInterview}
                   />
                 </div>
               </CardContent>
