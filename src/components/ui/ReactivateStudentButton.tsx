@@ -31,11 +31,11 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // 1-12
     
-    // Se estamos entre janeiro e junho, o ano letivo é o ano anterior
-    // Se estamos entre julho e dezembro, o ano letivo é o ano atual
-    if (currentMonth <= 6) {
-      return currentYear - 1;
+    // Se é agosto ou depois, o ano letivo é o próximo ano
+    if (currentMonth >= 8) {
+      return currentYear + 1;
     }
+    // Caso contrário, é o ano atual
     return currentYear;
   };
 
