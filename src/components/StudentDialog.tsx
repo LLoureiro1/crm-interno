@@ -23,6 +23,7 @@ import { GradeEditor } from '@/components/GradeEditor';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { TruncatedText } from '@/components/ui/TruncatedText';
+import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -323,6 +324,12 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 </div>
               </CardContent>
             </Card>
+
+            {/* Student Reactivation */}
+            <ReactivateStudentButton 
+              student={student} 
+              onSuccess={onUpdate}
+            />
 
             {/* Status Update */}
             <Card>

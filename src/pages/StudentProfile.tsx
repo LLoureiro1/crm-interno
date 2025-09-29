@@ -14,6 +14,7 @@ import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { GradeEditor } from '@/components/GradeEditor';
+import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
 import { toast } from 'sonner';
 import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
@@ -1172,6 +1173,12 @@ const StudentProfile = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Student Reactivation */}
+            <ReactivateStudentButton 
+              student={student} 
+              onSuccess={fetchStudent}
+            />
 
             {/* Financial Data */}
             <Card>
