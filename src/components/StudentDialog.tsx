@@ -15,12 +15,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, CreditCard, Book } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 import { GradeEditor } from '@/components/GradeEditor';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
+import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -277,13 +278,33 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <span>Dados Financeiros</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <MaterialDidaticoCalculator
-                  materialAnual={student.classes.material_didatico_anual || 0}
-                  materialMensal={student.classes.material_didatico_mes || 0}
-                  discountMaterial={student.discount_material || 0}
-                  hasHadInterview={false}
-                />
+              <CardContent className="space-y-6">
+                {/* Monthly Fee Section */}
+                <div>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <CreditCard className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium text-blue-900">Mensalidade</span>
+                  </div>
+                  <MonthlyFeeCalculator
+                    originalFee={student.classes.monthly_fee || 0}
+                    discountPercentage={student.discount_percentage || 0}
+                    hasHadInterview={false}
+                  />
+                </div>
+
+                {/* Material Didático Section */}
+                <div>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <Book className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium text-purple-900">Material Didático</span>
+                  </div>
+                  <MaterialDidaticoCalculator
+                    materialAnual={student.classes.material_didatico_anual || 0}
+                    materialMensal={student.classes.material_didatico_mes || 0}
+                    discountMaterial={student.discount_material || 0}
+                    hasHadInterview={false}
+                  />
+                </div>
               </CardContent>
             </Card>
 
