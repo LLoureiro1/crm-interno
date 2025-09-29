@@ -110,7 +110,7 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
       const previousYear = student.ano_letivo;
       
       // Verificar se o aluno já está no ano letivo atual
-      if (student.ano_letivo >= currentAcademicYear) {
+      if (Number(student.ano_letivo) >= currentAcademicYear) {
         toast.error('Este aluno já está no ano letivo atual');
         return;
       }
@@ -178,7 +178,20 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
   };
 
   const currentAcademicYear = getCurrentAcademicYear();
-  const shouldShowButton = student.ano_letivo < currentAcademicYear;
+  const shouldShowButton = Number(student.ano_letivo) < currentAcademicYear;
+
+  // 🔍 DEBUG LOGS
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 ReactivateStudentButton Debug:');
+  console.log('📚 Ano letivo atual:', currentAcademicYear);
+  console.log('👤 Ano letivo do aluno:', student.ano_letivo);
+  console.log('📊 Tipo de ano_letivo do aluno:', typeof student.ano_letivo);
+  console.log('📊 Tipo de ano atual:', typeof currentAcademicYear);
+  console.log('🔢 Comparação (ano_letivo < ano_atual):', Number(student.ano_letivo), '<', currentAcademicYear, '=', Number(student.ano_letivo) < currentAcademicYear);
+  console.log('✅ Deve mostrar botão:', shouldShowButton);
+  console.log('👤 Nome do aluno:', student.student_name);
+  console.log('🏫 Série:', student.classes.series.name);
+  console.log('═══════════════════════════════════════');
 
   if (!shouldShowButton) {
     return null;
