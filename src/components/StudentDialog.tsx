@@ -22,6 +22,7 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 import { GradeEditor } from '@/components/GradeEditor';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
+import { TruncatedText } from '@/components/ui/TruncatedText';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -194,11 +195,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="font-medium">Nome do Aluno:</span>
-                    <p>{student.student_name}</p>
+                    <p><TruncatedText text={student.student_name} /></p>
                   </div>
                   <div>
                     <span className="font-medium">Responsável:</span>
-                    <p>{student.responsible_name}</p>
+                    <p><TruncatedText text={student.responsible_name} /></p>
                   </div>
                   <div>
                     <span className="font-medium">Data de Nascimento:</span>
@@ -207,25 +208,25 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div className="flex items-center space-x-1">
                     <Phone className="h-3 w-3" />
                     <span className="font-medium">Telefone:</span>
-                    <p>{student.phone}</p>
+                    <p><TruncatedText text={student.phone} /></p>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Mail className="h-3 w-3" />
                     <span className="font-medium">Email:</span>
-                    <p>{student.email}</p>
+                    <p><TruncatedText text={student.email} /></p>
                   </div>
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-3 w-3" />
                     <span className="font-medium">Cidade:</span>
-                    <p>{student.city}</p>
+                    <p><TruncatedText text={student.city} /></p>
                   </div>
                   <div>
                     <span className="font-medium">Bairro:</span>
-                    <p>{student.neighborhood}</p>
+                    <p><TruncatedText text={student.neighborhood} /></p>
                   </div>
                   <div>
                     <span className="font-medium">Escola de Origem:</span>
-                    <p>{student.origin_school}</p>
+                    <p><TruncatedText text={student.origin_school} /></p>
                   </div>
                 </div>
               </CardContent>
@@ -242,11 +243,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="font-medium">Série:</span>
-                    <p>{student.classes.series.name}</p>
+                    <p><TruncatedText text={student.classes.series.name} /></p>
                   </div>
                   <div>
                     <span className="font-medium">Unidade:</span>
-                    <p>{student.classes.units.name}</p>
+                    <p><TruncatedText text={student.classes.units.name} /></p>
                   </div>
                   <div className="col-span-2">
                     <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
