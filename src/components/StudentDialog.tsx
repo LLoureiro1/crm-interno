@@ -185,6 +185,12 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Student Information */}
           <div className="space-y-4">
+            {/* Student Reactivation */}
+            <ReactivateStudentButton 
+              student={student} 
+              onSuccess={onUpdate}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -324,12 +330,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 </div>
               </CardContent>
             </Card>
-
-            {/* Student Reactivation */}
-            <ReactivateStudentButton 
-              student={student} 
-              onSuccess={onUpdate}
-            />
 
             {/* Status Update */}
             <Card>

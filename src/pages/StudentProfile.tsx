@@ -794,6 +794,12 @@ const StudentProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Student Information */}
           <div className="space-y-4">
+            {/* Student Reactivation */}
+            <ReactivateStudentButton 
+              student={student} 
+              onSuccess={fetchStudent}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -1173,12 +1179,6 @@ const StudentProfile = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Student Reactivation */}
-            <ReactivateStudentButton 
-              student={student} 
-              onSuccess={fetchStudent}
-            />
 
             {/* Financial Data */}
             <Card>
