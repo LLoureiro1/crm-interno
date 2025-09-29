@@ -59,7 +59,6 @@ export const StudentImport = () => {
     'phone',
     'birth_date',
     'status',
-    'tag',
     'ano_letivo',
     'unidade',
     'turma'
@@ -263,6 +262,12 @@ export const StudentImport = () => {
           }
         });
 
+        // Validação especial para tag (opcional)
+        if (row.tag && String(row.tag).trim() === '') {
+          // Se tag estiver presente mas vazia, definir como undefined
+          row.tag = undefined;
+        }
+
         // Validar email
         if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
           errors.push({
@@ -390,7 +395,7 @@ export const StudentImport = () => {
                phone: item.phone,
                birth_date: item.birth_date,
                status: item.status as any,
-               tag: item.tag,
+               tag: item.tag || null, // Permitir null se tag estiver vazia
                ano_letivo: item.ano_letivo,
                unit_id: item.unit_id,
                class_id: item.class_id,
