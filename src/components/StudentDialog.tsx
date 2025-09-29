@@ -205,19 +205,25 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <span className="font-medium">Data de Nascimento:</span>
                     <p>{formatDateForDisplay(student.birth_date)}</p>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Phone className="h-3 w-3" />
-                    <span className="font-medium">Telefone:</span>
+                  <div>
+                    <div className="flex items-center space-x-1">
+                      <Phone className="h-3 w-3" />
+                      <span className="font-medium">Telefone:</span>
+                    </div>
                     <p><TruncatedText text={student.phone} /></p>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Mail className="h-3 w-3" />
-                    <span className="font-medium">Email:</span>
+                  <div>
+                    <div className="flex items-center space-x-1">
+                      <Mail className="h-3 w-3" />
+                      <span className="font-medium">Email:</span>
+                    </div>
                     <p><TruncatedText text={student.email} /></p>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-3 w-3" />
-                    <span className="font-medium">Cidade:</span>
+                  <div>
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="h-3 w-3" />
+                      <span className="font-medium">Cidade:</span>
+                    </div>
                     <p><TruncatedText text={student.city} /></p>
                   </div>
                   <div>
