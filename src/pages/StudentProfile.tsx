@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen } from 'lucide-react';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
@@ -1181,17 +1181,29 @@ const StudentProfile = () => {
                   <span>Dados Financeiros</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <MonthlyFeeCalculator
-                  originalFee={student.classes.monthly_fee}
-                  discountPercentage={student.discount_percentage}
-                  showAnnualSavings={true}
-                  showClassName={true}
-                  className={student.classes.name}
-                  hasHadInterview={hasHadInterview}
-                />
-                
-                <div className="mt-6">
+              <CardContent className="space-y-6">
+                {/* Monthly Fee Section */}
+                <div>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <CreditCard className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium text-blue-900">Mensalidade</span>
+                  </div>
+                  <MonthlyFeeCalculator
+                    originalFee={student.classes.monthly_fee}
+                    discountPercentage={student.discount_percentage}
+                    showAnnualSavings={true}
+                    showClassName={true}
+                    className={student.classes.name}
+                    hasHadInterview={hasHadInterview}
+                  />
+                </div>
+
+                {/* Material Didático Section */}
+                <div>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <BookOpen className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium text-purple-900">Material Didático</span>
+                  </div>
                   <MaterialDidaticoCalculator
                     materialAnual={student.classes.material_didatico_anual || 0}
                     materialMensal={student.classes.material_didatico_mes || 0}
