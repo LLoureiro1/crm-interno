@@ -728,7 +728,7 @@ const StudentProfile = () => {
   };
 
   const getStatusBadge = (status: string) => {
-      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" } } = {
+      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
         'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
@@ -739,7 +739,8 @@ const StudentProfile = () => {
         'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
         'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
         'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
-        'ausente': { label: 'Ausente', variant: 'ausente' }
+        'ausente': { label: 'Ausente', variant: 'ausente' },
+        'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
       };
 
       const config = statusMap[status] || { label: status, variant: 'outline' as const };
