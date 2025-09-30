@@ -649,11 +649,19 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     </div>
                   </div>
 
-                  <div className="text-sm">
-                    <span className="font-medium">Entrevistador: </span> 
-                    {appointment.profiles?.name || 
-                     appointment.interviewer?.name || 
-                     'Não informado'}
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <span className="font-medium">Entrevistador: </span> 
+                      {appointment.profiles?.name || 
+                       appointment.interviewer?.name || 
+                       'Não informado'}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">Formato:</span>
+                      <Badge variant={appointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
+                        {appointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
+                      </Badge>
+                    </div>
                   </div>
 
                   {appointment.comments && (
