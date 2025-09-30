@@ -293,18 +293,21 @@ export type Database = {
           id: string
           level: Database["public"]["Enums"]["education_level"]
           name: string
+          ordenar: number
         }
         Insert: {
           created_at?: string
           id?: string
           level: Database["public"]["Enums"]["education_level"]
           name: string
+          ordenar: number
         }
         Update: {
           created_at?: string
           id?: string
           level?: Database["public"]["Enums"]["education_level"]
           name?: string
+          ordenar?: number
         }
         Relationships: []
       }

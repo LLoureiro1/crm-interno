@@ -51,22 +51,16 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
 
       if (!currentSeries) return null;
 
-      // Buscar todas as séries do mesmo nível
-      const { data: allSeries } = await supabase
+      // Buscar a próxima série baseada na coluna 'ordenar'
+      const { data: nextSeries } = await supabase
         .from('series')
         .select('*')
-        .eq('level', currentSeries.level)
-        .order('name');
+        .eq('ordenar', currentSeries.ordenar + 1)
+        .single();
 
-      if (!allSeries) return null;
-
-      // Encontrar a posição da série atual
-      const currentIndex = allSeries.findIndex(s => s.id === currentSeriesId);
-      if (currentIndex === -1 || currentIndex === allSeries.length - 1) {
-        return null; // Não há próxima série
+      if (!nextSeries) {
+        return null; // Não há próxima série (aluno está na última série)
       }
-
-      const nextSeries = allSeries[currentIndex + 1];
 
       // Verificar se existe turma da próxima série na mesma unidade
       const { data: nextClass } = await supabase
