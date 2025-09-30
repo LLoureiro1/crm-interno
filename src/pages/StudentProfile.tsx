@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
@@ -54,6 +55,8 @@ const StudentProfile = () => {
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewerId, setInterviewerId] = useState('');
+  const [formatoEntrevista, setFormatoEntrevista] = useState<'presencial' | 'a_distancia'>('presencial');
+  const [currentAppointment, setCurrentAppointment] = useState<Tables<'appointments'> | null>(null);
   const [availableExamDates, setAvailableExamDates] = useState<Tables<'exam_dates'>[]>([]);
   const [selectedExamDateId, setSelectedExamDateId] = useState<string>('');
   const [showExamDateEditor, setShowExamDateEditor] = useState(false);
@@ -103,6 +106,7 @@ const StudentProfile = () => {
       fetchAvailableExamDates();
       fetchAvailableUnits(); // ADICIONAR
       fetchAvailableSeries(); // ADICIONAR
+      fetchCurrentAppointment(); // Buscar appointment atual
       
       // Definir valores atuais como selecionados
       setSelectedUnitId(student.classes.unit_id);
@@ -178,6 +182,23 @@ const StudentProfile = () => {
         interaction => interaction.interaction_type === 'atendimento'
       );
       setHasHadInterview(hasAttendimentoInteraction);
+    }
+  };
+
+  const fetchCurrentAppointment = async () => {
+    if (!id || !student?.interview_date) return;
+
+    const { data } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('student_id', id)
+      .eq('appointment_date', student.interview_date)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data) {
+      setCurrentAppointment(data);
     }
   };
 
@@ -326,7 +347,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name}. Status automaticamente alterado para "Atendimento Agendado".`,
+          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name} (${formatoEntrevista === 'a_distancia' ? 'A distância' : 'Presencial'}). Status automaticamente alterado para "Atendimento Agendado".`,
 
         });
 
@@ -338,6 +359,7 @@ const StudentProfile = () => {
           interviewer_id: interviewerId,
           appointment_date: interviewDate,
           appointment_time: interviewTime,
+          formato_entrevista: formatoEntrevista,
           status: 'scheduled' // Assuming a default status for new appointments
         });
 
@@ -347,6 +369,7 @@ const StudentProfile = () => {
       setInterviewDate('');
       setInterviewTime('');
       setInterviewerId('');
+      setFormatoEntrevista('presencial');
     } catch (error) {
       console.error('Error scheduling interview:', error);
       toast.error('Erro ao agendar entrevista');
@@ -1153,28 +1176,38 @@ const StudentProfile = () => {
                     </div>
                   )}
                   {student.interview_date && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3" />
-                        <span className="font-medium">Data da Entrevista:</span>
-                        <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
-                          {formatDateForDisplay(student.interview_date)}
-                          {isInterviewDay && ' (HOJE)'}
-                        </p>
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-3 w-3" />
+                          <span className="font-medium">Data da Entrevista:</span>
+                          <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
+                            {formatDateForDisplay(student.interview_date)}
+                            {isInterviewDay && ' (HOJE)'}
+                          </p>
+                        </div>
+                        {/* Botão de cancelar entrevista */}
+                        {canRegisterAttendance && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelInterview}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Cancelar entrevista"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                      {/* Botão de cancelar entrevista */}
-                      {canRegisterAttendance && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCancelInterview}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Cancelar entrevista"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {currentAppointment && (
+                        <div className="flex items-center space-x-2 ml-4">
+                          <span className="text-sm text-gray-600">Formato:</span>
+                          <Badge variant={currentAppointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
+                            {currentAppointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
+                          </Badge>
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -1265,6 +1298,24 @@ const StudentProfile = () => {
                     </Select>
                   </div>
                 </div>
+                
+                {/* Checkbox para formato da entrevista */}
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox 
+                    id="formato-entrevista"
+                    checked={formatoEntrevista === 'a_distancia'}
+                    onCheckedChange={(checked) => 
+                      setFormatoEntrevista(checked ? 'a_distancia' : 'presencial')
+                    }
+                  />
+                  <Label 
+                    htmlFor="formato-entrevista" 
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    Entrevista a distância
+                  </Label>
+                </div>
+                
                 <Button 
                   onClick={handleScheduleInterview}
                   className="w-full bg-blue-500 hover:bg-blue-600"

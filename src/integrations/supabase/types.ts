@@ -22,6 +22,7 @@ export type Database = {
           comments: string | null
           created_at: string
           discount_percentage: number | null
+          formato_entrevista: string | null
           id: string
           interviewer_id: string | null
           status: string
@@ -35,6 +36,7 @@ export type Database = {
           comments?: string | null
           created_at?: string
           discount_percentage?: number | null
+          formato_entrevista?: string | null
           id?: string
           interviewer_id?: string | null
           status?: string
@@ -48,6 +50,7 @@ export type Database = {
           comments?: string | null
           created_at?: string
           discount_percentage?: number | null
+          formato_entrevista?: string | null
           id?: string
           interviewer_id?: string | null
           status?: string
