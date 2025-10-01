@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, CreditCard, Book } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, CreditCard, Book, Pen } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay } from '@/utils/dateUtils';
@@ -297,7 +297,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Percent className="h-4 w-4" />
+                  <Pen className="h-4 w-4" />
                   <span>Proposta</span>
                 </CardTitle>
               </CardHeader>

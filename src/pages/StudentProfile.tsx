@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen, Pen } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
@@ -1217,7 +1217,7 @@ const StudentProfile = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4" />
+                  <Pen className="h-4 w-4" />
                   <span>Proposta</span>
                 </CardTitle>
               </CardHeader>
