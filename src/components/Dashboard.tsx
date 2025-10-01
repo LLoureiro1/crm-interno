@@ -36,7 +36,7 @@ export const Dashboard = () => {
             )}
             <TabsTrigger value="students" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
               <Users className="h-4 w-4" />
-              <span>Alunos</span>
+              <span>Inscritos</span>
             </TabsTrigger>
             <TabsTrigger value="appointments" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
               <Calendar className="h-4 w-4" />
