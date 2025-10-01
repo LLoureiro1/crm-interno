@@ -19,10 +19,6 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.responsibleName = 'Nome do responsável é obrigatório';
   }
   
-  if (!formData.birthDate || formData.birthDate.length !== 10) {
-    errors.birthDate = 'Data de nascimento válida é obrigatória (DD/MM/YYYY)';
-  }
-  
   // Validar telefone principal (obrigatório)
   if (!formData.phone || !isValidPhone(formData.phone)) {
     errors.phone = 'Telefone principal é obrigatório (10 ou 11 dígitos com DDD)';
@@ -42,11 +38,6 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.email = 'E-mail deve ter um formato válido';
   }
   
-  if (!formData.cityName.trim()) {
-    errors.cityName = 'Cidade é obrigatória';
-  }
-  
-  
   if (!formData.seriesId) {
     errors.seriesId = 'Série é obrigatória';
   }
@@ -60,7 +51,10 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
   return errors;
 };
 
-export const convertDateToISO = (dateStr: string): string => {
+export const convertDateToISO = (dateStr: string): string | null => {
+  if (!dateStr || dateStr.trim() === '') {
+    return null;
+  }
   const [day, month, year] = dateStr.split('/');
   return `${year}-${month}-${day}`;
 };

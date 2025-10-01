@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StudentDataSection } from './registration/StudentDataSection';
 import { ResponsibleDataSection } from './registration/ResponsibleDataSection';
-import { AddressSection } from './registration/AddressSection';
+// import { AddressSection } from './registration/AddressSection'; // Removido - campos não mais utilizados
 import { AcademicDataSection } from './registration/AcademicDataSection';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
@@ -158,10 +158,10 @@ export const RegistrationForm = () => {
       const studentData = {
         student_name: sanitizedFormData.studentName,
         responsible_name: sanitizedFormData.responsibleName,
-        birth_date: convertDateToISO(sanitizedFormData.birthDate),
+        birth_date: null, // Campo removido do formulário
         phone: sanitizedFormData.phone,
         email: sanitizedFormData.email,
-        city: sanitizedFormData.cityName,
+        city: null, // Campo removido do formulário
         neighborhood: sanitizedFormData.neighborhood,
         origin_school: '', // Campo removido - sempre vazio
         class_id: sanitizedFormData.classId,
@@ -309,19 +309,12 @@ export const RegistrationForm = () => {
                 onInputChange={handleInputChange}
               />
 
-        <ResponsibleDataSection
-          formData={formData}
-          fieldErrors={fieldErrors}
-          onInputChange={handleInputChange}
-          onAdditionalPhonesChange={handleAdditionalPhonesChange}
-        />
-
-              <AddressSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                cities={[]}
-                onInputChange={handleInputChange}
-              />
+          <ResponsibleDataSection
+            formData={formData}
+            fieldErrors={fieldErrors}
+            onInputChange={handleInputChange}
+            onAdditionalPhonesChange={handleAdditionalPhonesChange}
+          />
 
               <AcademicDataSection
                 formData={formData}
