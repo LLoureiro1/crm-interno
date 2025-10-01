@@ -17,7 +17,7 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange, o
     <div className="space-y-4">         
       <div>
         <Label htmlFor="responsibleName" className={fieldErrors.responsibleName ? 'text-red-600' : ''}>
-          Nome Completo do Responsável *
+          Nome Completo do Responsáve *
         </Label>
         <Input
           id="responsibleName"
