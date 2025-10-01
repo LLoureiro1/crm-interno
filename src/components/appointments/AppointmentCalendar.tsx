@@ -739,14 +739,14 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
             </div>
 
             {/* Cálculo em tempo real */}
-            {attendanceDiscount && currentAppointment?.students?.classes?.monthly_fee && (
+            {currentAppointment?.students?.classes?.monthly_fee && (
               <div className="bg-green-50 p-4 rounded-lg border">
                 <div className="flex items-center space-x-2 mb-2">
                   <DollarSign className="h-4 w-4 text-green-600" />
                   <span className="font-medium text-green-900">Mensalidade com Desconto</span>
                 </div>
                 {(() => {
-                  const discount = parseFloat(attendanceDiscount);
+                  const discount = attendanceDiscount ? parseFloat(attendanceDiscount) : 0;
                   const originalFee = currentAppointment.students.classes.monthly_fee;
                   const finalFee = calculateMonthlyFeeWithDiscount(originalFee, discount);
                   const savings = originalFee - finalFee;
