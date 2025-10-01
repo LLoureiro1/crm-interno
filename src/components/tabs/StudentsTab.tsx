@@ -337,8 +337,8 @@ export const StudentsTab = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Gestão de Alunos</h2>
-          <p className="text-gray-600">Visualize e gerencie todos os alunos cadastrados</p>
+          <h2 className="text-xl font-semibold text-gray-900">Gestão de Inscritos</h2>
+          <p className="text-gray-600">Visualize e gerencie todos os candidatos cadastrados</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={exportToExcel} className="bg-orange-500 hover:bg-orange-600">
@@ -446,7 +446,7 @@ export const StudentsTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            Lista de Alunos ({filteredStudents.length})
+            Lista de Inscritos ({filteredStudents.length})
             {totalPages > 1 && (
               <span className="text-sm font-normal text-gray-600 ml-2">
                 - Página {currentPage} de {totalPages}  ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
