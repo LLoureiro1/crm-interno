@@ -1354,14 +1354,14 @@ const StudentProfile = () => {
                   </div>
 
                   {/* Cálculo em tempo real da mensalidade */}
-                  {discountPercentage && student?.classes?.monthly_fee && (
+                  {student?.classes?.monthly_fee && (
                     <div className="bg-green-50 p-4 rounded-lg border">
                       <div className="flex items-center space-x-2 mb-3">
                         <DollarSign className="h-4 w-4 text-green-600" />
                         <span className="font-medium text-green-900">Mensalidade com Desconto</span>
                       </div>
                       {(() => {
-                        const discount = parseFloat(discountPercentage);
+                        const discount = discountPercentage ? parseFloat(discountPercentage) : 0;
                         const originalFee = student.classes.monthly_fee;
                         const finalFee = originalFee * (1 - (discount / 100));
                         const savings = originalFee - finalFee;
