@@ -298,7 +298,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Percent className="h-4 w-4" />
-                  <span>Dados Financeiros</span>
+                  <span>Proposta</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">

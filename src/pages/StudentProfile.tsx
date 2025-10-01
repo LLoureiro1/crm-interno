@@ -1218,7 +1218,7 @@ const StudentProfile = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <DollarSign className="h-4 w-4" />
-                  <span>Dados Financeiros</span>
+                  <span>Proposta</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
