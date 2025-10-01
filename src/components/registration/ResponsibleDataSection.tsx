@@ -14,9 +14,7 @@ interface ResponsibleDataSectionProps {
 
 export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange, onAdditionalPhonesChange }: ResponsibleDataSectionProps) => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">Dados do Responsável</h3>
-      
+    <div className="space-y-4">         
       <div>
         <Label htmlFor="responsibleName" className={fieldErrors.responsibleName ? 'text-red-600' : ''}>
           Nome Completo do Responsável *
