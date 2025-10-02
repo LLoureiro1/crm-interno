@@ -55,9 +55,9 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
+      <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-xl font-bold text-center">
             📋 Resumo da Proposta
           </DialogTitle>
           <p className="text-center text-gray-600 text-sm">
@@ -65,14 +65,14 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
           </p>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Informações da Turma */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="flex items-center space-x-2 mb-3">
-              <GraduationCap className="h-5 w-5 text-blue-600" />
-              <h3 className="font-semibold text-blue-900">Turma</h3>
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <GraduationCap className="h-4 w-4 text-blue-600" />
+              <h3 className="font-semibold text-blue-900 text-sm">Turma</h3>
             </div>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-600">Série:</span>
                 <span className="font-medium">{student.classes.series.name}</span>
@@ -89,31 +89,30 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
           </div>
 
           {/* Mensalidade */}
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2 mb-3">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              <h3 className="font-semibold text-green-900">Mensalidade</h3>
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              <h3 className="font-semibold text-green-900 text-sm">Mensalidade</h3>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Valor Original:</span>
-                <span className="text-gray-500 line-through">R$ {student.classes.monthly_fee.toFixed(2)}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-600">Original:</span>
+                <span className="text-gray-500 line-through text-xs">R$ {student.classes.monthly_fee.toFixed(2)}</span>
               </div>
               {student.discount_percentage && student.discount_percentage > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Desconto:</span>
-                  <Badge className="bg-green-600">{student.discount_percentage}%</Badge>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600">Desconto:</span>
+                  <Badge className="bg-green-600 text-xs px-2 py-0">{student.discount_percentage}%</Badge>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-2 border-t border-green-200">
-                <span className="font-semibold text-gray-800">Valor Final:</span>
-                <span className="text-2xl font-bold text-green-700">R$ {finalMonthlyFee.toFixed(2)}</span>
+              <div className="flex justify-between items-center pt-1 border-t border-green-200">
+                <span className="font-semibold text-gray-800 text-xs">Final:</span>
+                <span className="text-lg font-bold text-green-700">R$ {finalMonthlyFee.toFixed(2)}</span>
               </div>
               {monthlySavings > 0 && (
-                <div className="bg-green-100 p-2 rounded text-center">
-                  <p className="text-sm text-green-700">
-                    💰 Economia de <strong>R$ {monthlySavings.toFixed(2)}/mês</strong> 
-                    <span className="text-xs"> (R$ {(monthlySavings * 12).toFixed(2)}/ano)</span>
+                <div className="bg-green-100 p-1.5 rounded text-center">
+                  <p className="text-xs text-green-700">
+                    💰 <strong>-R$ {monthlySavings.toFixed(2)}/mês</strong>
                   </p>
                 </div>
               )}
@@ -122,96 +121,68 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
 
           {/* Material Didático */}
           {student.classes.material_didatico_anual && student.classes.material_didatico_anual > 0 && (
-            <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
-              <div className="flex items-center space-x-2 mb-3">
-                <Package className="h-5 w-5 text-purple-600" />
-                <h3 className="font-semibold text-purple-900">Material Didático</h3>
+            <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-3 rounded-lg border border-purple-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <Package className="h-4 w-4 text-purple-600" />
+                <h3 className="font-semibold text-purple-900 text-sm">Material Didático</h3>
               </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Valor Anual:</span>
-                  <span className={student.discount_material && student.discount_material > 0 ? "text-gray-500 line-through" : "font-medium"}>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600">Anual:</span>
+                  <span className={student.discount_material && student.discount_material > 0 ? "text-gray-500 line-through text-xs" : "font-medium text-xs"}>
                     R$ {student.classes.material_didatico_anual.toFixed(2)}
                   </span>
                 </div>
                 
                 {/* Forma de Pagamento */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Forma de Pagamento:</span>
-                  <div className="flex items-center space-x-2">
-                    {student.material_payment_type === 'a_vista' && <FileText className="h-4 w-4 text-purple-600" />}
-                    {student.material_payment_type === 'parcelado_cartao' && <CreditCard className="h-4 w-4 text-purple-600" />}
-                    {student.material_payment_type === 'parcelado_boleto' && <FileText className="h-4 w-4 text-purple-600" />}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600">Pagamento:</span>
+                  <div className="flex items-center space-x-1">
+                    {student.material_payment_type === 'a_vista' && <FileText className="h-3 w-3 text-purple-600" />}
+                    {student.material_payment_type === 'parcelado_cartao' && <CreditCard className="h-3 w-3 text-purple-600" />}
+                    {student.material_payment_type === 'parcelado_boleto' && <FileText className="h-3 w-3 text-purple-600" />}
                     <span className="font-medium">{getPaymentTypeName()}</span>
                   </div>
                 </div>
 
                 {student.discount_material && student.discount_material > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm">Desconto:</span>
-                    <Badge className="bg-purple-600">{student.discount_material}%</Badge>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-600">Desconto:</span>
+                    <Badge className="bg-purple-600 text-xs px-2 py-0">{student.discount_material}%</Badge>
                   </div>
                 )}
 
                 {/* Valor Final do Material */}
-                <div className="flex justify-between items-center pt-2 border-t border-purple-200">
-                  <span className="font-semibold text-gray-800">Valor Total:</span>
-                  <span className="text-xl font-bold text-purple-700">R$ {finalMaterialAnual.toFixed(2)}</span>
+                <div className="flex justify-between items-center pt-1 border-t border-purple-200">
+                  <span className="font-semibold text-gray-800 text-xs">Total:</span>
+                  <span className="text-lg font-bold text-purple-700">R$ {finalMaterialAnual.toFixed(2)}</span>
                 </div>
 
                 {/* Parcelamento */}
                 {student.material_installments && student.material_installments > 1 && student.material_parcela && (
-                  <div className="bg-purple-100 p-3 rounded">
+                  <div className="bg-purple-100 p-1.5 rounded">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-purple-700" />
-                        <span className="text-sm font-medium text-purple-900">Parcelamento:</span>
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3 text-purple-700" />
+                        <span className="text-xs font-medium text-purple-900">Parcelas:</span>
                       </div>
-                      <span className="text-lg font-bold text-purple-700">
-                        {student.material_installments}x de R$ {student.material_parcela.toFixed(2)}
+                      <span className="text-sm font-bold text-purple-700">
+                        {student.material_installments}x R$ {student.material_parcela.toFixed(2)}
                       </span>
                     </div>
                   </div>
                 )}
 
                 {materialSavings > 0 && (
-                  <div className="bg-purple-100 p-2 rounded text-center">
-                    <p className="text-sm text-purple-700">
-                      💰 Economia de <strong>R$ {materialSavings.toFixed(2)}</strong> no material
+                  <div className="bg-purple-100 p-1.5 rounded text-center">
+                    <p className="text-xs text-purple-700">
+                      💰 <strong>-R$ {materialSavings.toFixed(2)}</strong>
                     </p>
                   </div>
                 )}
               </div>
             </div>
           )}
-
-          {/* Resumo Total */}
-          <div className="bg-gradient-to-br from-gray-50 to-slate-50 p-4 rounded-lg border-2 border-gray-300">
-            <h3 className="font-bold text-center text-gray-800 mb-3 text-lg">💼 Investimento Total</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Mensalidade (12 meses):</span>
-                <span className="font-medium">R$ {(finalMonthlyFee * 12).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Material Didático:</span>
-                <span className="font-medium">R$ {finalMaterialAnual.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t-2 border-gray-300">
-                <span className="font-bold text-gray-800">Total Anual:</span>
-                <span className="text-2xl font-bold text-gray-900">
-                  R$ {(finalMonthlyFee * 12 + finalMaterialAnual).toFixed(2)}
-                </span>
-              </div>
-              {(monthlySavings > 0 || materialSavings > 0) && (
-                <div className="bg-green-100 p-2 rounded text-center mt-2">
-                  <p className="text-sm font-semibold text-green-700">
-                    🎉 Economia Total: R$ {((monthlySavings * 12) + materialSavings).toFixed(2)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
