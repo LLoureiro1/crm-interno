@@ -39,8 +39,8 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
     return currentYear;
   };
 
-  // Função para encontrar a próxima série
-  const findNextSeries = async (currentSeriesId: string, unitId: string) => {
+  // Função para encontrar a série de destino baseada na diferença de anos
+  const findTargetSeries = async (currentSeriesId: string, unitId: string, yearsDifference: number) => {
     try {
       // Buscar a série atual
       const { data: currentSeries } = await supabase
@@ -51,28 +51,31 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
 
       if (!currentSeries) return null;
 
-      // Buscar a próxima série baseada na coluna 'ordenar'
-      const { data: nextSeries } = await supabase
+      // Calcular a posição da série de destino
+      const targetOrder = currentSeries.ordenar + yearsDifference;
+
+      // Buscar a série de destino baseada na coluna 'ordenar'
+      const { data: targetSeries } = await supabase
         .from('series')
         .select('*')
-        .eq('ordenar', currentSeries.ordenar + 1)
+        .eq('ordenar', targetOrder)
         .single();
 
-      if (!nextSeries) {
-        return null; // Não há próxima série (aluno está na última série)
+      if (!targetSeries) {
+        return null; // Não há série de destino (aluno está na última série ou diferença muito grande)
       }
 
-      // Verificar se existe turma da próxima série na mesma unidade
-      const { data: nextClass } = await supabase
+      // Verificar se existe turma da série de destino na mesma unidade
+      const { data: targetClass } = await supabase
         .from('classes')
         .select('id, has_exam')
-        .eq('series_id', nextSeries.id)
+        .eq('series_id', targetSeries.id)
         .eq('unit_id', unitId)
         .single();
 
-      return nextClass ? { series: nextSeries, class: nextClass } : null;
+      return targetClass ? { series: targetSeries, class: targetClass } : null;
     } catch (error) {
-      console.error('Erro ao buscar próxima série:', error);
+      console.error('Erro ao buscar série de destino:', error);
       return null;
     }
   };
@@ -109,12 +112,26 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
         return;
       }
 
-      // Buscar próxima série/turma
-      const nextSeriesData = await findNextSeries(student.classes.series_id, student.classes.unit_id);
+      // Calcular diferença de anos
+      const yearsDifference = currentAcademicYear - Number(student.ano_letivo);
       
-      if (!nextSeriesData) {
+      // Validar diferença de anos (limitar a 5 anos para evitar erros)
+      if (yearsDifference <= 0) {
+        toast.error('Diferença de anos inválida');
+        return;
+      }
+      
+      if (yearsDifference > 5) {
+        toast.error('Diferença de anos muito grande. Ajuste manualmente.');
+        return;
+      }
+
+      // Buscar série/turma de destino baseada na diferença de anos
+      const targetSeriesData = await findTargetSeries(student.classes.series_id, student.classes.unit_id, yearsDifference);
+      
+      if (!targetSeriesData) {
         setShowAlert(true);
-        toast.error('Não foi possível encontrar a próxima série. Ajuste a turma manualmente.');
+        toast.error(`Não foi possível encontrar a série de destino (avançar ${yearsDifference} série${yearsDifference > 1 ? 's' : ''}). Ajuste a turma manualmente.`);
         return;
       }
 
@@ -122,12 +139,12 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
       const updateData: any = {
         ano_letivo: currentAcademicYear,
         tag: `Inscrito para ${previousYear}`,
-        class_id: nextSeriesData.class.id,
-        status: nextSeriesData.class.has_exam ? 'nao_confirmado' : 'nenhum_agendamento'
+        class_id: targetSeriesData.class.id,
+        status: targetSeriesData.class.has_exam ? 'nao_confirmado' : 'nenhum_agendamento'
       };
 
       // Se a nova turma tem prova, buscar próxima data de exame
-      if (nextSeriesData.class.has_exam) {
+      if (targetSeriesData.class.has_exam) {
         const nextExamDate = await findNextExamDate(student.classes.unit_id);
         if (nextExamDate) {
           updateData.exam_date_id = nextExamDate.id;
@@ -150,17 +167,18 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
       // Adicionar interação
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const seriesText = yearsDifference > 1 ? `${yearsDifference} séries` : `${yearsDifference} série`;
         await supabase
           .from('student_interactions')
           .insert({
             student_id: student.id,
             user_id: user.id,
             interaction_type: 'reativacao',
-            comments: `Aluno reativado do ano letivo ${previousYear} para ${currentAcademicYear}. Série alterada de ${student.classes.series.name} para ${nextSeriesData.series.name}.`
+            comments: `Aluno reativado do ano letivo ${previousYear} para ${currentAcademicYear}. Série alterada de ${student.classes.series.name} para ${targetSeriesData.series.name} (avançou ${seriesText}).`
           });
       }
 
-      toast.success('Aluno reativado com sucesso!');
+      toast.success(`Aluno reativado com sucesso! Avançou ${yearsDifference} série${yearsDifference > 1 ? 's' : ''}.`);
       onSuccess();
       
     } catch (error) {
@@ -175,16 +193,20 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
   const shouldShowButton = Number(student.ano_letivo) < currentAcademicYear;
 
   // 🔍 DEBUG LOGS
+  const yearsDifference = currentAcademicYear - Number(student.ano_letivo);
   console.log('═══════════════════════════════════════');
   console.log('🔍 ReactivateStudentButton Debug:');
   console.log('📚 Ano letivo atual:', currentAcademicYear);
   console.log('👤 Ano letivo do aluno:', student.ano_letivo);
+  console.log('📊 Diferença de anos:', yearsDifference);
   console.log('📊 Tipo de ano_letivo do aluno:', typeof student.ano_letivo);
   console.log('📊 Tipo de ano atual:', typeof currentAcademicYear);
   console.log('🔢 Comparação (ano_letivo < ano_atual):', Number(student.ano_letivo), '<', currentAcademicYear, '=', Number(student.ano_letivo) < currentAcademicYear);
   console.log('✅ Deve mostrar botão:', shouldShowButton);
   console.log('👤 Nome do aluno:', student.student_name);
-  console.log('🏫 Série:', student.classes.series.name);
+  console.log('🏫 Série atual:', student.classes.series.name);
+  console.log('🔢 Ordenação da série atual:', student.classes.series.ordenar);
+  console.log('🎯 Ordenação da série de destino:', student.classes.series.ordenar + yearsDifference);
   console.log('═══════════════════════════════════════');
 
   if (!shouldShowButton) {
@@ -197,7 +219,9 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Não foi possível encontrar a próxima série automaticamente. 
+            Não foi possível encontrar a série de destino automaticamente. 
+            Isso pode acontecer quando não existe uma turma da série correspondente na mesma unidade, 
+            ou quando o aluno está na última série disponível. 
             Por favor, ajuste a turma do aluno manualmente após a reativação.
           </AlertDescription>
         </Alert>
