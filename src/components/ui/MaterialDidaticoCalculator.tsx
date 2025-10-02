@@ -106,22 +106,24 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
             <Percent className="h-4 w-4 text-green-600" />
             <span className="font-medium text-green-900">Valores do Material</span>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">Desconto Aplicado:</span>
-              <p className="font-semibold text-lg text-green-700">{discountMaterial || 0}%</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Desconto Aplicado:</span>
+                <p className="font-semibold text-lg text-green-700">{discountMaterial || 0}%</p>
+              </div>
+              <div>
+                <span className="text-gray-600">Material Anual Final:</span>
+                <p className="font-bold text-xl text-green-700">R$ {finalMaterialAnual.toFixed(2)}</p>
+              </div>
             </div>
-            <div>
-              <span className="text-gray-600">Material Anual Final:</span>
-              <p className="font-bold text-xl text-green-700">R$ {finalMaterialAnual.toFixed(2)}</p>
-            </div>
-            {installmentValue && (
+            {installmentValue && installmentValue > 0 && (
               <div>
                 <span className="text-gray-600">Valor da Parcela:</span>
                 <p className="font-bold text-xl text-green-700">R$ {installmentValue.toFixed(2)}</p>
               </div>
             )}
-            {hasDiscount && (
+            {savingsAnual > 0 && (
               <div>
                 <span className="text-gray-600">Economia Total:</span>
                 <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
