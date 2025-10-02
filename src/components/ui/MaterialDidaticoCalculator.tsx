@@ -73,11 +73,7 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
           <div>
             <span className="text-gray-600">Material Anual:</span>
             <p className="font-semibold text-lg">R$ {materialAnual.toFixed(2)}</p>
-          </div>
-          <div>
-            <span className="text-gray-600">Material Mensal:</span>
-            <p className="font-semibold text-lg">R$ {materialMensal.toFixed(2)}</p>
-          </div>
+          </div>         
         </div>
       </div>
 
