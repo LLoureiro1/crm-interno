@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +35,7 @@ export const StudentsTab = () => {
   const [unitFilter, setUnitFilter] = useState<string[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<string[]>([]);
   const [examDateFilter, setExamDateFilter] = useState<string[]>([]);
-  const [academicYearFilter, setAcademicYearFilter] = useState<string>('');
+  const [academicYearFilter, setAcademicYearFilter] = useState<string[]>([]);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
@@ -123,10 +122,10 @@ export const StudentsTab = () => {
     // Definir o ano letivo atual como padrão
     const currentAcademicYear = getCurrentAcademicYear();
     if (years.includes(currentAcademicYear)) {
-      setAcademicYearFilter(currentAcademicYear);
+      setAcademicYearFilter([currentAcademicYear]);
     } else if (years.length > 0) {
       // Se o ano atual não estiver disponível, usar o mais recente
-      setAcademicYearFilter(years[0]);
+      setAcademicYearFilter([years[0]]);
     }
   };
 
@@ -191,8 +190,8 @@ export const StudentsTab = () => {
     }
 
     // Filtro por ano letivo (filtro supremo)
-    if (academicYearFilter) {
-      filtered = filtered.filter(student => student.ano_letivo === academicYearFilter);
+    if (academicYearFilter.length > 0) {
+      filtered = filtered.filter(student => academicYearFilter.includes(student.ano_letivo!));
     }
 
     setFilteredStudents(filtered);
@@ -355,18 +354,16 @@ export const StudentsTab = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-1">
-              <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Ano Letivo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableAcademicYears.map(year => (
-                    <SelectItem key={year} value={year}>
-                      {year} {year === getCurrentAcademicYear() && '(Vigente)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={availableAcademicYears.map(year => ({
+                  value: year,
+                  label: `${year}${year === getCurrentAcademicYear() ? ' (Vigente)' : ''}`
+                }))}
+                selected={academicYearFilter}
+                onChange={setAcademicYearFilter}
+                placeholder="Ano Letivo"
+                className="w-40"
+              />
             </div>
 
             <div className="relative md:col-span-2">
