@@ -109,12 +109,12 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
             </div>
           </div>
 
-          {/* Material Didático */}
+          {/* Recursos Didáticos */}
           {student.classes.material_didatico_anual && student.classes.material_didatico_anual > 0 && (
             <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-3 rounded-lg border border-purple-200">
               <div className="flex items-center space-x-2 mb-2">
                 <Package className="h-4 w-4 text-purple-600" />
-                <h3 className="font-semibold text-purple-900 text-sm">Material Didático</h3>
+                <h3 className="font-semibold text-purple-900 text-sm">Recursos Didáticos</h3>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs">

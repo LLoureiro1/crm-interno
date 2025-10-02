@@ -57,7 +57,7 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-base font-semibold mb-3 block">Forma de Pagamento do Material Didático</Label>
+        <Label className="text-base font-semibold mb-3 block">Forma de Pagamento dos Recursos Didáticos</Label>
         <RadioGroup 
           value={paymentType} 
           onValueChange={onPaymentTypeChange}

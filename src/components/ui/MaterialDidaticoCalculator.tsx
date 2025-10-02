@@ -26,7 +26,7 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   installments = null,
   savedInstallmentValue = null
 }) => {
-  // Função para calcular material didático com desconto
+  // Função para calcular recursos didáticos com desconto
   const calculateMaterialWithDiscount = (originalValue: number, discountPercentage: number) => {
     const discountMultiplier = 1 - (discountPercentage / 100);
     return originalValue * discountMultiplier;
@@ -63,11 +63,11 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
 
   return (
     <div className={`space-y-4 ${containerClassName || ''}`}>
-      {/* Informações do Material Didático */}
+      {/* Informações dos Recursos Didáticos */}
       <div className="bg-purple-50 p-4 rounded-lg border">
         <div className="flex items-center space-x-2 mb-3">
           <BookOpen className="h-4 w-4 text-purple-600" />
-          <span className="font-medium text-purple-900">Material Didático</span>
+          <span className="font-medium text-purple-900">Recursos Didáticos</span>
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>

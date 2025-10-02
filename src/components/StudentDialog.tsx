@@ -315,11 +315,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   />
                 </div>
 
-                {/* Material Didático Section */}
+                {/* Recursos Didáticos Section */}
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
                     <Book className="h-4 w-4 text-purple-600" />
-                    <span className="font-medium text-purple-900">Material Didático</span>
+                    <span className="font-medium text-purple-900">Recursos Didáticos</span>
                   </div>
                   <MaterialDidaticoCalculator
                     materialAnual={student.classes.material_didatico_anual || 0}

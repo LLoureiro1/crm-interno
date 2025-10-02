@@ -274,7 +274,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     }
 
     if (!materialPaymentType) {
-      toast.error('Selecione a forma de pagamento do material didático');
+      toast.error('Selecione a forma de pagamento dos recursos didáticos');
       return;
     }
 
@@ -797,7 +797,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               </div>
             )}
 
-            {/* Seleção de Pagamento do Material Didático */}
+            {/* Seleção de Pagamento dos Recursos Didáticos */}
             <div className="pt-4 border-t">
               <MaterialPaymentSelector
                 paymentType={materialPaymentType}
@@ -807,7 +807,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               />
             </div>
 
-            {/* Preview do cálculo de material didático em tempo real */}
+            {/* Preview do cálculo de recursos didáticos em tempo real */}
             {materialPaymentType && currentAppointment?.students?.classes && (
               <div className="pt-2">
                 <MaterialDidaticoCalculator

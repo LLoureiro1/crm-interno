@@ -66,7 +66,7 @@ export const ClassManagement = () => {
     }
   }, [formData.annuity, formData.parcelas]);
 
-  // Calcular material didático mensal automaticamente baseado no material anual e parcelas
+  // Calcular recursos didáticos mensal automaticamente baseado no material anual e parcelas
   useEffect(() => {
     if (formData.material_didatico_anual && formData.parcelas) {
       const materialAnualValue = parseFloat(formData.material_didatico_anual);
@@ -331,7 +331,7 @@ export const ClassManagement = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="material_didatico_anual">Material Didático Anual (R$) *</Label>
+                <Label htmlFor="material_didatico_anual">Recursos Didáticos Anual (R$) *</Label>
                 <Input
                   id="material_didatico_anual"
                   type="number"
@@ -342,7 +342,7 @@ export const ClassManagement = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="material_didatico_mes">Material Didático Mensal (R$) - Calculado automaticamente</Label>
+                <Label htmlFor="material_didatico_mes">Recursos Didáticos Mensal (R$) - Calculado automaticamente</Label>
                 <Input
                   id="material_didatico_mes"
                   type="number"

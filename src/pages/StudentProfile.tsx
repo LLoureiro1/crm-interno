@@ -489,7 +489,7 @@ const StudentProfile = () => {
     }
 
     if (!materialPaymentType) {
-      toast.error('Selecione a forma de pagamento do material didático');
+      toast.error('Selecione a forma de pagamento dos recursos didáticos');
       return;
     }
 
@@ -1280,11 +1280,11 @@ const StudentProfile = () => {
                   />
                 </div>
 
-                {/* Material Didático Section */}
+                {/* Recursos Didáticos Section */}
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
                     <BookOpen className="h-4 w-4 text-purple-600" />
-                    <span className="font-medium text-purple-900">Material Didático</span>
+                    <span className="font-medium text-purple-900">Recursos Didáticos</span>
                   </div>
                   <MaterialDidaticoCalculator
                     materialAnual={student.classes.material_didatico_anual || 0}
@@ -1435,7 +1435,7 @@ const StudentProfile = () => {
                     </div>
                   )}
 
-                  {/* Seleção de Pagamento do Material Didático */}
+                  {/* Seleção de Pagamento dos Recursos Didáticos */}
                   <div className="pt-4 border-t">
                     <MaterialPaymentSelector
                       paymentType={materialPaymentType as MaterialPaymentType}
@@ -1445,7 +1445,7 @@ const StudentProfile = () => {
                     />
                   </div>
 
-                  {/* Preview do cálculo de material didático em tempo real */}
+                  {/* Preview do cálculo de recursos didáticos em tempo real */}
                   {materialPaymentType && student?.classes && (
                     <div className="pt-2">
                       <MaterialDidaticoCalculator
