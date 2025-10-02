@@ -56,37 +56,26 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
-        <DialogHeader className="pb-2">
+        <DialogHeader className="pb-3">
           <DialogTitle className="text-xl font-bold text-center">
             📋 Resumo da Proposta
           </DialogTitle>
-          <p className="text-center text-gray-600 text-sm">
-            {student.student_name}
-          </p>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Informações da Turma */}
-          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <GraduationCap className="h-4 w-4 text-blue-600" />
-              <h3 className="font-semibold text-blue-900 text-sm">Turma</h3>
-            </div>
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Série:</span>
-                <span className="font-medium">{student.classes.series.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Unidade:</span>
-                <span className="font-medium">{student.classes.units.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Turma:</span>
-                <span className="font-medium">{student.classes.name}</span>
-              </div>
+          <div className="text-center space-y-1">
+            <p className="text-gray-800 font-semibold">
+              {student.student_name}
+            </p>
+            <div className="flex items-center justify-center space-x-4 text-xs text-gray-600">
+              <span className="flex items-center space-x-1">
+                <GraduationCap className="h-3 w-3" />
+                <span>{student.classes.series.name}</span>
+              </span>
+              <span>•</span>
+              <span>{student.classes.units.name}</span>                            
             </div>
           </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Mensalidade */}
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
