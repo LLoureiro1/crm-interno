@@ -52,8 +52,14 @@ export function MultiSelect({
   }
 
   const handleSelectAll = () => {
-    const allValues = options.map(option => option.value)
-    onChange(allValues)
+    if (allSelected) {
+      // Se todos estão selecionados, desmarcar todos
+      onChange([])
+    } else {
+      // Se nem todos estão selecionados, selecionar todos
+      const allValues = options.map(option => option.value)
+      onChange(allValues)
+    }
   }
 
   const handleDeselectAll = () => {
