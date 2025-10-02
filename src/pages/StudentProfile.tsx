@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen, Pen } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen, Pen, FileText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
@@ -17,6 +17,7 @@ import { MaterialPaymentSelector, type MaterialPaymentType } from '@/components/
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { GradeEditor } from '@/components/GradeEditor';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
+import { ProposalSummaryModal } from '@/components/ui/ProposalSummaryModal';
 import { toast } from 'sonner';
 import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
@@ -55,6 +56,7 @@ const StudentProfile = () => {
   const [invalidReason, setInvalidReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
+  const [showProposalModal, setShowProposalModal] = useState(false);
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewerId, setInterviewerId] = useState('');
@@ -1243,9 +1245,22 @@ const StudentProfile = () => {
             {/* Financial Data */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Pen className="h-4 w-4" />
-                  <span>Proposta</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Pen className="h-4 w-4" />
+                    <span>Proposta</span>
+                  </div>
+                  {hasHadInterview && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowProposalModal(true)}
+                      className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Ver Resumo</span>
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1629,6 +1644,15 @@ const StudentProfile = () => {
             </Card>
           </div>
         </div>
+
+        {/* Modal de Resumo da Proposta */}
+        {hasHadInterview && (
+          <ProposalSummaryModal
+            open={showProposalModal}
+            onOpenChange={setShowProposalModal}
+            student={student}
+          />
+        )}
       </div>
     </div>
   );
