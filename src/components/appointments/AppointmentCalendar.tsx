@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate, dateToLocalString } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
+import { MaterialPaymentSelector, type MaterialPaymentType } from '@/components/ui/MaterialPaymentSelector';
+import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 
 type Appointment = Tables<'appointments'> & {
   students?: Tables<'students'> & {
@@ -72,6 +74,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [currentAppointment, setCurrentAppointment] = useState<Appointment | null>(null);
   const [attendanceDiscount, setAttendanceDiscount] = useState('');
   const [attendanceComments, setAttendanceComments] = useState('');
+  const [materialPaymentType, setMaterialPaymentType] = useState<MaterialPaymentType>('');
+  const [materialInstallments, setMaterialInstallments] = useState<number>(1);
 
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -257,6 +261,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     setCurrentAppointment(appointment);
     setAttendanceDiscount('');
     setAttendanceComments('');
+    setMaterialPaymentType('');
+    setMaterialInstallments(1);
     setShowAttendanceModal(true);
   };
 
@@ -267,11 +273,20 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       return;
     }
 
+    if (!materialPaymentType) {
+      toast.error('Selecione a forma de pagamento do material didático');
+      return;
+    }
+
     const discount = parseFloat(attendanceDiscount);
     if (isNaN(discount) || discount < 0 || discount > 100) {
       toast.error('Percentual de desconto deve estar entre 0% e 100%');
       return;
     }
+
+    // Calcular desconto do material baseado no tipo de pagamento
+    const materialDiscount = materialPaymentType === 'a_vista' ? 10 : 
+                            materialPaymentType === 'parcelado_cartao' ? 5 : 0;
 
     try {
       // Update appointment with status 'realizado', discount, and comments
@@ -288,25 +303,32 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       if (error) throw error;
 
-      // Update student's discount_percentage and status
+      // Update student's discount_percentage, material info and status
       const { error: studentUpdateError } = await supabase
         .from('students')
         .update({ 
           discount_percentage: discount,
-          status: 'atendimento_recentemente' // Placeholder for now, will verify later
+          discount_material: materialDiscount,
+          material_payment_type: materialPaymentType,
+          material_installments: materialInstallments,
+          status: 'atendimento_recentemente'
         })
         .eq('id', currentAppointment.student_id);
 
       if (studentUpdateError) throw studentUpdateError;
 
       // Add interaction
+      const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' : 
+                              materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
+                              `Boleto ${materialInstallments}x`;
+
       const { error: interactionError } = await supabase
         .from('student_interactions')
         .insert({
           student_id: currentAppointment.student_id,
-          user_id: profile?.id, // Assuming profile is available in this component
+          user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto: ${discount}%. ${attendanceComments.trim() || 'Sem comentários.'}`
+          comments: `Atendimento realizado. Desconto mensalidade: ${discount}%. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${attendanceComments.trim() || 'Sem comentários.'}`
         });
 
       if (interactionError) throw interactionError;
@@ -316,6 +338,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       setCurrentAppointment(null);
       setAttendanceDiscount('');
       setAttendanceComments('');
+      setMaterialPaymentType('');
+      setMaterialInstallments(1);
       fetchAppointments();
     } catch (error) {
       console.error('Error registering attendance:', error);
@@ -764,6 +788,31 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* Seleção de Pagamento do Material Didático */}
+            <div className="pt-4 border-t">
+              <MaterialPaymentSelector
+                paymentType={materialPaymentType}
+                installments={materialInstallments}
+                onPaymentTypeChange={setMaterialPaymentType}
+                onInstallmentsChange={setMaterialInstallments}
+              />
+            </div>
+
+            {/* Preview do cálculo de material didático em tempo real */}
+            {materialPaymentType && currentAppointment?.students?.classes && (
+              <div className="pt-2">
+                <MaterialDidaticoCalculator
+                  materialAnual={currentAppointment.students.classes.material_didatico_anual || 0}
+                  materialMensal={currentAppointment.students.classes.material_didatico_mes || 0}
+                  discountMaterial={materialPaymentType === 'a_vista' ? 10 : 
+                                   materialPaymentType === 'parcelado_cartao' ? 5 : 0}
+                  hasHadInterview={true}
+                  paymentType={materialPaymentType}
+                  installments={materialInstallments}
+                />
               </div>
             )}
 

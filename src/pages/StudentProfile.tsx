@@ -13,6 +13,7 @@ import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, Arr
 import { Checkbox } from '@/components/ui/checkbox';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
+import { MaterialPaymentSelector, type MaterialPaymentType } from '@/components/ui/MaterialPaymentSelector';
 import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { GradeEditor } from '@/components/GradeEditor';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
@@ -45,6 +46,8 @@ const StudentProfile = () => {
   const [interviewers, setInterviewers] = useState<Profile[]>([]);
   const [comments, setComments] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
+  const [materialPaymentType, setMaterialPaymentType] = useState<'a_vista' | 'parcelado_cartao' | 'parcelado_boleto' | ''>('');
+  const [materialInstallments, setMaterialInstallments] = useState<number>(1);
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [dropoutComment, setDropoutComment] = useState<string>('');
@@ -483,11 +486,20 @@ const StudentProfile = () => {
       return;
     }
 
+    if (!materialPaymentType) {
+      toast.error('Selecione a forma de pagamento do material didático');
+      return;
+    }
+
     const discount = parseFloat(discountPercentage);
     if (isNaN(discount) || discount < 0 || discount > 100) {
       toast.error('Percentual de desconto deve estar entre 0% e 100%');
       return;
     }
+
+    // Calcular desconto do material baseado no tipo de pagamento
+    const materialDiscount = materialPaymentType === 'a_vista' ? 10 : 
+                            materialPaymentType === 'parcelado_cartao' ? 5 : 0;
 
     try {
       // 1. Buscar e atualizar appointment se existir
@@ -520,11 +532,14 @@ const StudentProfile = () => {
         }
       }
 
-      // 2. Update student with discount and status
+      // 2. Update student with discount, material payment info and status
       const { error: studentError } = await supabase
         .from('students')
         .update({
           discount_percentage: discount,
+          discount_material: materialDiscount,
+          material_payment_type: materialPaymentType,
+          material_installments: materialInstallments,
           status: 'atendimento_recentemente'
         })
         .eq('id', id);
@@ -532,13 +547,17 @@ const StudentProfile = () => {
       if (studentError) throw studentError;
 
       // 3. Add interaction
+      const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' : 
+                              materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
+                              `Boleto ${materialInstallments}x`;
+      
       const { error: interactionError } = await supabase
         .from('student_interactions')
         .insert({
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto: ${discount}%. ${comments.trim()}`
+          comments: `Atendimento realizado. Desconto mensalidade: ${discount}%. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
         });
 
       if (interactionError) throw interactionError;
@@ -547,6 +566,8 @@ const StudentProfile = () => {
       fetchStudent();
       fetchInteractions();
       setDiscountPercentage('');
+      setMaterialPaymentType('');
+      setMaterialInstallments(1);
       setComments('');
     } catch (error) {
       console.error('Error registering attendance:', error);
@@ -1249,6 +1270,8 @@ const StudentProfile = () => {
                     materialMensal={student.classes.material_didatico_mes || 0}
                     discountMaterial={student.discount_material || 0}
                     hasHadInterview={hasHadInterview}
+                    paymentType={(student as any).material_payment_type || null}
+                    installments={(student as any).material_installments || null}
                   />
                 </div>
               </CardContent>
@@ -1387,6 +1410,31 @@ const StudentProfile = () => {
                           </div>
                         );
                       })()}
+                    </div>
+                  )}
+
+                  {/* Seleção de Pagamento do Material Didático */}
+                  <div className="pt-4 border-t">
+                    <MaterialPaymentSelector
+                      paymentType={materialPaymentType as MaterialPaymentType}
+                      installments={materialInstallments}
+                      onPaymentTypeChange={(type) => setMaterialPaymentType(type)}
+                      onInstallmentsChange={setMaterialInstallments}
+                    />
+                  </div>
+
+                  {/* Preview do cálculo de material didático em tempo real */}
+                  {materialPaymentType && student?.classes && (
+                    <div className="pt-2">
+                      <MaterialDidaticoCalculator
+                        materialAnual={student.classes.material_didatico_anual || 0}
+                        materialMensal={student.classes.material_didatico_mes || 0}
+                        discountMaterial={materialPaymentType === 'a_vista' ? 10 : 
+                                         materialPaymentType === 'parcelado_cartao' ? 5 : 0}
+                        hasHadInterview={true}
+                        paymentType={materialPaymentType}
+                        installments={materialInstallments}
+                      />
                     </div>
                   )}
 

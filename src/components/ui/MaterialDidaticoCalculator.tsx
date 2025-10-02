@@ -1,5 +1,7 @@
 import React from 'react';
-import { BookOpen, Percent } from 'lucide-react';
+import { BookOpen, Percent, CreditCard } from 'lucide-react';
+
+export type MaterialPaymentType = 'a_vista' | 'parcelado_cartao' | 'parcelado_boleto' | null;
 
 interface MaterialDidaticoCalculatorProps {
   materialAnual: number;
@@ -8,6 +10,8 @@ interface MaterialDidaticoCalculatorProps {
   containerClassName?: string;
   className?: string;
   hasHadInterview?: boolean;
+  paymentType?: MaterialPaymentType;
+  installments?: number | null;
 }
 
 export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProps> = ({
@@ -16,7 +20,9 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   discountMaterial,
   containerClassName,
   className,
-  hasHadInterview = false
+  hasHadInterview = false,
+  paymentType = null,
+  installments = null
 }) => {
   // Função para calcular material didático com desconto
   const calculateMaterialWithDiscount = (originalValue: number, discountPercentage: number) => {
@@ -29,6 +35,23 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   const finalMaterialMensal = hasDiscount ? calculateMaterialWithDiscount(materialMensal, discountMaterial) : materialMensal;
   
   const savingsMensal = materialMensal - finalMaterialMensal;
+  const savingsAnual = materialAnual - finalMaterialAnual;
+
+  // Calcular valor da parcela se for parcelado
+  const installmentValue = installments && installments > 1 
+    ? finalMaterialAnual / installments 
+    : null;
+
+  // Obter nome amigável do tipo de pagamento
+  const getPaymentTypeName = () => {
+    if (!paymentType) return null;
+    switch (paymentType) {
+      case 'a_vista': return 'À Vista';
+      case 'parcelado_cartao': return 'Cartão de Crédito';
+      case 'parcelado_boleto': return 'Boleto';
+      default: return null;
+    }
+  };
 
   // Determinar a mensagem adequada baseada em hasHadInterview
   const getNoDiscountMessage = () => {
@@ -58,6 +81,28 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
         </div>
       </div>
 
+      {/* Informações de Pagamento */}
+      {paymentType && (
+        <div className="bg-blue-50 p-4 rounded-lg border">
+          <div className="flex items-center space-x-2 mb-3">
+            <CreditCard className="h-4 w-4 text-blue-600" />
+            <span className="font-medium text-blue-900">Forma de Pagamento</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Tipo:</span>
+              <p className="font-semibold text-lg">{getPaymentTypeName()}</p>
+            </div>
+            {installments && installments > 1 && (
+              <div>
+                <span className="text-gray-600">Parcelas:</span>
+                <p className="font-semibold text-lg">{installments}x</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Cálculo com Desconto */}
       {hasDiscount ? (
         <div className="bg-green-50 p-4 rounded-lg border">
@@ -74,9 +119,19 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
               <span className="text-gray-600">Material Anual Final:</span>
               <p className="font-bold text-xl text-green-700">R$ {finalMaterialAnual.toFixed(2)}</p>
             </div>
+            {installmentValue && (
+              <div>
+                <span className="text-gray-600">Valor da Parcela:</span>
+                <p className="font-bold text-xl text-green-700">R$ {installmentValue.toFixed(2)}</p>
+              </div>
+            )}
             <div>
               <span className="text-gray-600">Material Mensal Final:</span>
               <p className="font-bold text-xl text-green-700">R$ {finalMaterialMensal.toFixed(2)}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Economia Total:</span>
+              <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
             </div>
             <div>
               <span className="text-gray-600">Economia Mensal:</span>
