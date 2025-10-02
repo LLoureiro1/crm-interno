@@ -77,7 +77,7 @@ export function MultiSelect({
       </PopoverTrigger>
       <PopoverContent className={cn("w-[--radix-popover-trigger-width] p-0", className)}>
         <Command>
-          <CommandInput placeholder="Search..." />
+          <CommandInput placeholder="Pesquisar..." />
           <CommandList>
             <CommandEmpty>No item found.</CommandEmpty>
             <CommandGroup>
