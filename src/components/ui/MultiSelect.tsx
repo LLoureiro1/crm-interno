@@ -31,6 +31,7 @@ interface MultiSelectProps {
   onChange: (value: string[]) => void
   placeholder?: string
   className?: string
+  showSelectAll?: boolean
 }
 
 export function MultiSelect({
@@ -39,6 +40,7 @@ export function MultiSelect({
   onChange,
   placeholder = "Select...",
   className,
+  showSelectAll = true,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -48,6 +50,18 @@ export function MultiSelect({
       : [...selected, value]
     onChange(newSelected)
   }
+
+  const handleSelectAll = () => {
+    const allValues = options.map(option => option.value)
+    onChange(allValues)
+  }
+
+  const handleDeselectAll = () => {
+    onChange([])
+  }
+
+  const allSelected = selected.length === options.length && options.length > 0
+  const someSelected = selected.length > 0 && selected.length < options.length
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -79,7 +93,39 @@ export function MultiSelect({
         <Command>
           <CommandInput placeholder="Pesquisar..." />
           <CommandList>
-            <CommandEmpty>No item found.</CommandEmpty>
+            <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+            
+            {showSelectAll && options.length > 1 && (
+              <>
+                <CommandGroup>
+                  <CommandItem onSelect={handleSelectAll}>
+                    <div className="relative">
+                      <Checkbox
+                        checked={allSelected}
+                        className="mr-2"
+                      />
+                      {someSelected && (
+                        <div className="absolute top-1 left-1 w-2 h-2 bg-primary rounded-sm pointer-events-none" />
+                      )}
+                    </div>
+                    <span className="font-medium">
+                      {allSelected ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                    </span>
+                  </CommandItem>
+                  {someSelected && (
+                    <CommandItem onSelect={handleDeselectAll}>
+                      <Checkbox
+                        checked={false}
+                        className="mr-2"
+                      />
+                      <span className="text-muted-foreground">Limpar Seleção</span>
+                    </CommandItem>
+                  )}
+                </CommandGroup>
+                <Separator />
+              </>
+            )}
+            
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
