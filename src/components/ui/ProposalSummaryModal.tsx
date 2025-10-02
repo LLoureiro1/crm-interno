@@ -102,6 +102,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                 <div className="bg-green-100 p-1.5 rounded text-center">
                   <p className="text-xs text-green-700">
                     💰 <strong>-R$ {monthlySavings.toFixed(2)}/mês</strong>
+                    <span className="block text-xs mt-0.5">(-R$ {(monthlySavings * 12).toFixed(2)}/ano)</span>
                   </p>
                 </div>
               )}
