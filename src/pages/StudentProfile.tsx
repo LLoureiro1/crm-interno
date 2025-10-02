@@ -501,6 +501,11 @@ const StudentProfile = () => {
     const materialDiscount = materialPaymentType === 'a_vista' ? 10 : 
                             materialPaymentType === 'parcelado_cartao' ? 5 : 0;
 
+    // Calcular valor da parcela do material
+    const materialAnual = student?.classes.material_didatico_anual || 0;
+    const materialComDesconto = materialAnual * (1 - (materialDiscount / 100));
+    const materialParcela = materialComDesconto / materialInstallments;
+
     try {
       // 1. Buscar e atualizar appointment se existir
       const { data: appointments, error: fetchAppointmentError } = await supabase
@@ -540,6 +545,7 @@ const StudentProfile = () => {
           discount_material: materialDiscount,
           material_payment_type: materialPaymentType,
           material_installments: materialInstallments,
+          material_parcela: materialParcela,
           status: 'atendimento_recentemente'
         })
         .eq('id', id);
@@ -1272,6 +1278,7 @@ const StudentProfile = () => {
                     hasHadInterview={hasHadInterview}
                     paymentType={(student as any).material_payment_type || null}
                     installments={(student as any).material_installments || null}
+                    savedInstallmentValue={(student as any).material_parcela || null}
                   />
                 </div>
               </CardContent>

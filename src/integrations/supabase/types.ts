@@ -370,6 +370,9 @@ export type Database = {
           exam_date: string | null
           id: string
           interview_date: string | null
+          material_installments: number | null
+          material_parcela: number | null
+          material_payment_type: string | null
           math_grade: number | null
           neighborhood: string
           origin_school: string
@@ -396,6 +399,9 @@ export type Database = {
           exam_date?: string | null
           id?: string
           interview_date?: string | null
+          material_installments?: number | null
+          material_parcela?: number | null
+          material_payment_type?: string | null
           math_grade?: number | null
           neighborhood: string
           origin_school: string
@@ -422,6 +428,9 @@ export type Database = {
           exam_date?: string | null
           id?: string
           interview_date?: string | null
+          material_installments?: number | null
+          material_parcela?: number | null
+          material_payment_type?: string | null
           math_grade?: number | null
           neighborhood?: string
           origin_school?: string

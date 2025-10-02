@@ -12,6 +12,7 @@ interface MaterialDidaticoCalculatorProps {
   hasHadInterview?: boolean;
   paymentType?: MaterialPaymentType;
   installments?: number | null;
+  savedInstallmentValue?: number | null;
 }
 
 export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProps> = ({
@@ -22,7 +23,8 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   className,
   hasHadInterview = false,
   paymentType = null,
-  installments = null
+  installments = null,
+  savedInstallmentValue = null
 }) => {
   // Função para calcular material didático com desconto
   const calculateMaterialWithDiscount = (originalValue: number, discountPercentage: number) => {
@@ -32,15 +34,13 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
 
   const hasDiscount = discountMaterial && discountMaterial > 0;
   const finalMaterialAnual = hasDiscount ? calculateMaterialWithDiscount(materialAnual, discountMaterial) : materialAnual;
-  const finalMaterialMensal = hasDiscount ? calculateMaterialWithDiscount(materialMensal, discountMaterial) : materialMensal;
   
-  const savingsMensal = materialMensal - finalMaterialMensal;
   const savingsAnual = materialAnual - finalMaterialAnual;
 
-  // Calcular valor da parcela se for parcelado
-  const installmentValue = installments && installments > 1 
-    ? finalMaterialAnual / installments 
-    : null;
+  // Usar valor da parcela salvo ou calcular se não houver
+  const installmentValue = savedInstallmentValue 
+    ? savedInstallmentValue 
+    : (installments && installments > 1 ? finalMaterialAnual / installments : null);
 
   // Obter nome amigável do tipo de pagamento
   const getPaymentTypeName = () => {
@@ -126,16 +126,8 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
               </div>
             )}
             <div>
-              <span className="text-gray-600">Material Mensal Final:</span>
-              <p className="font-bold text-xl text-green-700">R$ {finalMaterialMensal.toFixed(2)}</p>
-            </div>
-            <div>
               <span className="text-gray-600">Economia Total:</span>
               <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
-            </div>
-            <div>
-              <span className="text-gray-600">Economia Mensal:</span>
-              <p className="font-semibold text-lg text-green-600">R$ {savingsMensal.toFixed(2)}</p>
             </div>
           </div>
         </div>

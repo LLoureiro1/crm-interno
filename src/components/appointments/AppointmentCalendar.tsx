@@ -288,6 +288,11 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     const materialDiscount = materialPaymentType === 'a_vista' ? 10 : 
                             materialPaymentType === 'parcelado_cartao' ? 5 : 0;
 
+    // Calcular valor da parcela do material
+    const materialAnual = currentAppointment?.students?.classes?.material_didatico_anual || 0;
+    const materialComDesconto = materialAnual * (1 - (materialDiscount / 100));
+    const materialParcela = materialComDesconto / materialInstallments;
+
     try {
       // Update appointment with status 'realizado', discount, and comments
       const { error } = await supabase
@@ -311,6 +316,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
           discount_material: materialDiscount,
           material_payment_type: materialPaymentType,
           material_installments: materialInstallments,
+          material_parcela: materialParcela,
           status: 'atendimento_recentemente'
         })
         .eq('id', currentAppointment.student_id);
