@@ -192,7 +192,12 @@ export const UserManagement = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: sanitizeName(e.target.value) }))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const sanitizedValue = sanitizeName(value);
+                    setFormData(prev => ({ ...prev, name: sanitizedValue }));
+                  }}
+                  placeholder="Digite o nome completo"
                   required
                 />
               </div>

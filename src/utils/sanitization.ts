@@ -102,18 +102,42 @@ export const sanitizePhone = (phone: string): string => {
 
 /**
  * Sanitiza nome removendo caracteres especiais perigosos
+ * Preserva espaços, acentos e caracteres normais de nomes
  */
 export const sanitizeName = (name: string): string => {
   if (!name || typeof name !== 'string') return '';
   
-  // Remove caracteres HTML e scripts, mantém acentos e espaços
-  const sanitized = name
+  // Remove apenas caracteres HTML e scripts perigosos, preserva espaços
+  let sanitized = name
     .replace(/<[^>]*>/g, '') // Remove tags HTML
-    .replace(/[<>\"'&]/g, '') // Remove caracteres perigosos
-    .trim();
+    .replace(/[<>\"'&]/g, ''); // Remove caracteres perigosos específicos
+  
+  // Normaliza múltiplos espaços em um único espaço, mas preserva espaços únicos
+  sanitized = sanitized.replace(/\s+/g, ' ');
   
   // Limita comprimento
-  return sanitized.substring(0, 100);
+  sanitized = sanitized.substring(0, 100);
+  
+  return sanitized;
+};
+
+/**
+ * Versão alternativa de sanitização de nome que garante preservação de espaços
+ * Para uso em casos onde a sanitização padrão pode estar causando problemas
+ */
+export const sanitizeNameSafe = (name: string): string => {
+  if (!name || typeof name !== 'string') return '';
+  
+  // Remove apenas caracteres HTML e scripts, preserva tudo mais incluindo espaços
+  let sanitized = name
+    .replace(/<[^>]*>/g, '') // Remove tags HTML
+    .replace(/[<>\"'&]/g, ''); // Remove caracteres perigosos específicos
+  
+  // Preserva espaços - não faz trim aqui para manter espaços no início e fim durante digitação
+  // Limita comprimento
+  sanitized = sanitized.substring(0, 100);
+  
+  return sanitized;
 };
 
 /**
