@@ -75,7 +75,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [attendanceDiscount, setAttendanceDiscount] = useState('');
   const [attendanceComments, setAttendanceComments] = useState('');
   const [materialPaymentType, setMaterialPaymentType] = useState<MaterialPaymentType>('');
-  const [materialInstallments, setMaterialInstallments] = useState<number>(1);
+  const [materialInstallments, setMaterialInstallments] = useState<number>(2);
 
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -262,7 +262,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     setAttendanceDiscount('');
     setAttendanceComments('');
     setMaterialPaymentType('');
-    setMaterialInstallments(1);
+    setMaterialInstallments(2);
     setShowAttendanceModal(true);
   };
 
@@ -345,7 +345,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       setAttendanceDiscount('');
       setAttendanceComments('');
       setMaterialPaymentType('');
-      setMaterialInstallments(1);
+      setMaterialInstallments(2);
       fetchAppointments();
     } catch (error) {
       console.error('Error registering attendance:', error);

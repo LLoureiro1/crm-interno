@@ -25,8 +25,20 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
   useEffect(() => {
     if (paymentType === 'a_vista') {
       onInstallmentsChange(1);
-    } else if (paymentType === 'parcelado_boleto' && installments > 6) {
-      onInstallmentsChange(6);
+    } else if (paymentType === 'parcelado_cartao') {
+      // Se estava em 1x, mudar para 2x (mínimo para parcelado)
+      if (installments === 1) {
+        onInstallmentsChange(2);
+      }
+    } else if (paymentType === 'parcelado_boleto') {
+      // Se estava em 1x, mudar para 2x (mínimo para parcelado)
+      if (installments === 1) {
+        onInstallmentsChange(2);
+      }
+      // Se passou de 6x, limitar a 6x
+      if (installments > 6) {
+        onInstallmentsChange(6);
+      }
     }
   }, [paymentType]);
 
@@ -108,9 +120,9 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
               <SelectValue placeholder="Selecione o número de parcelas" />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: getMaxInstallments() }, (_, i) => i + 1).map((num) => (
+              {Array.from({ length: getMaxInstallments() - 1 }, (_, i) => i + 2).map((num) => (
                 <SelectItem key={num} value={num.toString()}>
-                  {num}x {num > 1 ? 'parcelas' : 'parcela'}
+                  {num}x parcelas
                 </SelectItem>
               ))}
             </SelectContent>

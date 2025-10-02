@@ -47,7 +47,7 @@ const StudentProfile = () => {
   const [comments, setComments] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [materialPaymentType, setMaterialPaymentType] = useState<'a_vista' | 'parcelado_cartao' | 'parcelado_boleto' | ''>('');
-  const [materialInstallments, setMaterialInstallments] = useState<number>(1);
+  const [materialInstallments, setMaterialInstallments] = useState<number>(2);
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [dropoutComment, setDropoutComment] = useState<string>('');
@@ -573,7 +573,7 @@ const StudentProfile = () => {
       fetchInteractions();
       setDiscountPercentage('');
       setMaterialPaymentType('');
-      setMaterialInstallments(1);
+      setMaterialInstallments(2);
       setComments('');
     } catch (error) {
       console.error('Error registering attendance:', error);
