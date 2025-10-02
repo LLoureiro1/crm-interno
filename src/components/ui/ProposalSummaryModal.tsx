@@ -85,7 +85,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-600">Original:</span>
+                <span className="text-gray-600">Parcela Integral:</span>
                 <span className="text-gray-500 line-through text-xs">R$ {student.classes.monthly_fee.toFixed(2)}</span>
               </div>
               {student.discount_percentage && student.discount_percentage > 0 && (
