@@ -388,8 +388,8 @@ export const ClassManagement = () => {
                 <TableHead>Mensalidade</TableHead>
                 <TableHead>Anuidade</TableHead>
                 <TableHead>Parcelas</TableHead>
-                <TableHead>Material Anual</TableHead>
-                <TableHead>Material Mensal</TableHead>
+                <TableHead>Recuros Didáticos Anual</TableHead>
+                <TableHead>Recursos Didáticos Mensal</TableHead>
                 <TableHead>Tem Prova</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
