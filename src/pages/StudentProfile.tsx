@@ -824,7 +824,7 @@ const StudentProfile = () => {
               <span>Tela Inicial</span>
             </Button>
             <Button 
-              onClick={() => window.history.back()} 
+              onClick={() => navigate('/', { state: { activeTab: 'students' } })} 
               variant="outline" 
               className="flex items-center space-x-2"
             >

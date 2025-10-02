@@ -1,4 +1,6 @@
 
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportsTab } from './tabs/ReportsTab';
@@ -10,9 +12,20 @@ import { BarChart3, Users, Calendar, Settings, TrendingUp, UserPlus } from 'luci
 
 export const Dashboard = () => {
   const { profile } = useAuth();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('reports');
 
   const canAccessAdvancedReports = profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
+
+  // Restaurar aba ativa se veio de uma navegação
+  useEffect(() => {
+    const navigationState = location.state as { activeTab?: string };
+    
+    if (navigationState?.activeTab) {
+      setActiveTab(navigationState.activeTab);
+    }
+  }, [location.state]);
 
   return (
     <div className="space-y-6">
@@ -21,7 +34,7 @@ export const Dashboard = () => {
         <p className="text-gray-600">Bem-vindo ao Laurel Escolar</p>
       </div>
 
-      <Tabs defaultValue="reports" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-5">
             <TabsTrigger value="reports" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
