@@ -40,7 +40,7 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   // Usar valor da parcela salvo ou calcular se não houver
   const installmentValue = savedInstallmentValue 
     ? savedInstallmentValue 
-    : (installments && installments > 1 ? finalMaterialAnual / installments : null);
+    : (installments && installments >= 1 ? finalMaterialAnual / installments : null);
 
   // Obter nome amigável do tipo de pagamento
   const getPaymentTypeName = () => {
@@ -100,16 +100,16 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
       )}
 
       {/* Cálculo com Desconto */}
-      {hasDiscount ? (
+      {paymentType ? (
         <div className="bg-green-50 p-4 rounded-lg border">
           <div className="flex items-center space-x-2 mb-3">
             <Percent className="h-4 w-4 text-green-600" />
-            <span className="font-medium text-green-900">Material com Desconto</span>
+            <span className="font-medium text-green-900">Valores do Material</span>
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Desconto Aplicado:</span>
-              <p className="font-semibold text-lg text-green-700">{discountMaterial}%</p>
+              <p className="font-semibold text-lg text-green-700">{discountMaterial || 0}%</p>
             </div>
             <div>
               <span className="text-gray-600">Material Anual Final:</span>
@@ -121,10 +121,12 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
                 <p className="font-bold text-xl text-green-700">R$ {installmentValue.toFixed(2)}</p>
               </div>
             )}
-            <div>
-              <span className="text-gray-600">Economia Total:</span>
-              <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
-            </div>
+            {hasDiscount && (
+              <div>
+                <span className="text-gray-600">Economia Total:</span>
+                <p className="font-semibold text-lg text-green-600">R$ {savingsAnual.toFixed(2)}</p>
+              </div>
+            )}
           </div>
         </div>
       ) : (
