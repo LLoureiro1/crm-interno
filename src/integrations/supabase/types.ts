@@ -255,6 +255,27 @@ export type Database = {
           },
         ]
       }
+      institutions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -499,6 +520,7 @@ export type Database = {
           city: string
           created_at: string
           id: string
+          institution_id: string | null
           name: string
           phone: string
           updated_at: string | null
@@ -508,6 +530,7 @@ export type Database = {
           city: string
           created_at?: string
           id?: string
+          institution_id?: string | null
           name: string
           phone: string
           updated_at?: string | null
@@ -517,11 +540,20 @@ export type Database = {
           city?: string
           created_at?: string
           id?: string
+          institution_id?: string | null
           name?: string
           phone?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "units_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
