@@ -31,6 +31,7 @@ serve(async (req) => {
 
     // Rule 1: Mark students as "ausente" if exam date has passed and no grades recorded
     // Verificar se há atendimento realizado antes de alterar o status
+    // NUNCA alterar alunos matriculados
     const { data: studentsForAbsent, error: fetchAbsentError } = await supabaseClient
       .from('students')
       .select(`
@@ -46,13 +47,14 @@ serve(async (req) => {
       .is('portuguese_grade', null)
       .is('math_grade', null)
       .not('status', 'eq', 'ausente')
+      .not('status', 'eq', 'matriculado')
 
     if (fetchAbsentError) {
       console.error('Error fetching students for absent status:', fetchAbsentError)
       throw fetchAbsentError
     }
 
-    let studentsToMarkAbsent = []
+    let studentsToMarkAbsent: typeof studentsForAbsent = []
     if (studentsForAbsent && studentsForAbsent.length > 0) {
       console.log(`Found ${studentsForAbsent.length} students to check for absent status`)
 
@@ -112,6 +114,7 @@ serve(async (req) => {
     }
 
     // Rule 2: Mark students as "faltou_ao_atendimento" if interview date has passed and no "realizado" appointment
+    // NUNCA alterar alunos matriculados
     const { data: studentsForMissedInterview, error: fetchMissedInterviewError } = await supabaseClient
       .from('students')
       .select(`
@@ -123,13 +126,14 @@ serve(async (req) => {
       .not('interview_date', 'is', null)
       .lt('interview_date', todayStr)
       .in('status', ['atendimento_agendado', 'confirmado'])
+      .not('status', 'eq', 'matriculado')
 
     if (fetchMissedInterviewError) {
       console.error('Error fetching students for missed interview status:', fetchMissedInterviewError)
       throw fetchMissedInterviewError
     }
 
-    let studentsToUpdate = []
+    let studentsToUpdate: typeof studentsForMissedInterview = []
     if (studentsForMissedInterview && studentsForMissedInterview.length > 0) {
       console.log(`Found ${studentsForMissedInterview.length} students to check for missed interviews`)
 
@@ -190,6 +194,7 @@ serve(async (req) => {
     }
 
     // Rule 3: Mark students as "atendimento_ha_mais_de_uma_semana" if interview was more than 7 days ago
+   
     const { data: studentsForWeekOld, error: fetchWeekOldError } = await supabaseClient
       .from('students')
       .select('id, student_name, interview_date')

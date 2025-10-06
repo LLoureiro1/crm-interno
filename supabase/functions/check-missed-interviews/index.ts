@@ -24,11 +24,13 @@ serve(async (req) => {
     const yesterdayStr = yesterday.toISOString().split('T')[0]
 
     // Find students with interview scheduled for yesterday and status still "atendimento_agendado"
+    // NUNCA alterar alunos matriculados
     const { data: studentsWithMissedInterviews, error: fetchError } = await supabaseClient
       .from('students')
       .select('id, student_name, interview_date')
       .eq('status', 'atendimento_agendado')
       .eq('interview_date', yesterdayStr)
+      .not('status', 'eq', 'matriculado')
 
     if (fetchError) {
       throw fetchError
