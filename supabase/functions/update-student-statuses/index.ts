@@ -30,6 +30,7 @@ serve(async (req) => {
     let totalInteractions = 0
 
     // Rule 1: Mark students as "ausente" if exam date has passed and no grades recorded
+    // Verificar se há atendimento realizado antes de alterar o status
     const { data: studentsForAbsent, error: fetchAbsentError } = await supabaseClient
       .from('students')
       .select(`
@@ -51,37 +52,63 @@ serve(async (req) => {
       throw fetchAbsentError
     }
 
+    let studentsToMarkAbsent = []
     if (studentsForAbsent && studentsForAbsent.length > 0) {
-      console.log(`Found ${studentsForAbsent.length} students to mark as absent`)
+      console.log(`Found ${studentsForAbsent.length} students to check for absent status`)
 
-      const { error: updateAbsentError } = await supabaseClient
-        .from('students')
-        .update({ status: 'ausente' })
-        .in('id', studentsForAbsent.map(s => s.id))
+      // Verificar quais alunos NÃO têm atendimento realizado
+      for (const student of studentsForAbsent) {
+        const { data: appointments, error: appointmentError } = await supabaseClient
+          .from('appointments')
+          .select('id, status')
+          .eq('student_id', student.id)
+          .eq('status', 'realizado')
 
-      if (updateAbsentError) {
-        console.error('Error updating students to absent:', updateAbsentError)
-        throw updateAbsentError
+        if (appointmentError) {
+          console.error(`Error fetching appointments for student ${student.id}:`, appointmentError)
+          continue
+        }
+
+        // Só marca como ausente se NÃO houver atendimento realizado
+        const hasRealizedAppointment = appointments && appointments.length > 0
+        
+        if (!hasRealizedAppointment) {
+          studentsToMarkAbsent.push(student)
+        }
       }
 
-      // Add interaction records for absent students
-      const absentInteractions = studentsForAbsent.map(student => ({
-        student_id: student.id,
-        interaction_type: 'mudanca_status',
-        comments: `Status automaticamente alterado para "Ausente" - exame agendado para ${new Date(student.exam_date).toLocaleDateString('pt-BR')} e nenhuma nota foi registrada.`
-      }))
+      if (studentsToMarkAbsent.length > 0) {
+        console.log(`Found ${studentsToMarkAbsent.length} students to mark as absent (without realized appointments)`)
 
-      const { error: interactionAbsentError } = await supabaseClient
-        .from('student_interactions')
-        .insert(absentInteractions)
+        const { error: updateAbsentError } = await supabaseClient
+          .from('students')
+          .update({ status: 'ausente' })
+          .in('id', studentsToMarkAbsent.map(s => s.id))
 
-      if (interactionAbsentError) {
-        console.error('Error inserting absent interactions:', interactionAbsentError)
-      } else {
-        totalInteractions += absentInteractions.length
+        if (updateAbsentError) {
+          console.error('Error updating students to absent:', updateAbsentError)
+          throw updateAbsentError
+        }
+
+        // Add interaction records for absent students
+        const absentInteractions = studentsToMarkAbsent.map(student => ({
+          student_id: student.id,
+          interaction_type: 'mudanca_status',
+          comments: `Status automaticamente alterado para "Ausente" - exame agendado para ${new Date(student.exam_date).toLocaleDateString('pt-BR')} e nenhuma nota foi registrada.`
+        }))
+
+        const { error: interactionAbsentError } = await supabaseClient
+          .from('student_interactions')
+          .insert(absentInteractions)
+
+        if (interactionAbsentError) {
+          console.error('Error inserting absent interactions:', interactionAbsentError)
+        } else {
+          totalInteractions += absentInteractions.length
+        }
+
+        totalUpdates += studentsToMarkAbsent.length
       }
-
-      totalUpdates += studentsForAbsent.length
     }
 
     // Rule 2: Mark students as "faltou_ao_atendimento" if interview date has passed and no "realizado" appointment
@@ -219,7 +246,7 @@ serve(async (req) => {
         updated_students: totalUpdates,
         interactions_added: totalInteractions,
         rules_applied: {
-          absent: studentsForAbsent?.length || 0,
+          absent: studentsToMarkAbsent?.length || 0,
           missed_interview: studentsToUpdate?.length || 0,
           week_old_interview: studentsForWeekOld?.length || 0
         }
