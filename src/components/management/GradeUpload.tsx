@@ -22,6 +22,22 @@ export const GradeUpload = () => {
   const downloadTemplate = () => {
     const headers = ["Código", "Nota Português", "Nota Matemática"];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
+    
+    // Formatar a coluna "Código" (coluna A) como texto
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let row = range.s.r + 1; row <= range.e.r + 100; row++) { // Aplicar formato para 100 linhas
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 }); // Coluna A (índice 0)
+      if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
+      ws[cellAddress].z = '@'; // Formato de texto
+    }
+    
+    // Definir largura das colunas
+    ws['!cols'] = [
+      { wch: 15 }, // Código
+      { wch: 15 }, // Nota Português
+      { wch: 15 }  // Nota Matemática
+    ];
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Modelo Notas');
     XLSX.writeFile(wb, `modelo_notas_${getCurrentDate()}.xlsx`);
@@ -40,12 +56,12 @@ export const GradeUpload = () => {
     // Preview do arquivo
     try {
       const data = await selectedFile.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { raw: false, cellText: true }); // Ler como texto
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false }); // Preservar formato de texto
 
       const parsedData: StudentGrade[] = jsonData.map((row: any) => ({
-        code: row['Código'] || row['codigo'] || row['Code'] || '',
+        code: String(row['Código'] || row['codigo'] || row['Code'] || '').trim(), // Converter para string e remover espaços
         math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
         portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
       }));
@@ -63,12 +79,12 @@ export const GradeUpload = () => {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { raw: false, cellText: true }); // Ler como texto
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false }); // Preservar formato de texto
 
       const studentsToUpdate: StudentGrade[] = jsonData.map((row: any) => ({
-        code: row['Código'] || row['codigo'] || row['Code'] || '',
+        code: String(row['Código'] || row['codigo'] || row['Code'] || '').trim(), // Converter para string e remover espaços
         math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
         portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
       }));
