@@ -218,7 +218,6 @@ export const ReportsTab = () => {
             <TableHead>Nome do Aluno</TableHead>
             <TableHead>Responsável</TableHead>
             <TableHead>Telefone</TableHead>
-            <TableHead>Cidade</TableHead>
             <TableHead>Turma</TableHead>
             <TableHead>Unidade</TableHead>
             <TableHead>Status</TableHead>
@@ -230,7 +229,6 @@ export const ReportsTab = () => {
               <TableCell>{student.student_name}</TableCell>
               <TableCell>{student.responsible_name}</TableCell>
               <TableCell>{student.phone}</TableCell>
-              <TableCell>{student.city}</TableCell>
               <TableCell>{student.classes.name}</TableCell>
               <TableCell>{student.classes.units.name}</TableCell>
               <TableCell>{statusLabels[student.status] || student.status}</TableCell>
