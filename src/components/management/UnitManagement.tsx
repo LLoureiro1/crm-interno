@@ -53,6 +53,13 @@ export const UnitManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação adicional para garantir que a cidade foi preenchida
+    if (!formData.city_name.trim()) {
+      toast.error('Por favor, preencha o campo Cidade');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -63,7 +70,7 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city: formData.city_name || null
+            city: formData.city_name.trim()
           } as any)
           .eq('id', editingUnit.id);
 
@@ -76,7 +83,7 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city: formData.city_name || null
+            city: formData.city_name.trim()
           } as any);
 
         if (error) throw error;
@@ -179,12 +186,13 @@ export const UnitManagement = () => {
                 />
               </div>
               <div className="relative">
-                <Label htmlFor="city">Cidade</Label>
+                <Label htmlFor="city">Cidade *</Label>
                 <Input
                   id="city"
                   value={formData.city_name}
                   onChange={(e) => handleCitySearch(e.target.value)}
-                  placeholder="Digite o nome da cidade (opcional)"
+                  placeholder="Digite o nome da cidade"
+                  required
                 />
               </div>
               <div className="flex justify-end space-x-2">
