@@ -21,6 +21,8 @@ interface AcademicDataSectionProps {
   availableUnits: Unit[];
   showClassSelector: boolean;
   onInputChange: (field: string, value: string) => void;
+  isUnitLocked?: boolean;
+  preSelectedUnitName?: string;
 }
 
 export const AcademicDataSection = ({ 
@@ -30,7 +32,9 @@ export const AcademicDataSection = ({
   availableClasses, 
   availableUnits, 
   showClassSelector,
-  onInputChange 
+  onInputChange,
+  isUnitLocked = false,
+  preSelectedUnitName
 }: AcademicDataSectionProps) => {
   console.log('🎓 AcademicDataSection renderizado com:', { 
     seriesCount: series.length, 
@@ -84,31 +88,42 @@ export const AcademicDataSection = ({
           <Label htmlFor="unit" className={fieldErrors.unitId ? 'text-red-600' : ''}>
             Unidade *
           </Label>
-          <Select 
-            value={formData.unitId} 
-            onValueChange={(value) => {
-              console.log('🏢 Unidade selecionada:', value);
-              onInputChange('unitId', value);
-            }}
-            disabled={availableUnits.length === 0}
-          >
-            <SelectTrigger className={fieldErrors.unitId ? 'border-red-500 focus:border-red-500' : ''}>
-              <SelectValue placeholder={availableUnits.length === 0 ? "Nenhuma unidade disponível" : "Selecione a unidade"} />
-            </SelectTrigger>
-            <SelectContent side="bottom">
-              {availableUnits.length === 0 ? (
-                <SelectItem value="no-units" disabled>
-                  Nenhuma unidade disponível para esta série
-                </SelectItem>
-              ) : (
-                availableUnits.map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>
-                    {unit.name}
+          {isUnitLocked && preSelectedUnitName ? (
+            <div>
+              <Alert className="bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription>
+                  Esta inscrição é exclusiva para a unidade: <strong>{preSelectedUnitName}</strong>
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : (
+            <Select 
+              value={formData.unitId} 
+              onValueChange={(value) => {
+                console.log('🏢 Unidade selecionada:', value);
+                onInputChange('unitId', value);
+              }}
+              disabled={availableUnits.length === 0}
+            >
+              <SelectTrigger className={fieldErrors.unitId ? 'border-red-500 focus:border-red-500' : ''}>
+                <SelectValue placeholder={availableUnits.length === 0 ? "Nenhuma unidade disponível" : "Selecione a unidade"} />
+              </SelectTrigger>
+              <SelectContent side="bottom">
+                {availableUnits.length === 0 ? (
+                  <SelectItem value="no-units" disabled>
+                    Nenhuma unidade disponível para esta série
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+                ) : (
+                  availableUnits.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          )}
           {fieldErrors.unitId && (
             <p className="text-red-600 text-sm mt-1">{fieldErrors.unitId}</p>
           )}

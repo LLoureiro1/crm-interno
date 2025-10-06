@@ -25,7 +25,8 @@ export const UnitManagement = () => {
     name: '',
     address: '',
     phone: '',
-    city_name: ''
+    city_name: '',
+    slug: ''
   });
 
   useEffect(() => {
@@ -51,6 +52,17 @@ export const UnitManagement = () => {
   };
 
 
+  const normalizeSlug = (slug: string): string => {
+    return slug
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9-]/g, '-') // Substitui caracteres especiais por hífen
+      .replace(/-+/g, '-') // Remove hífens duplicados
+      .replace(/^-|-$/g, ''); // Remove hífens no início e fim
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -59,10 +71,36 @@ export const UnitManagement = () => {
       toast.error('Por favor, preencha o campo Cidade');
       return;
     }
+
+    // Validação do slug
+    if (!formData.slug.trim()) {
+      toast.error('Por favor, preencha o campo Slug');
+      return;
+    }
+
+    const normalizedSlug = normalizeSlug(formData.slug);
+    
+    if (!normalizedSlug) {
+      toast.error('Slug inválido. Use apenas letras, números e hífens.');
+      return;
+    }
     
     setLoading(true);
 
     try {
+      // Verificar se já existe outra unidade com esse slug
+      const { data: existingUnit } = await supabase
+        .from('units')
+        .select('id')
+        .eq('slug', normalizedSlug)
+        .maybeSingle();
+
+      if (existingUnit && (!editingUnit || existingUnit.id !== editingUnit.id)) {
+        toast.error('Já existe uma unidade com este slug. Use outro.');
+        setLoading(false);
+        return;
+      }
+
       if (editingUnit) {
         const { error } = await supabase
           .from('units')
@@ -70,7 +108,8 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city: formData.city_name.trim()
+            city: formData.city_name.trim(),
+            slug: normalizedSlug
           } as any)
           .eq('id', editingUnit.id);
 
@@ -83,7 +122,8 @@ export const UnitManagement = () => {
             name: formData.name,
             address: formData.address,
             phone: formData.phone,
-            city: formData.city_name.trim()
+            city: formData.city_name.trim(),
+            slug: normalizedSlug
           } as any);
 
         if (error) throw error;
@@ -107,7 +147,8 @@ export const UnitManagement = () => {
       name: unit.name,
       address: unit.address,
       phone: unit.phone,
-      city_name: unit.city || ''
+      city_name: unit.city || '',
+      slug: unit.slug || ''
     });
     setDialogOpen(true);
   };
@@ -135,7 +176,8 @@ export const UnitManagement = () => {
       name: '',
       address: '',
       phone: '',
-      city_name: ''
+      city_name: '',
+      slug: ''
     });
     setEditingUnit(null);
   };
@@ -195,6 +237,19 @@ export const UnitManagement = () => {
                   required
                 />
               </div>
+              <div>
+                <Label htmlFor="slug">Slug da URL *</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="ex: santos-dumont, divinopolis"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Usado na URL de inscrição: /inscricao/{formData.slug || 'slug'}
+                </p>
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
@@ -217,6 +272,7 @@ export const UnitManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Slug</TableHead>
                 <TableHead>Endereço</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Cidade</TableHead>
@@ -227,6 +283,11 @@ export const UnitManagement = () => {
               {units.map((unit) => (
                 <TableRow key={unit.id}>
                   <TableCell>{unit.name}</TableCell>
+                  <TableCell>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                      {unit.slug || '-'}
+                    </code>
+                  </TableCell>
                   <TableCell>{unit.address}</TableCell>
                   <TableCell>{unit.phone}</TableCell>
                   <TableCell>{unit.city || 'Não informado'}</TableCell>

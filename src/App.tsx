@@ -21,6 +21,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/inscricao/:unitSlug" element={<Registration />} />
           <Route path="/inscricao" element={<Registration />} />
           <Route path="/student/:id" element={<StudentProfile />} />
           <Route path="/set-password" element={<SetPassword />} />

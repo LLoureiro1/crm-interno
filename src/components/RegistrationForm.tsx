@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +26,7 @@ type Class = Tables<'classes'> & {
 export const RegistrationForm = () => {
   console.log('📝 RegistrationForm renderizado');
   const navigate = useNavigate();
+  const { unitSlug } = useParams<{ unitSlug?: string }>();
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
     responsibleName: '',
@@ -47,8 +48,46 @@ export const RegistrationForm = () => {
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
+  const [preSelectedUnit, setPreSelectedUnit] = useState<Unit | null>(null);
+  const [isUnitLocked, setIsUnitLocked] = useState(false);
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
+
+  // Detectar e pré-selecionar unidade baseado no slug da URL
+  useEffect(() => {
+    const loadUnitBySlug = async () => {
+      if (unitSlug) {
+        console.log('🔗 Slug detectado na URL:', unitSlug);
+        
+        try {
+          const { data: unit, error } = await supabase
+            .from('units')
+            .select('id, name, address, phone, city, slug')
+            .eq('slug', unitSlug)
+            .single<Unit>();
+
+          if (error) {
+            console.error('Erro ao buscar unidade pelo slug:', error);
+            toast.error(`Unidade "${unitSlug}" não encontrada. Redirecionando...`);
+            setTimeout(() => navigate('/inscricao'), 2000);
+            return;
+          }
+
+          if (unit) {
+            console.log('✅ Unidade encontrada:', unit);
+            setPreSelectedUnit(unit);
+            setIsUnitLocked(true);
+            // Não pré-seleciona o unitId ainda, apenas quando a série for escolhida
+          }
+        } catch (err) {
+          console.error('Erro ao buscar unidade:', err);
+          toast.error('Erro ao carregar informações da unidade');
+        }
+      }
+    };
+
+    loadUnitBySlug();
+  }, [unitSlug, navigate]);
 
   // Filtrar unidades quando série é selecionada
   useEffect(() => {
@@ -66,16 +105,32 @@ export const RegistrationForm = () => {
           if (!unit || !unit.id) return false;
           return arr.findIndex(u => u && u.id && u.id === unit.id) === index;
         });
-      setAvailableUnits(uniqueUnits);
       
-      // Limpar seleções dependentes e não mostrar turmas ainda
-      setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
+      // Se há uma unidade pré-selecionada, filtrar apenas ela
+      if (preSelectedUnit && isUnitLocked) {
+        const unitInList = uniqueUnits.find(u => u.id === preSelectedUnit.id);
+        if (unitInList) {
+          setAvailableUnits([unitInList]);
+          // Auto-selecionar a unidade
+          setFormData(prev => ({ ...prev, unitId: unitInList.id, classId: '' }));
+        } else {
+          // A unidade pré-selecionada não tem turmas para esta série
+          setAvailableUnits([]);
+          toast.warning('Esta unidade não possui turmas para a série selecionada');
+          setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
+        }
+      } else {
+        setAvailableUnits(uniqueUnits);
+        // Limpar seleções dependentes
+        setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
+      }
+      
       setAvailableClasses([]);
     } else {
       setAvailableClasses([]);
       setAvailableUnits([]);
     }
-  }, [formData.seriesId, classes]);
+  }, [formData.seriesId, classes, preSelectedUnit, isUnitLocked]);
 
   // Lógica inteligente de seleção de turma
   useEffect(() => {
@@ -324,6 +379,8 @@ export const RegistrationForm = () => {
                 availableUnits={availableUnits}
                 showClassSelector={showClassSelector}
                 onInputChange={handleInputChange}
+                isUnitLocked={isUnitLocked}
+                preSelectedUnitName={preSelectedUnit?.name}
               />
 
               <Button 
