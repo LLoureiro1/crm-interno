@@ -14,7 +14,18 @@ import { sanitizePlainText } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'>;
-type RegistrationSource = Tables<'unit_registration_sources'>;
+
+// Interface local para RegistrationSource até que os tipos sejam atualizados
+interface RegistrationSource {
+  id: string;
+  unit_id: string;
+  source_key: string;
+  source_label: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export const RegistrationSourceManagement = () => {
   const [units, setUnits] = useState<Unit[]>([]);
@@ -57,7 +68,7 @@ export const RegistrationSourceManagement = () => {
   };
 
   const fetchSources = async (unitId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('unit_registration_sources')
       .select('*')
       .eq('unit_id', unitId)
@@ -96,7 +107,7 @@ export const RegistrationSourceManagement = () => {
       };
 
       if (editingSource) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('unit_registration_sources')
           .update(sanitizedData)
           .eq('id', editingSource.id);
@@ -104,7 +115,7 @@ export const RegistrationSourceManagement = () => {
         if (error) throw error;
         toast.success('Origem atualizada com sucesso!');
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('unit_registration_sources')
           .insert(sanitizedData);
 
@@ -140,7 +151,7 @@ export const RegistrationSourceManagement = () => {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('unit_registration_sources')
         .delete()
         .eq('id', id);
@@ -156,7 +167,7 @@ export const RegistrationSourceManagement = () => {
 
   const handleToggleActive = async (source: RegistrationSource) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('unit_registration_sources')
         .update({ is_active: !source.is_active })
         .eq('id', source.id);
@@ -178,12 +189,12 @@ export const RegistrationSourceManagement = () => {
     
     try {
       // Trocar as posições
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: previousSource.sort_order })
         .eq('id', source.id);
 
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: source.sort_order })
         .eq('id', previousSource.id);
@@ -204,12 +215,12 @@ export const RegistrationSourceManagement = () => {
     
     try {
       // Trocar as posições
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: nextSource.sort_order })
         .eq('id', source.id);
 
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: source.sort_order })
         .eq('id', nextSource.id);
@@ -237,13 +248,7 @@ export const RegistrationSourceManagement = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold">Origens de Inscrição</h3>
-          <p className="text-sm text-gray-600">
-            Configure as opções de origem das inscrições por unidade
-          </p>
-        </div>
-        
+               
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>

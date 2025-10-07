@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Tables } from '@/integrations/supabase/types';
-
-type RegistrationSource = Tables<'unit_registration_sources'>;
+// Interface local para RegistrationSource até que os tipos sejam atualizados
+interface RegistrationSource {
+  id: string;
+  unit_id: string;
+  source_key: string;
+  source_label: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
 interface UseRegistrationSourceManagementProps {
   unitId: string;
@@ -24,7 +32,7 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('unit_registration_sources')
         .select('*')
         .eq('unit_id', unitId)
@@ -44,7 +52,7 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
   const createSource = async (sourceData: Omit<RegistrationSource, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('unit_registration_sources')
         .insert(sourceData)
         .select()
@@ -64,7 +72,7 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
   const updateSource = async (id: string, updates: Partial<RegistrationSource>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('unit_registration_sources')
         .update(updates)
         .eq('id', id)
@@ -85,7 +93,7 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
   const deleteSource = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('unit_registration_sources')
         .delete()
         .eq('id', id);
@@ -107,7 +115,7 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
   const reorderSources = async (sourceId: string, newOrder: number) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: newOrder })
         .eq('id', sourceId);
@@ -132,12 +140,12 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
       }
 
       // Trocar as posições
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: source2.sort_order })
         .eq('id', source1Id);
 
-      await supabase
+      await (supabase as any)
         .from('unit_registration_sources')
         .update({ sort_order: source1.sort_order })
         .eq('id', source2Id);
