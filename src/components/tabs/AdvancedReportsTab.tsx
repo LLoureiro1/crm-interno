@@ -431,14 +431,18 @@ export const AdvancedReportsTab = () => {
 
     const fetchRegistrationSources = async () => {
         try {
-            // Buscar dados de origens de inscrição com contagem de alunos
+            // Buscar dados de origens de inscrição com contagem de alunos usando a nova estrutura
             let query = (supabase as any)
                 .from('students')
                 .select(`
                     registration_source_id,
                     status,
-                    unit_registration_sources!students_registration_source_id_fkey (
-                        source_label
+                    unit_registration_source_associations!students_registration_source_id_fkey (
+                        id,
+                        custom_label,
+                        global_registration_sources!inner (
+                            source_label
+                        )
                     )
                 `)
                 .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)')
@@ -464,7 +468,10 @@ export const AdvancedReportsTab = () => {
             const sourceMap = new Map();
 
             students.forEach((student: any) => {
-                const sourceLabel = student.unit_registration_sources?.source_label || 'Origem não identificada';
+                // Usar custom_label se disponível, senão usar o label global
+                const sourceLabel = student.unit_registration_source_associations?.custom_label || 
+                                  student.unit_registration_source_associations?.global_registration_sources?.source_label || 
+                                  'Origem não identificada';
                 const isEnrolled = student.status === 'matriculado';
 
                 if (!sourceMap.has(sourceLabel)) {

@@ -12,13 +12,13 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { sanitizePlainText } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
+import { useRegistrationSourceManagement } from '@/hooks/useRegistrationSourceManagement';
 
 type Unit = Tables<'units'>;
 
-// Interface local para RegistrationSource até que os tipos sejam atualizados
-interface RegistrationSource {
+// Interfaces para a nova estrutura
+interface GlobalRegistrationSource {
   id: string;
-  unit_id: string;
   source_key: string;
   source_label: string;
   is_active: boolean;
@@ -27,60 +27,63 @@ interface RegistrationSource {
   updated_at: string;
 }
 
+interface UnitRegistrationSourceAssociation {
+  id: string;
+  unit_id: string;
+  global_source_id: string;
+  is_active: boolean;
+  sort_order: number;
+  custom_label?: string;
+  created_at: string;
+  updated_at: string;
+  global_registration_sources?: GlobalRegistrationSource;
+}
+
 export const RegistrationSourceManagement = () => {
   const [units, setUnits] = useState<Unit[]>([]);
-  const [sources, setSources] = useState<RegistrationSource[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState<RegistrationSource | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAssociation, setEditingAssociation] = useState<UnitRegistrationSourceAssociation | null>(null);
   const [formData, setFormData] = useState({
-    source_key: '',
-    source_label: '',
+    global_source_id: '',
+    custom_label: '',
     is_active: true,
     sort_order: 0
   });
 
+  // Usar o hook personalizado
+  const {
+    sources,
+    globalSources,
+    loading,
+    error,
+    fetchSources,
+    fetchGlobalSources,
+    createAssociation,
+    updateAssociation,
+    deleteAssociation,
+    toggleActive,
+    swapOrder
+  } = useRegistrationSourceManagement({ unitId: selectedUnit });
+
   useEffect(() => {
+    const fetchUnits = async () => {
+      const { data, error } = await supabase
+        .from('units')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        toast.error('Erro ao carregar unidades');
+        return;
+      }
+
+      setUnits(data || []);
+    };
+
     fetchUnits();
+    fetchGlobalSources();
   }, []);
-
-  useEffect(() => {
-    if (selectedUnit) {
-      fetchSources(selectedUnit);
-    } else {
-      setSources([]);
-    }
-  }, [selectedUnit]);
-
-  const fetchUnits = async () => {
-    const { data, error } = await supabase
-      .from('units')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      toast.error('Erro ao carregar unidades');
-      return;
-    }
-
-    setUnits(data || []);
-  };
-
-  const fetchSources = async (unitId: string) => {
-    const { data, error } = await (supabase as any)
-      .from('unit_registration_sources')
-      .select('*')
-      .eq('unit_id', unitId)
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      toast.error('Erro ao carregar origens');
-      return;
-    }
-
-    setSources(data || []);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,143 +93,90 @@ export const RegistrationSourceManagement = () => {
       return;
     }
 
-    if (!formData.source_key.trim() || !formData.source_label.trim()) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!formData.global_source_id) {
+      toast.error('Selecione uma origem global');
       return;
     }
 
-    setLoading(true);
-
     try {
-      const sanitizedData = {
-        unit_id: selectedUnit,
-        source_key: sanitizePlainText(formData.source_key),
-        source_label: sanitizePlainText(formData.source_label),
-        is_active: formData.is_active,
-        sort_order: formData.sort_order
-      };
-
-      if (editingSource) {
-        const { error } = await (supabase as any)
-          .from('unit_registration_sources')
-          .update(sanitizedData)
-          .eq('id', editingSource.id);
-
-        if (error) throw error;
-        toast.success('Origem atualizada com sucesso!');
+      if (editingAssociation) {
+        // Atualizar associação existente
+        await updateAssociation(editingAssociation.id, {
+          custom_label: formData.custom_label ? sanitizePlainText(formData.custom_label) : null,
+          is_active: formData.is_active,
+          sort_order: formData.sort_order
+        });
       } else {
-        const { error } = await (supabase as any)
-          .from('unit_registration_sources')
-          .insert(sanitizedData);
-
-        if (error) throw error;
-        toast.success('Origem criada com sucesso!');
+        // Criar nova associação
+        await createAssociation(
+          formData.global_source_id,
+          formData.custom_label ? sanitizePlainText(formData.custom_label) : undefined
+        );
       }
 
       setDialogOpen(false);
       resetForm();
-      fetchSources(selectedUnit);
     } catch (error) {
-      console.error('Erro ao salvar origem:', error);
-      toast.error('Erro ao salvar origem');
-    } finally {
-      setLoading(false);
+      console.error('Erro ao salvar associação:', error);
+      toast.error('Erro ao salvar associação');
     }
   };
 
-  const handleEdit = (source: RegistrationSource) => {
-    setEditingSource(source);
+  const handleEdit = (association: UnitRegistrationSourceAssociation) => {
+    setEditingAssociation(association);
     setFormData({
-      source_key: source.source_key,
-      source_label: source.source_label,
-      is_active: source.is_active,
-      sort_order: source.sort_order
+      global_source_id: association.global_source_id,
+      custom_label: association.custom_label || '',
+      is_active: association.is_active,
+      sort_order: association.sort_order
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta origem?')) {
+    if (!confirm('Tem certeza que deseja remover esta associação?')) {
       return;
     }
 
     try {
-      const { error } = await (supabase as any)
-        .from('unit_registration_sources')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success('Origem excluída com sucesso!');
-      fetchSources(selectedUnit);
+      await deleteAssociation(id);
     } catch (error) {
-      console.error('Erro ao excluir origem:', error);
-      toast.error('Erro ao excluir origem');
+      console.error('Erro ao remover associação:', error);
+      toast.error('Erro ao remover associação');
     }
   };
 
-  const handleToggleActive = async (source: RegistrationSource) => {
+  const handleToggleActive = async (association: UnitRegistrationSourceAssociation) => {
     try {
-      const { error } = await (supabase as any)
-        .from('unit_registration_sources')
-        .update({ is_active: !source.is_active })
-        .eq('id', source.id);
-
-      if (error) throw error;
-      toast.success('Status atualizado com sucesso!');
-      fetchSources(selectedUnit);
+      await toggleActive(association.id, !association.is_active);
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       toast.error('Erro ao atualizar status');
     }
   };
 
-  const handleMoveUp = async (source: RegistrationSource) => {
-    const currentIndex = sources.findIndex(s => s.id === source.id);
+  const handleMoveUp = async (association: UnitRegistrationSourceAssociation) => {
+    const currentIndex = sources.findIndex(s => s.id === association.id);
     if (currentIndex <= 0) return;
 
-    const previousSource = sources[currentIndex - 1];
+    const previousAssociation = sources[currentIndex - 1];
     
     try {
-      // Trocar as posições
-      await (supabase as any)
-        .from('unit_registration_sources')
-        .update({ sort_order: previousSource.sort_order })
-        .eq('id', source.id);
-
-      await (supabase as any)
-        .from('unit_registration_sources')
-        .update({ sort_order: source.sort_order })
-        .eq('id', previousSource.id);
-
-      toast.success('Ordem atualizada!');
-      fetchSources(selectedUnit);
+      await swapOrder(association.id, previousAssociation.id);
     } catch (error) {
       console.error('Erro ao reordenar:', error);
       toast.error('Erro ao reordenar');
     }
   };
 
-  const handleMoveDown = async (source: RegistrationSource) => {
-    const currentIndex = sources.findIndex(s => s.id === source.id);
+  const handleMoveDown = async (association: UnitRegistrationSourceAssociation) => {
+    const currentIndex = sources.findIndex(s => s.id === association.id);
     if (currentIndex >= sources.length - 1) return;
 
-    const nextSource = sources[currentIndex + 1];
+    const nextAssociation = sources[currentIndex + 1];
     
     try {
-      // Trocar as posições
-      await (supabase as any)
-        .from('unit_registration_sources')
-        .update({ sort_order: nextSource.sort_order })
-        .eq('id', source.id);
-
-      await (supabase as any)
-        .from('unit_registration_sources')
-        .update({ sort_order: source.sort_order })
-        .eq('id', nextSource.id);
-
-      toast.success('Ordem atualizada!');
-      fetchSources(selectedUnit);
+      await swapOrder(association.id, nextAssociation.id);
     } catch (error) {
       console.error('Erro ao reordenar:', error);
       toast.error('Erro ao reordenar');
@@ -234,10 +184,10 @@ export const RegistrationSourceManagement = () => {
   };
 
   const resetForm = () => {
-    setEditingSource(null);
+    setEditingAssociation(null);
     setFormData({
-      source_key: '',
-      source_label: '',
+      global_source_id: '',
+      custom_label: '',
       is_active: true,
       sort_order: sources.length + 1
     });
@@ -259,7 +209,7 @@ export const RegistrationSourceManagement = () => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingSource ? 'Editar Origem' : 'Nova Origem'}
+                {editingAssociation ? 'Editar Associação' : 'Nova Associação'}
               </DialogTitle>
             </DialogHeader>
             
@@ -269,7 +219,7 @@ export const RegistrationSourceManagement = () => {
                 <Select
                   value={selectedUnit}
                   onValueChange={setSelectedUnit}
-                  disabled={!!editingSource}
+                  disabled={!!editingAssociation}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma unidade" />
@@ -285,27 +235,39 @@ export const RegistrationSourceManagement = () => {
               </div>
 
               <div>
-                <Label htmlFor="source_key">Chave da Origem *</Label>
-                <Input
-                  id="source_key"
-                  value={formData.source_key}
-                  onChange={(e) => setFormData(prev => ({ ...prev, source_key: e.target.value }))}
-                  placeholder="Ex: instagram, google_search"
-                  disabled={!!editingSource}
-                />
+                <Label htmlFor="global_source_id">Origem Global *</Label>
+                <Select
+                  value={formData.global_source_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, global_source_id: value }))}
+                  disabled={!!editingAssociation}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma origem global" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {globalSources.map((source) => (
+                      <SelectItem key={source.id} value={source.id}>
+                        {source.source_label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Identificador único (não pode ser alterado após criação)
+                  Selecione uma origem global para associar à unidade
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="source_label">Label da Origem *</Label>
+                <Label htmlFor="custom_label">Label Personalizado (Opcional)</Label>
                 <Input
-                  id="source_label"
-                  value={formData.source_label}
-                  onChange={(e) => setFormData(prev => ({ ...prev, source_label: e.target.value }))}
-                  placeholder="Ex: Instagram, Pesquisa no Google"
+                  id="custom_label"
+                  value={formData.custom_label}
+                  onChange={(e) => setFormData(prev => ({ ...prev, custom_label: e.target.value }))}
+                  placeholder="Ex: Instagram Centro, Google Shopping"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deixe vazio para usar o label padrão da origem global
+                </p>
               </div>
 
               <div>
@@ -337,7 +299,7 @@ export const RegistrationSourceManagement = () => {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : editingSource ? 'Atualizar' : 'Criar'}
+                  {loading ? 'Salvando...' : editingAssociation ? 'Atualizar' : 'Criar'}
                 </Button>
               </div>
             </form>
@@ -385,30 +347,30 @@ export const RegistrationSourceManagement = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ordem</TableHead>
-                    <TableHead>Chave</TableHead>
+                    <TableHead>Origem Global</TableHead>
                     <TableHead>Label</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sources.map((source, index) => (
-                    <TableRow key={source.id}>
+                  {sources.map((association, index) => (
+                    <TableRow key={association.id}>
                       <TableCell>
                         <div className="flex items-center space-x-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMoveUp(source)}
+                            onClick={() => handleMoveUp(association)}
                             disabled={index === 0}
                           >
                             <ArrowUp className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center">{source.sort_order}</span>
+                          <span className="w-8 text-center">{association.sort_order}</span>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMoveDown(source)}
+                            onClick={() => handleMoveDown(association)}
                             disabled={index === sources.length - 1}
                           >
                             <ArrowDown className="h-3 w-3" />
@@ -416,13 +378,15 @@ export const RegistrationSourceManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {source.source_key}
+                        {association.global_registration_sources?.source_key || 'N/A'}
                       </TableCell>
-                      <TableCell>{source.source_label}</TableCell>
+                      <TableCell>
+                        {association.custom_label || association.global_registration_sources?.source_label || 'N/A'}
+                      </TableCell>
                       <TableCell>
                         <Switch
-                          checked={source.is_active}
-                          onCheckedChange={() => handleToggleActive(source)}
+                          checked={association.is_active}
+                          onCheckedChange={() => handleToggleActive(association)}
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -430,14 +394,14 @@ export const RegistrationSourceManagement = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEdit(source)}
+                            onClick={() => handleEdit(association)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(source.id)}
+                            onClick={() => handleDelete(association.id)}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />

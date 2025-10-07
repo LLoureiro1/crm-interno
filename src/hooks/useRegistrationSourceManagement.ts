@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-// Interface local para RegistrationSource até que os tipos sejam atualizados
-interface RegistrationSource {
+
+// Interfaces para a nova estrutura
+interface GlobalRegistrationSource {
   id: string;
-  unit_id: string;
   source_key: string;
   source_label: string;
   is_active: boolean;
@@ -13,12 +13,25 @@ interface RegistrationSource {
   updated_at: string;
 }
 
+interface UnitRegistrationSourceAssociation {
+  id: string;
+  unit_id: string;
+  global_source_id: string;
+  is_active: boolean;
+  sort_order: number;
+  custom_label?: string;
+  created_at: string;
+  updated_at: string;
+  global_registration_sources?: GlobalRegistrationSource;
+}
+
 interface UseRegistrationSourceManagementProps {
   unitId: string;
 }
 
 export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourceManagementProps) => {
-  const [sources, setSources] = useState<RegistrationSource[]>([]);
+  const [sources, setSources] = useState<UnitRegistrationSourceAssociation[]>([]);
+  const [globalSources, setGlobalSources] = useState<GlobalRegistrationSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,9 +45,18 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
     setError(null);
 
     try {
+      // Buscar associações da unidade com dados das origens globais
       const { data, error } = await (supabase as any)
-        .from('unit_registration_sources')
-        .select('*')
+        .from('unit_registration_source_associations')
+        .select(`
+          *,
+          global_registration_sources!inner (
+            id,
+            source_key,
+            source_label,
+            is_active
+          )
+        `)
         .eq('unit_id', unitId)
         .order('sort_order', { ascending: true });
 
@@ -50,30 +72,56 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
     }
   };
 
-  const createSource = async (sourceData: Omit<RegistrationSource, 'id' | 'created_at' | 'updated_at'>) => {
+  const fetchGlobalSources = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from('unit_registration_sources')
-        .insert(sourceData)
+        .from('global_registration_sources')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      setGlobalSources(data || []);
+    } catch (err) {
+      console.error('Erro ao buscar origens globais:', err);
+      toast.error('Erro ao carregar origens globais');
+    }
+  };
+
+  const createAssociation = async (globalSourceId: string, customLabel?: string) => {
+    try {
+      // Encontrar o próximo sort_order
+      const maxOrder = sources.length > 0 ? Math.max(...sources.map(s => s.sort_order)) : 0;
+      
+      const { data, error } = await (supabase as any)
+        .from('unit_registration_source_associations')
+        .insert({
+          unit_id: unitId,
+          global_source_id: globalSourceId,
+          custom_label: customLabel,
+          is_active: true,
+          sort_order: maxOrder + 1
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success('Origem criada com sucesso!');
+      toast.success('Origem associada com sucesso!');
       await fetchSources();
       return data;
     } catch (err) {
-      console.error('Erro ao criar origem:', err);
-      toast.error('Erro ao criar origem');
+      console.error('Erro ao associar origem:', err);
+      toast.error('Erro ao associar origem');
       throw err;
     }
   };
 
-  const updateSource = async (id: string, updates: Partial<RegistrationSource>) => {
+  const updateAssociation = async (id: string, updates: Partial<UnitRegistrationSourceAssociation>) => {
     try {
       const { data, error } = await (supabase as any)
-        .from('unit_registration_sources')
+        .from('unit_registration_source_associations')
         .update(updates)
         .eq('id', id)
         .select()
@@ -81,42 +129,42 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
       if (error) throw error;
 
-      toast.success('Origem atualizada com sucesso!');
+      toast.success('Associação atualizada com sucesso!');
       await fetchSources();
       return data;
     } catch (err) {
-      console.error('Erro ao atualizar origem:', err);
-      toast.error('Erro ao atualizar origem');
+      console.error('Erro ao atualizar associação:', err);
+      toast.error('Erro ao atualizar associação');
       throw err;
     }
   };
 
-  const deleteSource = async (id: string) => {
+  const deleteAssociation = async (id: string) => {
     try {
       const { error } = await (supabase as any)
-        .from('unit_registration_sources')
+        .from('unit_registration_source_associations')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
 
-      toast.success('Origem excluída com sucesso!');
+      toast.success('Associação removida com sucesso!');
       await fetchSources();
     } catch (err) {
-      console.error('Erro ao excluir origem:', err);
-      toast.error('Erro ao excluir origem');
+      console.error('Erro ao remover associação:', err);
+      toast.error('Erro ao remover associação');
       throw err;
     }
   };
 
   const toggleActive = async (id: string, isActive: boolean) => {
-    return updateSource(id, { is_active: isActive });
+    return updateAssociation(id, { is_active: isActive });
   };
 
   const reorderSources = async (sourceId: string, newOrder: number) => {
     try {
       const { error } = await (supabase as any)
-        .from('unit_registration_sources')
+        .from('unit_registration_source_associations')
         .update({ sort_order: newOrder })
         .eq('id', sourceId);
 
@@ -136,17 +184,17 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
       const source2 = sources.find(s => s.id === source2Id);
 
       if (!source1 || !source2) {
-        throw new Error('Origem não encontrada');
+        throw new Error('Associação não encontrada');
       }
 
       // Trocar as posições
       await (supabase as any)
-        .from('unit_registration_sources')
+        .from('unit_registration_source_associations')
         .update({ sort_order: source2.sort_order })
         .eq('id', source1Id);
 
       await (supabase as any)
-        .from('unit_registration_sources')
+        .from('unit_registration_source_associations')
         .update({ sort_order: source1.sort_order })
         .eq('id', source2Id);
 
@@ -161,16 +209,19 @@ export const useRegistrationSourceManagement = ({ unitId }: UseRegistrationSourc
 
   useEffect(() => {
     fetchSources();
+    fetchGlobalSources();
   }, [unitId]);
 
   return {
     sources,
+    globalSources,
     loading,
     error,
     fetchSources,
-    createSource,
-    updateSource,
-    deleteSource,
+    fetchGlobalSources,
+    createAssociation,
+    updateAssociation,
+    deleteAssociation,
     toggleActive,
     reorderSources,
     swapOrder
