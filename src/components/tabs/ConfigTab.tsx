@@ -9,6 +9,7 @@ import { InterviewerAvailability } from '@/components/management/InterviewerAvai
 import { GradeUpload } from '@/components/management/GradeUpload';
 import { ExamDateManagement } from '@/components/management/ExamDateManagement';
 import { StudentImport } from '@/components/management/StudentImport';
+import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
 
 export const ConfigTab = () => {
   return (
@@ -19,13 +20,14 @@ export const ConfigTab = () => {
       </div>
       
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="units">Unidades</TabsTrigger>
           <TabsTrigger value="classes">Turmas</TabsTrigger>
           <TabsTrigger value="exam-dates">Datas de Provas</TabsTrigger>
           <TabsTrigger value="availability">Disponibilidade</TabsTrigger>
           <TabsTrigger value="grades">Notas</TabsTrigger>
+          <TabsTrigger value="sources">Origens</TabsTrigger>
           <TabsTrigger value="import">Importação</TabsTrigger>
         </TabsList>
 
@@ -109,6 +111,20 @@ export const ConfigTab = () => {
             </CardHeader>
             <CardContent>
               <GradeUpload />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <Card>
+            <CardHeader>
+              <CardTitle>Origens de Inscrição</CardTitle>
+              <CardDescription>
+                Configure as opções de origem das inscrições por unidade
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RegistrationSourceManagement />
             </CardContent>
           </Card>
         </TabsContent>
