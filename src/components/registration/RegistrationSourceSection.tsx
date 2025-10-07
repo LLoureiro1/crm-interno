@@ -61,7 +61,7 @@ export const RegistrationSourceSection = ({
           onValueChange={(value) => onInputChange('registrationSourceId', value)}
         >
           <SelectTrigger className={fieldErrors.registrationSourceId ? 'border-red-500 focus:border-red-500' : ''}>
-            <SelectValue placeholder="Selecione como conheceu a Apogeu" />
+            <SelectValue placeholder="Selecione como conheceu o Apogeu" />
           </SelectTrigger>
           <SelectContent>
             {sources.map((source) => (
