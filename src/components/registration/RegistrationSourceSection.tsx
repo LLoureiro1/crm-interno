@@ -55,7 +55,7 @@ export const RegistrationSourceSection = ({
       
       <div>
         <Label htmlFor="registrationSourceId" className={fieldErrors.registrationSourceId ? 'text-red-600' : ''}>
-          Origem da Inscrição *
+        Por qual canal você chegou até nós? *
         </Label>
         <Select
           value={formData.registrationSourceId}
