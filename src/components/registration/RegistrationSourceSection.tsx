@@ -24,7 +24,7 @@ export const RegistrationSourceSection = ({
   if (loading) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Como você conheceu a Apogeu?</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Como você conheceu o Apogeu?</h3>
         <div className="flex items-center space-x-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm text-gray-600">Carregando opções...</span>
@@ -36,7 +36,7 @@ export const RegistrationSourceSection = ({
   if (error) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Como você conheceu a Apogeu?</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Como você conheceu o Apogeu?</h3>
         <div className="text-sm text-red-600">
           {error}
         </div>
@@ -50,7 +50,7 @@ export const RegistrationSourceSection = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">Como você conheceu a Apogeu?</h3>
+      <h3 className="text-lg font-semibold text-gray-800">Como você conheceu o Apogeu?</h3>
       
       <div>
         <Label htmlFor="registrationSourceId" className={fieldErrors.registrationSourceId ? 'text-red-600' : ''}>
