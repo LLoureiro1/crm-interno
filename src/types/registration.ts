@@ -13,6 +13,14 @@ export interface RegistrationFormData {
   seriesId: string;
   classId: string;
   unitId: string;
+  registrationSourceId: string; // ID da origem da inscrição
+}
+
+export interface RegistrationSource {
+  id: string;
+  source_key: string;
+  source_label: string;
+  sort_order: number;
 }
 
 export interface ValidationErrors {

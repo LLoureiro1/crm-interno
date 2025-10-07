@@ -46,6 +46,11 @@ export const validateForm = (formData: RegistrationFormData): ValidationErrors =
     errors.unitId = 'Unidade é obrigatória';
   }
   
+  // Validar origem da inscrição
+  if (!formData.registrationSourceId.trim()) {
+    errors.registrationSourceId = 'Por favor, selecione como conheceu a Apogeu';
+  }
+  
   // Turma não é mais obrigatória - sistema resolve automaticamente
 
   return errors;

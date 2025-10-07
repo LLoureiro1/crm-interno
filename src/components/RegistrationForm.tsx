@@ -8,6 +8,7 @@ import { StudentDataSection } from './registration/StudentDataSection';
 import { ResponsibleDataSection } from './registration/ResponsibleDataSection';
 // import { AddressSection } from './registration/AddressSection'; // Removido - campos não mais utilizados
 import { AcademicDataSection } from './registration/AcademicDataSection';
+import { RegistrationSourceSection } from './registration/RegistrationSourceSection';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
@@ -40,7 +41,8 @@ export const RegistrationForm = () => {
     originSchool: '',
     seriesId: '',
     classId: '',
-    unitId: ''
+    unitId: '',
+    registrationSourceId: ''
   });
 
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
@@ -60,11 +62,12 @@ export const RegistrationForm = () => {
         console.log('🔗 Slug detectado na URL:', unitSlug);
         
         try {
-          const { data: unit, error } = await supabase
+          const { data: units, error } = await (supabase as any)
             .from('units')
-            .select('id, name, address, phone, city, slug')
-            .eq('slug', unitSlug)
-            .single<Unit>();
+            .select('*')
+            .eq('slug', unitSlug);
+          
+          const unit = units?.[0];
 
           if (error) {
             console.error('Erro ao buscar unidade pelo slug:', error);
@@ -221,6 +224,7 @@ export const RegistrationForm = () => {
         origin_school: '', // Campo removido - sempre vazio
         class_id: sanitizedFormData.classId,
         unit_id: sanitizedFormData.unitId,
+        registration_source_id: sanitizedFormData.registrationSourceId,
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
@@ -281,7 +285,8 @@ export const RegistrationForm = () => {
         originSchool: '',
         seriesId: '',
         classId: '',
-        unitId: ''
+        unitId: '',
+        registrationSourceId: ''
       });
       setFieldErrors({});
 
@@ -381,6 +386,12 @@ export const RegistrationForm = () => {
                 onInputChange={handleInputChange}
                 isUnitLocked={isUnitLocked}
                 preSelectedUnitName={preSelectedUnit?.name}
+              />
+
+              <RegistrationSourceSection
+                formData={formData}
+                fieldErrors={fieldErrors}
+                onInputChange={handleInputChange}
               />
 
               <Button 
