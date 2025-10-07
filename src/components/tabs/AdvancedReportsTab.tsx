@@ -39,6 +39,15 @@ export const AdvancedReportsTab = () => {
     const [completedInterviews, setCompletedInterviews] = useState(0);
     const [interviewCompletionRate, setInterviewCompletionRate] = useState(0);
 
+    // Estados para relatório de origens de inscrição
+    const [registrationSources, setRegistrationSources] = useState<Array<{
+        source_label: string;
+        total_students: number;
+        percentage: number;
+        enrolled_students: number;
+        conversion_rate: number;
+    }>>([]);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -420,6 +429,78 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    const fetchRegistrationSources = async () => {
+        try {
+            // Buscar dados de origens de inscrição com contagem de alunos
+            let query = (supabase as any)
+                .from('students')
+                .select(`
+                    registration_source_id,
+                    status,
+                    unit_registration_sources!students_registration_source_id_fkey (
+                        source_label
+                    )
+                `)
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)')
+                .not('registration_source_id', 'is', null);
+            
+            // Aplicar filtros
+            query = applyFilters(query);
+            
+            const { data: students, error } = await query;
+
+            if (error) {
+                console.error('Erro ao buscar origens de inscrição:', error);
+                setRegistrationSources([]);
+                return;
+            }
+
+            if (!students || students.length === 0) {
+                setRegistrationSources([]);
+                return;
+            }
+
+            // Agrupar por origem e calcular estatísticas
+            const sourceMap = new Map();
+
+            students.forEach((student: any) => {
+                const sourceLabel = student.unit_registration_sources?.source_label || 'Origem não identificada';
+                const isEnrolled = student.status === 'matriculado';
+
+                if (!sourceMap.has(sourceLabel)) {
+                    sourceMap.set(sourceLabel, {
+                        source_label: sourceLabel,
+                        total_students: 0,
+                        enrolled_students: 0
+                    });
+                }
+
+                const stats = sourceMap.get(sourceLabel);
+                stats.total_students += 1;
+                
+                if (isEnrolled) {
+                    stats.enrolled_students += 1;
+                }
+            });
+
+            // Calcular percentuais e taxa de conversão
+            const totalStudents = students.length;
+            const sourceStats = Array.from(sourceMap.values())
+                .map(stats => ({
+                    ...stats,
+                    percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
+                    conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
+                }))
+                .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
+
+            setRegistrationSources(sourceStats);
+
+        } catch (error) {
+            console.error('Erro ao calcular estatísticas de origens:', error);
+            setRegistrationSources([]);
+        }
+    };
+
     // Função para buscar todos os dados
     const fetchAllData = () => {
         fetchConversionRate();
@@ -427,6 +508,7 @@ export const AdvancedReportsTab = () => {
         fetchAverageMonthlyFee();
         fetchInterviewerConversion();
         fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
+        fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
     };
 
     // Effect inicial para buscar dados básicos
@@ -612,6 +694,88 @@ export const AdvancedReportsTab = () => {
             ) : (
               <div className="text-center text-gray-500 py-4">
                 Nenhum dado de entrevistador disponível
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Relatório de Origens de Inscrição */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Origens de Inscrição</CardTitle>
+          <CardDescription>Análise de canais de captação de alunos</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {registrationSources.length > 0 ? (
+              <>
+                {/* Resumo geral */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {registrationSources.length}
+                    </div>
+                    <div className="text-sm text-blue-600">Canais Ativos</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {registrationSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    </div>
+                    <div className="text-sm text-green-600">Total de Inscrições</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {registrationSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    </div>
+                    <div className="text-sm text-purple-600">Alunos Matriculados</div>
+                  </div>
+                </div>
+
+                {/* Lista detalhada */}
+                <div className="space-y-3">
+                  {registrationSources.map((source, index) => (
+                    <div key={source.source_label} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{source.source_label}</h4>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <span className="text-sm text-gray-600">
+                              {source.total_students} inscrições ({source.percentage.toFixed(1)}%)
+                            </span>
+                            <span className="text-sm text-gray-600">
+                              {source.enrolled_students} matriculados
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-lg font-bold ${
+                            source.conversion_rate >= 70 ? 'text-green-600' : 
+                            source.conversion_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {source.conversion_rate.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500">Taxa de Conversão</div>
+                        </div>
+                      </div>
+                      
+                      {/* Barra de progresso */}
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${source.percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <div className="text-lg font-medium mb-2">Nenhum dado de origem disponível</div>
+                <div className="text-sm">
+                  Configure origens de inscrição nas configurações para ver este relatório
+                </div>
               </div>
             )}
           </div>
