@@ -10,6 +10,7 @@ import { ResponsibleDataSection } from './registration/ResponsibleDataSection';
 import { AcademicDataSection } from './registration/AcademicDataSection';
 import { RegistrationSourceSection } from './registration/RegistrationSourceSection';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
+import { useRegistrationSources } from '@/hooks/useRegistrationSources';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
@@ -54,6 +55,7 @@ export const RegistrationForm = () => {
   const [isUnitLocked, setIsUnitLocked] = useState(false);
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
+  const { hasSources } = useRegistrationSources(formData.unitId);
 
   // Detectar e pré-selecionar unidade baseado no slug da URL
   useEffect(() => {
@@ -194,7 +196,7 @@ export const RegistrationForm = () => {
     // Sanitizar dados do formulário antes da validação
     const sanitizedFormData = sanitizeRegistrationData(formData);
     
-    const errors = validateForm(sanitizedFormData);
+    const errors = validateForm(sanitizedFormData, hasSources);
     
     // Validação adicional: se há múltiplas turmas, uma deve ser selecionada
     if (showClassSelector && !sanitizedFormData.classId) {
@@ -224,7 +226,7 @@ export const RegistrationForm = () => {
         origin_school: '', // Campo removido - sempre vazio
         class_id: sanitizedFormData.classId,
         unit_id: sanitizedFormData.unitId,
-        registration_source_id: sanitizedFormData.registrationSourceId,
+        registration_source_id: hasSources ? sanitizedFormData.registrationSourceId : null,
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 

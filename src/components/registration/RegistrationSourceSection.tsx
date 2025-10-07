@@ -19,7 +19,12 @@ export const RegistrationSourceSection = ({
   fieldErrors, 
   onInputChange 
 }: RegistrationSourceSectionProps) => {
-  const { sources, loading, error } = useRegistrationSources(formData.unitId);
+  const { sources, loading, error, hasSources } = useRegistrationSources(formData.unitId);
+
+  // Não exibe a seção se não há origens configuradas
+  if (!hasSources && !loading && !error) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -42,10 +47,6 @@ export const RegistrationSourceSection = ({
         </div>
       </div>
     );
-  }
-
-  if (sources.length === 0) {
-    return null; // Não exibe a seção se não há origens configuradas
   }
 
   return (

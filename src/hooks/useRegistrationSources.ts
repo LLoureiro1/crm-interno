@@ -40,5 +40,7 @@ export const useRegistrationSources = (unitId: string) => {
     fetchSources();
   }, [unitId]);
 
-  return { sources, loading, error };
+  const hasSources = sources.length > 0;
+
+  return { sources, loading, error, hasSources };
 };
