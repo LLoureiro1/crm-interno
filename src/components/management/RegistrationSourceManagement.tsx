@@ -332,7 +332,7 @@ export const RegistrationSourceManagement = () => {
           <CardHeader>
             <CardTitle>Origens - {selectedUnitName}</CardTitle>
             <p className="text-sm text-gray-600">
-              {sources.length} origem(ões) configurada(s)
+              {sources.length} origens configuradas
             </p>
           </CardHeader>
           <CardContent>
