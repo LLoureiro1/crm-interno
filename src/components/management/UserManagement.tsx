@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -137,6 +138,41 @@ export const UserManagement = () => {
       unit_id: user.unit_id || ''
     });
     setDialogOpen(true);
+  };
+
+  const handleDeactivate = async (user: Profile) => {
+    if (!confirm(`Tem certeza que deseja desativar o usuário "${user.name}"?`)) {
+      return;
+    }
+
+    try {
+      console.log('Tentando desativar usuário:', user.id);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ ativo: false })
+        .eq('id', user.id)
+        .select();
+
+      console.log('Resultado da atualização:', { data, error });
+
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('Nenhuma linha foi atualizada');
+        toast.warning('Nenhum registro foi alterado. Verifique as permissões.');
+        return;
+      }
+
+      toast.success('Usuário desativado com sucesso!');
+      await fetchUsers();
+    } catch (error) {
+      console.error('Erro ao desativar usuário:', error);
+      toast.error('Erro ao desativar usuário: ' + (error as Error).message);
+    }
   };
 
   const resetForm = () => {
@@ -276,25 +312,42 @@ export const UserManagement = () => {
                 <TableHead>E-mail</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Unidade</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className={user.ativo === false ? 'opacity-60' : ''}>
                   <TableCell>{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{profileLabels[user.profile]}</TableCell>
                   <TableCell>{user.units?.name || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={user.ativo === false ? 'destructive' : 'success'}>
+                      {user.ativo === false ? 'Inativo' : 'Ativo'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(user)}
-                      className="mr-2"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(user)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeactivate(user)}
+                        className="text-red-600 hover:text-red-700"
+                        disabled={user.ativo === false}
+                        title={user.ativo === false ? 'Usuário já está inativo' : 'Desativar usuário'}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
