@@ -218,37 +218,31 @@ serve(async (req) => {
       )
     }
 
-    // Create profile in the profiles table with better error handling
+    // Use UPSERT to handle race condition with trigger
+    // The trigger might create the profile first, so we update if it exists
+    console.log(`Creating/updating profile for user: ${authData.user.id}`)
     const { error: profileCreateError } = await supabaseAdmin
       .from('profiles')
-      .insert({
+      .upsert({
         id: authData.user.id,
         name: name,
         email: email.toLowerCase().trim(),
         profile: userProfile,
         unit_id: unit_id || null
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false
       })
 
     if (profileCreateError) {
-      console.error('Error creating profile:', profileCreateError.message, profileCreateError)
+      console.error('Error upserting profile:', profileCreateError.message, profileCreateError)
       
-      // Enhanced rollback: delete the auth user if profile creation failed
+      // Enhanced rollback: delete the auth user if profile upsert failed
       try {
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
         console.log(`Rolled back auth user: ${authData.user.id}`)
       } catch (rollbackError) {
         console.error('Failed to rollback auth user:', rollbackError)
-      }
-      
-      // Return more specific error message
-      if (profileCreateError.code === '23505') {
-        return new Response(
-          JSON.stringify({ error: 'User profile already exists. Please try again.' }),
-          { 
-            status: 409, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
       }
       
       return new Response(
@@ -262,6 +256,8 @@ serve(async (req) => {
         }
       )
     }
+    
+    console.log(`Profile created/updated successfully for user: ${authData.user.id}`)
 
     // Generate invite link
     const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/') || 'http://localhost:5173';

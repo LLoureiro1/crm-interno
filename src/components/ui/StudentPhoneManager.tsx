@@ -33,7 +33,7 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
       // Buscar dados do aluno
       const { data: studentData, error: studentError } = await supabase
         .from('students')
-        .select('phone')
+        .select('*')
         .eq('id', studentId)
         .single();
 

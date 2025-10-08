@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Download, Eye, Calendar, ExternalLink, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
@@ -411,7 +412,7 @@ export const StudentsTabWithAcademicYear = () => {
       {selectedStudent && (
         <StudentDialog
           student={selectedStudent}
-          isOpen={showStudentDialog}
+          open={showStudentDialog}
           onClose={() => {
             setShowStudentDialog(false);
             setSelectedStudent(null);
