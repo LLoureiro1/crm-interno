@@ -326,6 +326,9 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     materialMensal={student.classes.material_didatico_mes || 0}
                     discountMaterial={student.discount_material || 0}
                     hasHadInterview={hasHadInterview}
+                    paymentType={(student as any).material_payment_type || null}
+                    installments={(student as any).material_installments || null}
+                    savedInstallmentValue={(student as any).material_parcela || null}
                   />
                 </div>
               </CardContent>
