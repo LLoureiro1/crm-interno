@@ -134,29 +134,44 @@ serve(async (req) => {
       )
     }
 
+    console.log(`Checking for existing user with email: ${email.toLowerCase().trim()}`)
+    
     // Check if user already exists in auth system
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
     const authUserExists = existingUsers.users.some(u => u.email === email.toLowerCase().trim())
     
+    console.log(`Auth user exists: ${authUserExists}`)
+    
     // Check if profile already exists
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
       .from('profiles')
-      .select('id')
+      .select('id, email, name')
       .eq('email', email.toLowerCase().trim())
-      .single()
+      .maybeSingle()
+    
+    if (profileCheckError) {
+      console.error('Error checking for existing profile:', profileCheckError)
+    }
+    
+    console.log(`Profile exists: ${!!existingProfile}`, existingProfile ? `Profile data: ${JSON.stringify(existingProfile)}` : '')
     
     // If user exists in auth but not in profiles, it's an orphaned user
     if (authUserExists && !existingProfile) {
-      // Find the auth user and delete it to start fresh
       const orphanedUser = existingUsers.users.find(u => u.email === email.toLowerCase().trim())
       if (orphanedUser) {
-        console.log(`Cleaning up orphaned auth user: ${orphanedUser.id}`)
-        await supabaseAdmin.auth.admin.deleteUser(orphanedUser.id)
+        console.log(`Cleaning up orphaned auth user: ${orphanedUser.id} (${orphanedUser.email})`)
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(orphanedUser.id)
+          console.log(`Successfully deleted orphaned user: ${orphanedUser.id}`)
+        } catch (deleteError) {
+          console.error(`Failed to delete orphaned user: ${deleteError}`)
+        }
       }
     }
     
     // If profile exists, user is fully created
     if (existingProfile) {
+      console.log(`User already exists - returning 409 error`)
       return new Response(
         JSON.stringify({ error: 'User with this email already exists' }),
         { 
@@ -165,6 +180,8 @@ serve(async (req) => {
         }
       )
     }
+    
+    console.log(`No existing user found - proceeding with user creation`)
 
     // Create the user with admin privileges
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -215,7 +232,6 @@ serve(async (req) => {
     if (profileCreateError) {
       console.error('Error creating profile:', profileCreateError.message, profileCreateError)
       
-<<<<<<< HEAD
       // Enhanced rollback: delete the auth user if profile creation failed
       try {
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
@@ -233,14 +249,6 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         )
-=======
-      // Rollback: delete the auth user if profile creation failed
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-        console.log('Rollback successful: deleted auth user')
-      } catch (rollbackError) {
-        console.error('Rollback failed:', rollbackError)
->>>>>>> da62806a8bbb321b22971abecbabea3512233d86
       }
       
       return new Response(
