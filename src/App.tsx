@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Registration from "./pages/Registration";
 import StudentProfile from "./pages/StudentProfile";
 import SetPassword from "./pages/SetPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Confirmation from './components/registration/Confirmation';
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/inscricao" element={<Registration />} />
           <Route path="/student/:id" element={<StudentProfile />} />
           <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/confirmacao" element={<Confirmation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

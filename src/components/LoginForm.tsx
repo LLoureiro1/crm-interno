@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { ForgotPassword } from './ForgotPassword';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +30,14 @@ export const LoginForm = () => {
       setLoading(false);
     }
   };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
+        <ForgotPassword onBack={() => setShowForgotPassword(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
@@ -67,6 +77,17 @@ export const LoginForm = () => {
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
+            
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-gray-600 hover:text-orange-500"
+              >
+                Esqueci minha senha
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
