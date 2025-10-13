@@ -128,7 +128,7 @@ const ResetPassword = () => {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Este link de reset de senha é inválido ou expirou. Solicite um novo reset de senha.
+                Este link de redefinição de senha é inválido ou expirou. Solicite um novo reset de senha.
               </AlertDescription>
             </Alert>
             <Button
