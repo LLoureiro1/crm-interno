@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { sanitizeName, sanitizeEmail } from '@/utils/sanitization';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -141,20 +141,16 @@ export const UserManagement = () => {
   };
 
   const handleDeactivate = async (user: Profile) => {
-    if (!confirm(`Tem certeza que deseja desativar o usuário "${user.name}"?`)) {
+    if (!confirm(`Tem certeza que deseja desativar o usuário "${user.name}"?\n\nO usuário será desconectado imediatamente e não poderá mais acessar o sistema.`)) {
       return;
     }
 
     try {
-      console.log('Tentando desativar usuário:', user.id);
-      
       const { data, error } = await supabase
         .from('profiles')
         .update({ ativo: false })
         .eq('id', user.id)
         .select();
-
-      console.log('Resultado da atualização:', { data, error });
 
       if (error) {
         console.error('Erro do Supabase:', error);
@@ -162,16 +158,45 @@ export const UserManagement = () => {
       }
 
       if (!data || data.length === 0) {
-        console.warn('Nenhuma linha foi atualizada');
         toast.warning('Nenhum registro foi alterado. Verifique as permissões.');
         return;
       }
 
-      toast.success('Usuário desativado com sucesso!');
+      toast.success('Usuário desativado com sucesso! Ele será desconectado automaticamente.');
       await fetchUsers();
     } catch (error) {
       console.error('Erro ao desativar usuário:', error);
       toast.error('Erro ao desativar usuário: ' + (error as Error).message);
+    }
+  };
+
+  const handleActivate = async (user: Profile) => {
+    if (!confirm(`Tem certeza que deseja reativar o usuário "${user.name}"?`)) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ ativo: true })
+        .eq('id', user.id)
+        .select();
+
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        toast.warning('Nenhum registro foi alterado. Verifique as permissões.');
+        return;
+      }
+
+      toast.success('Usuário reativado com sucesso!');
+      await fetchUsers();
+    } catch (error) {
+      console.error('Erro ao reativar usuário:', error);
+      toast.error('Erro ao reativar usuário: ' + (error as Error).message);
     }
   };
 
@@ -334,19 +359,31 @@ export const UserManagement = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(user)}
+                        title="Editar usuário"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeactivate(user)}
-                        className="text-red-600 hover:text-red-700"
-                        disabled={user.ativo === false}
-                        title={user.ativo === false ? 'Usuário já está inativo' : 'Desativar usuário'}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {user.ativo ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeactivate(user)}
+                          className="text-red-600 hover:text-red-700"
+                          title="Desativar usuário"
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleActivate(user)}
+                          className="text-green-600 hover:text-green-700"
+                          title="Reativar usuário"
+                        >
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -45,6 +45,17 @@ export const useAuth = () => {
         .single();
 
       if (error) throw error;
+      
+      // Verificar se o usuário está ativo
+      if (data && !data.ativo) {
+        // Usuário inativo - fazer logout
+        console.log('Usuário inativo detectado, fazendo logout...');
+        await supabase.auth.signOut();
+        setProfile(null);
+        setUser(null);
+        return;
+      }
+      
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -58,6 +69,29 @@ export const useAuth = () => {
       email,
       password,
     });
+    
+    // Se o login foi bem-sucedido, verificar se o usuário está ativo
+    if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('ativo')
+          .eq('id', user.id)
+          .single();
+          
+        if (!profileError && profile && !profile.ativo) {
+          // Usuário inativo - fazer logout imediatamente
+          await supabase.auth.signOut();
+          return { 
+            error: { 
+              message: 'Sua conta foi desativada. Entre em contato com o administrador.' 
+            } 
+          };
+        }
+      }
+    }
+    
     return { error };
   };
 
