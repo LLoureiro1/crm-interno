@@ -259,20 +259,27 @@ serve(async (req) => {
     
     console.log(`Profile created/updated successfully for user: ${authData.user.id}`)
 
-    // Generate invite link
+    // Send invite email using Supabase's built-in email system
     const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/') || 'http://localhost:5173';
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email.toLowerCase().trim(),
-      options: {
-        redirectTo: `${origin}/set-password`
+    console.log(`Sending invite email to: ${email.toLowerCase().trim()}`)
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email.toLowerCase().trim(),
+      {
+        redirectTo: `${origin}/set-password`,
+        data: {
+          name: name,
+          profile: userProfile,
+          unit_id: unit_id || null
+        }
       }
-    })
+    )
 
     if (inviteError) {
-      console.error('Error generating invite link:', inviteError.message, inviteError)
-      // Don't fail the entire operation if invite generation fails
+      console.error('Error sending inupdate invite-user functionvite email:', inviteError.message, inviteError)
+      // Don't fail the entire operation if invite email fails
       // The user was created successfully, just log the error
+    } else {
+      console.log('Invite email sent successfully')
     }
 
     // Log successful user creation
@@ -289,7 +296,7 @@ serve(async (req) => {
           profile: userProfile,
           unit_id: unit_id
         },
-        invite_link: inviteData?.properties?.action_link || null,
+        invite_link: inviteData?.user?.email || null,
         invite_error: inviteError?.message || null
       }),
       {
