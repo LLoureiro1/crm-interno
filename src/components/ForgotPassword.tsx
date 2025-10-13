@@ -15,6 +15,7 @@ export const ForgotPassword = ({ onBack }: ForgotPasswordProps) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailExists, setEmailExists] = useState(true);
   const { resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,12 +23,20 @@ export const ForgotPassword = ({ onBack }: ForgotPasswordProps) => {
     setLoading(true);
 
     try {
-      const { error } = await resetPassword(email);
+      const { error, emailExists: exists } = await resetPassword(email);
+      
       if (error) {
         toast.error('Erro ao enviar email de reset: ' + error.message);
-      } else {
-        setEmailSent(true);
+        return;
+      }
+
+      setEmailExists(exists);
+      setEmailSent(true);
+      
+      if (exists) {
         toast.success('Email de reset enviado! Verifique sua caixa de entrada.');
+      } else {
+        toast.info('Se este email estiver cadastrado, você receberá um link de reset.');
       }
     } catch (error) {
       toast.error('Erro inesperado ao enviar email de reset');
@@ -40,18 +49,38 @@ export const ForgotPassword = ({ onBack }: ForgotPasswordProps) => {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <Mail className="h-6 w-6 text-green-600" />
+          <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full ${
+            emailExists ? 'bg-green-100' : 'bg-blue-100'
+          }`}>
+            <Mail className={`h-6 w-6 ${emailExists ? 'text-green-600' : 'text-blue-600'}`} />
           </div>
-          <CardTitle className="text-xl">Email Enviado!</CardTitle>
+          <CardTitle className="text-xl">
+            {emailExists ? 'Email Enviado!' : 'Processo Iniciado'}
+          </CardTitle>
           <CardDescription>
-            Enviamos um link de reset de senha para <strong>{email}</strong>
+            {emailExists ? (
+              <>Enviamos um link de reset de senha para <strong>{email}</strong></>
+            ) : (
+              <>Processo de reset iniciado para <strong>{email}</strong></>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-gray-600 text-center">
-            <p>Verifique sua caixa de entrada e clique no link para redefinir sua senha.</p>
-            <p className="mt-2">O link expira em 1 hora.</p>
+            {emailExists ? (
+              <>
+                <p>Verifique sua caixa de entrada e clique no link para redefinir sua senha.</p>
+                <p className="mt-2">O link expira em 1 hora.</p>
+              </>
+            ) : (
+              <>
+                <p>Se este email estiver cadastrado em nosso sistema, você receberá um link de reset de senha.</p>
+                <p className="mt-2">Verifique sua caixa de entrada e spam. O link expira em 1 hora.</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Por segurança, não informamos se o email está cadastrado ou não.
+                </p>
+              </>
+            )}
           </div>
           <Button
             onClick={onBack}

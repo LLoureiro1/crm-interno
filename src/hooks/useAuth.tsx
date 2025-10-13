@@ -67,10 +67,30 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
+    // Primeiro, verificar se o email existe na tabela profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (profileError || !profile) {
+      // Email não existe na base
+      return { 
+        error: null, 
+        emailExists: false 
+      };
+    }
+
+    // Email existe, tentar enviar reset
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    return { error };
+    
+    return { 
+      error, 
+      emailExists: true 
+    };
   };
 
   return {
