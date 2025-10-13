@@ -26,9 +26,9 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
@@ -53,14 +53,14 @@ serve(async (req) => {
 
     // Verify the user is authenticated
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    
+
     if (authError || !user) {
       console.error('Authentication error:', authError?.message)
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Invalid or missing authentication token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -76,9 +76,9 @@ serve(async (req) => {
       console.error('Permission error:', profileError?.message, 'User profile:', profile?.profile)
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions. Only admin users can create new users.' }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -90,9 +90,9 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -103,9 +103,9 @@ serve(async (req) => {
     if (!name?.trim() || !email?.trim() || !userProfile) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: name, email, profile' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -115,9 +115,9 @@ serve(async (req) => {
     if (!validProfiles.includes(userProfile)) {
       return new Response(
         JSON.stringify({ error: 'Invalid profile. Must be one of: ' + validProfiles.join(', ') }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -127,34 +127,34 @@ serve(async (req) => {
     if (!emailRegex.test(email)) {
       return new Response(
         JSON.stringify({ error: 'Invalid email format' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
     console.log(`Checking for existing user with email: ${email.toLowerCase().trim()}`)
-    
+
     // Check if user already exists in auth system
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
     const authUserExists = existingUsers.users.some(u => u.email === email.toLowerCase().trim())
-    
+
     console.log(`Auth user exists: ${authUserExists}`)
-    
+
     // Check if profile already exists
     const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
       .from('profiles')
       .select('id, email, name')
       .eq('email', email.toLowerCase().trim())
       .maybeSingle()
-    
+
     if (profileCheckError) {
       console.error('Error checking for existing profile:', profileCheckError)
     }
-    
+
     console.log(`Profile exists: ${!!existingProfile}`, existingProfile ? `Profile data: ${JSON.stringify(existingProfile)}` : '')
-    
+
     // If user exists in auth but not in profiles, it's an orphaned user
     if (authUserExists && !existingProfile) {
       const orphanedUser = existingUsers.users.find(u => u.email === email.toLowerCase().trim())
@@ -168,19 +168,19 @@ serve(async (req) => {
         }
       }
     }
-    
+
     // If profile exists, user is fully created
     if (existingProfile) {
       console.log(`User already exists - returning 409 error`)
       return new Response(
         JSON.stringify({ error: 'User with this email already exists' }),
-        { 
-          status: 409, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
-    
+
     console.log(`No existing user found - proceeding with user creation`)
 
     // Create the user with admin privileges
@@ -197,13 +197,13 @@ serve(async (req) => {
     if (createError) {
       console.error('Error creating user:', createError.message, createError)
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to create user: ' + createError.message,
           details: createError.code || 'unknown_error'
         }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -211,9 +211,9 @@ serve(async (req) => {
     if (!authData.user) {
       return new Response(
         JSON.stringify({ error: 'Failed to create user: no user data returned' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -236,7 +236,7 @@ serve(async (req) => {
 
     if (profileCreateError) {
       console.error('Error upserting profile:', profileCreateError.message, profileCreateError)
-      
+
       // Enhanced rollback: delete the auth user if profile upsert failed
       try {
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
@@ -244,19 +244,19 @@ serve(async (req) => {
       } catch (rollbackError) {
         console.error('Failed to rollback auth user:', rollbackError)
       }
-      
+
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to create user profile: ' + profileCreateError.message,
           details: profileCreateError.code || 'unknown_error'
         }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
-    
+
     console.log(`Profile created/updated successfully for user: ${authData.user.id}`)
 
     // Send invite email using Supabase's built-in email system
@@ -308,9 +308,9 @@ serve(async (req) => {
     console.error('Unexpected error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }

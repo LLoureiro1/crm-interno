@@ -30,33 +30,48 @@ const SetPassword = () => {
   }, [token, type]);
 
   const validateToken = async () => {
-    if (!token || type !== 'invite') {
-      setTokenValid(false);
-      setValidating(false);
-      return;
-    }
-
     try {
-      // Verificar se o token é válido
-      const { data, error } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'invite'
-      });
-
+      // Para convites via inviteUserByEmail, verificamos se o usuário está logado
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
       if (error) {
-        console.error('Token validation error:', error);
-        // Se der erro na validação, ainda assim vamos permitir que o usuário tente
-        // O Supabase irá validar novamente quando tentar atualizar a senha
+        console.error('Error getting user:', error);
+        setTokenValid(false);
+        setValidating(false);
+        return;
+      }
+
+      if (user) {
+        // Usuário está logado via convite
         setTokenValid(true);
-        console.log('Permitindo acesso mesmo com erro de validação do token');
-      } else if (data.user) {
-        setTokenValid(true);
-        setUserEmail(data.user.email || '');
+        setUserEmail(user.email || '');
         toast.success('Link de convite válido! Defina sua senha para continuar.');
+        console.log('User logged in via invite:', user.email);
       } else {
-        // Vamos permitir mesmo se não conseguir validar completamente
-        setTokenValid(true);
-        console.log('Permitindo acesso para tentar definir senha');
+        // Fallback: tentar validar token tradicional se não estiver logado
+        if (!token || type !== 'invite') {
+          setTokenValid(false);
+          setValidating(false);
+          return;
+        }
+
+        const { data, error: otpError } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'invite'
+        });
+
+        if (otpError) {
+          console.error('Token validation error:', otpError);
+          setTokenValid(false);
+          toast.error('Link de convite inválido ou expirado');
+        } else if (data.user) {
+          setTokenValid(true);
+          setUserEmail(data.user.email || '');
+          toast.success('Link de convite válido! Defina sua senha para continuar.');
+        } else {
+          setTokenValid(false);
+          toast.error('Link de convite inválido');
+        }
       }
     } catch (error) {
       console.error('Error validating token:', error);
@@ -93,14 +108,12 @@ const SetPassword = () => {
         throw error;
       }
 
-      toast.success('Senha definida com sucesso! Você será redirecionado para o login.');
+      toast.success('Senha definida com sucesso! Você será redirecionado para o sistema.');
       
-      // Fazer logout para forçar novo login com a senha definida
-      await supabase.auth.signOut();
-      
-      // Redirecionar para a página de login após um breve delay
+      // Não fazer logout - usuário já pode acessar o sistema diretamente
+      // Redirecionar para o dashboard após um breve delay
       setTimeout(() => {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }, 2000);
 
     } catch (error: any) {
