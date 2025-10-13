@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign } from 'lucide-react';
+import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate, dateToLocalString } from '@/utils/dateUtils';
@@ -258,6 +258,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   };
 
   const handleOpenAttendanceModal = (appointment: Appointment) => {
+    // Verificar se o usuário pode realizar atendimentos
+    if (profile?.profile === 'padrao') {
+      toast.error('Usuários com perfil "Padrão" não podem realizar atendimentos. Entre em contato com um administrador.');
+      return;
+    }
+
     setCurrentAppointment(appointment);
     setAttendanceDiscount('');
     setAttendanceComments('');
@@ -268,6 +274,13 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
   const handleRegisterAttendance = async () => {
     if (!currentAppointment) return;
+    
+    // Verificação de segurança: usuários padrão não podem realizar atendimentos
+    if (profile?.profile === 'padrao') {
+      toast.error('Usuários com perfil "Padrão" não podem realizar atendimentos. Entre em contato com um administrador.');
+      return;
+    }
+    
     if (!attendanceDiscount) {
       toast.error('Preencha o percentual de desconto');
       return;
@@ -630,7 +643,8 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                             size="sm"
                             onClick={() => handleOpenAttendanceModal(appointment)}
                             className="bg-green-600 hover:bg-green-700"
-                            disabled={loading}
+                            disabled={loading || profile?.profile === 'padrao'}
+                            title={profile?.profile === 'padrao' ? 'Usuários com perfil "Padrão" não podem realizar atendimentos' : 'Registrar atendimento'}
                           >
                             Atender
                           </Button>
@@ -726,6 +740,22 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               Preencha os detalhes do atendimento para {currentAppointment?.students?.student_name}.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Verificação de permissão no modal */}
+          {profile?.profile === 'padrao' && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <div>
+                  <h4 className="font-medium text-red-900">Acesso Restrito</h4>
+                  <p className="text-sm text-red-700 mt-1">
+                    Usuários com perfil "Padrão" não podem realizar atendimentos. Entre em contato com um administrador.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="grid gap-4 py-4">
             {/* Informações da Mensalidade */}
             {currentAppointment?.students?.classes?.monthly_fee && (
@@ -835,7 +865,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAttendanceModal(false)}>Cancelar</Button>
-            <Button onClick={handleRegisterAttendance}>Registrar</Button>
+            <Button 
+              onClick={handleRegisterAttendance}
+              disabled={profile?.profile === 'padrao'}
+            >
+              Registrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
