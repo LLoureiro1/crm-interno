@@ -113,7 +113,7 @@ const SetPassword = () => {
       // Não fazer logout - usuário já pode acessar o sistema diretamente
       // Redirecionar para o dashboard após um breve delay
       setTimeout(() => {
-        navigate('/dashboard', { replace: true });
+        navigate('/', { replace: true });
       }, 2000);
 
     } catch (error: any) {
