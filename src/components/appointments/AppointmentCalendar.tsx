@@ -733,139 +733,132 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       </Card>
 
       <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Atendimento</DialogTitle>
-            <DialogDescription>
-              Preencha os detalhes do atendimento para {currentAppointment?.students?.student_name}.
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-1">
+            <DialogTitle className="text-base">Registrar Atendimento</DialogTitle>
+            <DialogDescription className="text-xs">
+              {currentAppointment?.students?.student_name}
             </DialogDescription>
           </DialogHeader>
           
           {/* Verificação de permissão no modal */}
           {profile?.profile === 'padrao' && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+            <div className="bg-red-50 border border-red-200 rounded-md p-1 mb-1 text-xs">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <div>
-                  <h4 className="font-medium text-red-900">Acesso Restrito</h4>
-                  <p className="text-sm text-red-700 mt-1">
-                    Usuários com perfil "Padrão" não podem realizar atendimentos. Entre em contato com um administrador.
-                  </p>
-                </div>
+                <AlertCircle className="h-3 w-3 text-red-600 flex-shrink-0" />
+                <p className="text-red-700">
+                  Usuários com perfil "Padrão" não podem realizar atendimentos.
+                </p>
               </div>
             </div>
           )}
           
-          <div className="grid gap-4 py-4">
-            {/* Informações da Mensalidade */}
-            {currentAppointment?.students?.classes?.monthly_fee && (
-              <div className="bg-blue-50 p-4 rounded-lg border">
-                <div className="flex items-center space-x-2 mb-3">
-                  <DollarSign className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-900">Informações da Mensalidade</span>
+          <div className="space-y-2">
+            {/* Grid de 2 colunas para informações principais */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Informações da Mensalidade */}
+              <div className="border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <DollarSign className="h-3 w-3 text-green-600" />
+                  <span className="font-medium text-xs">Mensalidade</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
                   <div>
-                    <span className="text-gray-600">Mensalidade Original:</span>
-                    <p className="font-semibold text-lg">R$ {currentAppointment.students.classes.monthly_fee.toFixed(2)}</p>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs text-gray-600">Valor Original:</span>
+                      <span className="font-semibold text-xs">
+                        R$ {currentAppointment?.students?.classes?.monthly_fee?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <label htmlFor="discount" className="text-xs">Desconto (%)</label>
+                      <Input
+                        id="discount"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={attendanceDiscount}
+                        onChange={(e) => setAttendanceDiscount(e.target.value)}
+                        className="text-xs h-7"
+                        placeholder="Ex: 10"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Turma:</span>
-                    <p className="font-medium">{currentAppointment.students.classes.name}</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="discount" className="text-right">Percentual de Desconto</label>
-              <Input
-                id="discount"
-                type="number"
-                value={attendanceDiscount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const numValue = parseFloat(value);
-                  if (value === '' || (numValue >= 0 && numValue <= 100)) {
-                    setAttendanceDiscount(value);
-                  }
-                }}
-                className="col-span-3"
-                placeholder="Ex: 10, 20, 50"
-                min="0"
-                max="100"
-                step="0.1"
-              />
-            </div>
-
-            {/* Cálculo em tempo real */}
-            {currentAppointment?.students?.classes?.monthly_fee && (
-              <div className="bg-green-50 p-4 rounded-lg border">
-                <div className="flex items-center space-x-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-900">Mensalidade com Desconto</span>
-                </div>
-                {(() => {
-                  const discount = attendanceDiscount ? parseFloat(attendanceDiscount) : 0;
-                  const originalFee = currentAppointment.students.classes.monthly_fee;
-                  const finalFee = calculateMonthlyFeeWithDiscount(originalFee, discount);
-                  const savings = originalFee - finalFee;
-                  
-                  return (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Valor Final:</span>
-                        <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Economia:</span>
-                        <p className="font-semibold text-lg text-green-600">R$ {savings.toFixed(2)}</p>
+                  {attendanceDiscount && !isNaN(parseFloat(attendanceDiscount)) && (
+                    <div className="bg-green-50 p-1.5 rounded-lg border border-green-200 text-xs">
+                      <div className="flex justify-between">
+                        <span>Valor com desconto:</span>
+                        <span className="text-green-700 font-semibold">
+                          R$ {calculateMonthlyFeeWithDiscount(
+                            currentAppointment?.students?.classes?.monthly_fee || 0,
+                            parseFloat(attendanceDiscount)
+                          ).toFixed(2)}
+                        </span>
                       </div>
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </div>
-            )}
 
-            {/* Seleção de Pagamento dos Recursos Didáticos */}
-            <div className="pt-4 border-t">
-              <MaterialPaymentSelector
-                paymentType={materialPaymentType}
-                installments={materialInstallments}
-                onPaymentTypeChange={setMaterialPaymentType}
-                onInstallmentsChange={setMaterialInstallments}
-              />
+              {/* Material Didático */}
+              <div className="border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <GraduationCap className="h-3 w-3 text-purple-600" />
+                  <span className="font-medium text-xs">Material Didático</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-xs text-gray-600">Valor Anual:</span>
+                    <span className="font-semibold text-xs">
+                      R$ {currentAppointment?.students?.classes?.material_didatico_anual?.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
+
+                  <MaterialPaymentSelector
+                    paymentType={materialPaymentType}
+                    onPaymentTypeChange={setMaterialPaymentType}
+                    installments={materialInstallments}
+                    onInstallmentsChange={setMaterialInstallments}
+                    compact={true}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Preview do cálculo de recursos didáticos em tempo real */}
+            {/* Calculadora de Material Didático */}
             {materialPaymentType && currentAppointment?.students?.classes && (
-              <div className="pt-2">
+              <div className="border rounded-lg p-1.5">
                 <MaterialDidaticoCalculator
                   materialAnual={currentAppointment.students.classes.material_didatico_anual || 0}
                   materialMensal={currentAppointment.students.classes.material_didatico_mes || 0}
                   discountMaterial={materialPaymentType === 'a_vista' ? 10 : 
-                                   materialPaymentType === 'parcelado_cartao' ? 5 : 0}
+                                  materialPaymentType === 'parcelado_cartao' ? 5 : 0}
                   hasHadInterview={true}
                   paymentType={materialPaymentType}
                   installments={materialInstallments}
+                  compact={true}
                 />
               </div>
             )}
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="comments" className="text-right">Comentários</label>
+            {/* Comentários */}
+            <div className="flex flex-col space-y-1">
+              <label htmlFor="comments" className="text-xs">Comentários</label>
               <Textarea
                 id="comments"
                 value={attendanceComments}
                 onChange={(e) => setAttendanceComments(e.target.value)}
-                className="col-span-3"
+                className="h-12 text-xs resize-none"
                 placeholder="Observações sobre o atendimento..."
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAttendanceModal(false)}>Cancelar</Button>
+          <DialogFooter className="pt-1">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowAttendanceModal(false)}>Cancelar</Button>
             <Button 
+              size="sm"
+              className="h-8 text-xs bg-green-600 hover:bg-green-700"
               onClick={handleRegisterAttendance}
               disabled={profile?.profile === 'padrao'}
             >

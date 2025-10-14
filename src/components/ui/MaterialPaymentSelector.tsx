@@ -12,6 +12,7 @@ interface MaterialPaymentSelectorProps {
   onPaymentTypeChange: (type: MaterialPaymentType) => void;
   onInstallmentsChange: (installments: number) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = ({
@@ -19,7 +20,8 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
   installments,
   onPaymentTypeChange,
   onInstallmentsChange,
-  disabled = false
+  disabled = false,
+  compact = false
 }) => {
   // Quando o tipo de pagamento muda, ajustar o número de parcelas se necessário
   useEffect(() => {
@@ -55,51 +57,53 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
   };
 
   return (
-    <div className="space-y-4">
+    <div className={`${compact ? 'space-y-2' : 'space-y-4'}`}>
       <div>
-        <Label className="text-base font-semibold mb-3 block">Forma de Pagamento dos Recursos Didáticos</Label>
+        <Label className={`${compact ? 'text-xs font-medium mb-1' : 'text-base font-semibold mb-3'} block`}>
+          {compact ? 'Pagamento Material' : 'Forma de Pagamento dos Recursos Didáticos'}
+        </Label>
         <RadioGroup 
           value={paymentType} 
           onValueChange={onPaymentTypeChange}
           disabled={disabled}
-          className="space-y-3"
+          className={`${compact ? 'space-y-1' : 'space-y-3'}`}
         >
           {/* À Vista */}
-          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+          <div className={`flex items-center space-x-2 ${compact ? 'p-1.5 text-xs' : 'p-3'} rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer`}>
             <RadioGroupItem value="a_vista" id="a_vista" />
-            <Label htmlFor="a_vista" className="flex items-center space-x-2 cursor-pointer flex-1">
-              <Zap className="h-5 w-5 text-yellow-600" />
+            <Label htmlFor="a_vista" className="flex items-center space-x-1 cursor-pointer flex-1">
+              <Zap className={`${compact ? 'h-3 w-3' : 'h-5 w-5'} text-yellow-600`} />
               <div className="flex-1">
                 <div className="font-medium">À Vista</div>
-                <div className="text-sm text-gray-600">10% de desconto</div>
+                {!compact && <div className="text-sm text-gray-600">10% de desconto</div>}
               </div>
               <div className="text-green-600 font-semibold">-10%</div>
             </Label>
           </div>
 
           {/* Parcelado no Cartão */}
-          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+          <div className={`flex items-center space-x-2 ${compact ? 'p-1.5 text-xs' : 'p-3'} rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer`}>
             <RadioGroupItem value="parcelado_cartao" id="parcelado_cartao" />
-            <Label htmlFor="parcelado_cartao" className="flex items-center space-x-2 cursor-pointer flex-1">
-              <CreditCard className="h-5 w-5 text-blue-600" />
+            <Label htmlFor="parcelado_cartao" className="flex items-center space-x-1 cursor-pointer flex-1">
+              <CreditCard className={`${compact ? 'h-3 w-3' : 'h-5 w-5'} text-blue-600`} />
               <div className="flex-1">
-                <div className="font-medium">Parcelado no Cartão</div>
-                <div className="text-sm text-gray-600">Até 12x com 5% de desconto</div>
+                <div className="font-medium">Cartão</div>
+                {!compact && <div className="text-sm text-gray-600">Até 12x com 5% de desconto</div>}
               </div>
               <div className="text-green-600 font-semibold">-5%</div>
             </Label>
           </div>
 
           {/* Parcelado no Boleto */}
-          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+          <div className={`flex items-center space-x-2 ${compact ? 'p-1.5 text-xs' : 'p-3'} rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer`}>
             <RadioGroupItem value="parcelado_boleto" id="parcelado_boleto" />
-            <Label htmlFor="parcelado_boleto" className="flex items-center space-x-2 cursor-pointer flex-1">
-              <FileText className="h-5 w-5 text-gray-600" />
+            <Label htmlFor="parcelado_boleto" className="flex items-center space-x-1 cursor-pointer flex-1">
+              <FileText className={`${compact ? 'h-3 w-3' : 'h-5 w-5'} text-gray-600`} />
               <div className="flex-1">
-                <div className="font-medium">Parcelado no Boleto</div>
-                <div className="text-sm text-gray-600">Até 6x sem desconto</div>
+                <div className="font-medium">Boleto</div>
+                {!compact && <div className="text-sm text-gray-600">Até 6x sem desconto</div>}
               </div>
-              <div className="text-gray-500 font-semibold">Sem desconto</div>
+              <div className="text-gray-500 font-semibold text-xs">0%</div>
             </Label>
           </div>
         </RadioGroup>
@@ -108,21 +112,21 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
       {/* Seletor de Parcelas - Apenas para parcelado */}
       {(paymentType === 'parcelado_cartao' || paymentType === 'parcelado_boleto') && (
         <div>
-          <Label htmlFor="installments" className="text-sm font-medium">
-            Número de Parcelas
+          <Label htmlFor="installments" className={`${compact ? 'text-xs' : 'text-sm font-medium'}`}>
+            {compact ? 'Parcelas' : 'Número de Parcelas'}
           </Label>
           <Select 
             value={installments.toString()} 
             onValueChange={(value) => onInstallmentsChange(parseInt(value))}
             disabled={disabled}
           >
-            <SelectTrigger id="installments" className="mt-2">
-              <SelectValue placeholder="Selecione o número de parcelas" />
+            <SelectTrigger id="installments" className={`${compact ? 'h-7 text-xs mt-1' : 'mt-2'}`}>
+              <SelectValue placeholder="Selecione parcelas" />
             </SelectTrigger>
             <SelectContent>
               {Array.from({ length: getMaxInstallments() - 1 }, (_, i) => i + 2).map((num) => (
                 <SelectItem key={num} value={num.toString()}>
-                  {num}x parcelas
+                  {num}x {!compact && 'parcelas'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -130,8 +134,8 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
         </div>
       )}
 
-      {/* Resumo do Desconto */}
-      {paymentType && (
+      {/* Resumo do Desconto - Versão compacta omite isso */}
+      {paymentType && !compact && (
         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
           <div className="text-sm">
             <span className="font-medium">Desconto aplicado: </span>
