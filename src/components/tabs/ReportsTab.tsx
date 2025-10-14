@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
+import { Link } from 'react-router-dom';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -226,7 +227,14 @@ export const ReportsTab = () => {
         <TableBody>
           {students.map((student) => (
             <TableRow key={student.id}>
-              <TableCell>{student.student_name}</TableCell>
+              <TableCell>
+                <Link 
+                  to={`/student/${student.id}`} 
+                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {student.student_name}
+                </Link>
+              </TableCell>
               <TableCell>{student.responsible_name}</TableCell>
               <TableCell>{student.phone}</TableCell>
               <TableCell>{student.classes.name}</TableCell>
