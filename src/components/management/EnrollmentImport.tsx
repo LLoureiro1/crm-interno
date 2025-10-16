@@ -11,7 +11,13 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, Download, AlertCircle, CheckCircle, X, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import type { Tables } from '@/integrations/supabase/types';
+// Usando tipos explícitos em vez de importar Tables para evitar recursão de tipos
+type Student = {
+  id: string;
+  code: string;
+  codigo_erp?: string;
+  status: string;
+};
 
 interface EnrollmentImportData {
   codigo_crm: string;
@@ -35,10 +41,10 @@ export const EnrollmentImport = () => {
   const [importData, setImportData] = useState<EnrollmentImportData[]>([]);
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const [isValidating, setIsValidating] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-  const [showPreview, setShowPreview] = useState(false);
+  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [importProgress, setImportProgress] = useState<number>(0);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Campos obrigatórios
@@ -138,8 +144,8 @@ export const EnrollmentImport = () => {
           const { data: studentData, error: studentError } = await supabase
             .from('students')
             .select('id')
-            .eq('codigo_crm', row.codigo_crm)
-            .single();
+            .eq('code', row.codigo_crm)
+            .single() as { data: Student | null, error: any };
 
           if (studentError || !studentData) {
             errors.push({ row: i, field: 'codigo_crm', message: 'Aluno não encontrado com este código CRM' });
