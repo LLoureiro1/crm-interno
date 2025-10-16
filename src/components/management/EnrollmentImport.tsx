@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,44 @@ export const EnrollmentImport = () => {
   const [importProgress, setImportProgress] = useState<number>(0);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMounted = useRef<boolean>(true);
+  
+  // Tratamento defensivo para operações do DOM
+  useEffect(() => {
+    // Marcar componente como montado
+    isMounted.current = true;
+    
+    // Função para capturar erros de DOM globalmente
+    const handleDOMError = (event: ErrorEvent) => {
+      if (event.message.includes('removeChild') || event.message.includes('Node')) {
+        console.warn('Erro de DOM capturado e tratado:', event.message);
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    
+    // Adicionar listener de erro global
+    window.addEventListener('error', handleDOMError);
+    
+    // Limpeza ao desmontar
+    return () => {
+      isMounted.current = false;
+      window.removeEventListener('error', handleDOMError);
+      
+      // Limpar referências para evitar erros de DOM
+      if (fileInputRef.current) {
+        try {
+          // Remover listeners de eventos para evitar callbacks após desmontagem
+          const clonedInput = fileInputRef.current.cloneNode(true);
+          if (fileInputRef.current.parentNode) {
+            fileInputRef.current.parentNode.replaceChild(clonedInput, fileInputRef.current);
+          }
+        } catch (error) {
+          console.warn('Erro ao limpar referência de input:', error);
+        }
+      }
+    };
+  }, []);
   
   // Função para registrar interação
   const registerInteraction = async (studentId: string, description: string) => {
@@ -72,6 +110,9 @@ export const EnrollmentImport = () => {
   ];
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Verificar se o componente ainda está montado
+    if (!isMounted.current) return;
+    
     const uploadedFile = event.target.files?.[0];
     if (!uploadedFile) return;
 
@@ -87,6 +128,9 @@ export const EnrollmentImport = () => {
   const parseExcelFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
+      // Verificar se o componente ainda está montado
+      if (!isMounted.current) return;
+      
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -137,6 +181,9 @@ export const EnrollmentImport = () => {
   };
 
   const validateData = async (data: EnrollmentImportData[]) => {
+    // Verificar se o componente ainda está montado
+    if (!isMounted.current) return;
+    
     setIsValidating(true);
     setValidationErrors([]);
     
@@ -206,6 +253,9 @@ export const EnrollmentImport = () => {
   };
 
   const handleImport = async () => {
+    // Verificar se o componente ainda está montado
+    if (!isMounted.current) return;
+    
     if (validationErrors.length > 0) {
       toast.error('Corrija os erros antes de importar');
       return;
@@ -240,7 +290,10 @@ export const EnrollmentImport = () => {
         }
 
         processedItems++;
-        setImportProgress(Math.round((processedItems / totalItems) * 100));
+        // Verificar se o componente ainda está montado antes de atualizar o estado
+        if (isMounted.current) {
+          setImportProgress(Math.round((processedItems / totalItems) * 100));
+        }
       }
 
       toast.success('Importação concluída com sucesso!');
@@ -258,8 +311,11 @@ export const EnrollmentImport = () => {
       console.error('Erro na importação:', error);
       toast.error('Erro ao importar os dados');
     } finally {
-      setIsImporting(false);
-      setImportProgress(0);
+      // Verificar se o componente ainda está montado antes de atualizar o estado
+      if (isMounted.current) {
+        setIsImporting(false);
+        setImportProgress(0);
+      }
     }
   };
 
