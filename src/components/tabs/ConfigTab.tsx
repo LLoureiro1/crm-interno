@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserManagement } from '@/components/management/UserManagement';
@@ -13,6 +13,32 @@ import { EnrollmentImport } from '@/components/management/EnrollmentImport';
 import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
 
 export const ConfigTab = () => {
+  const isMounted = useRef<boolean>(true);
+  
+  // Tratamento defensivo para operações do DOM
+  useEffect(() => {
+    // Marcar componente como montado
+    isMounted.current = true;
+    
+    // Função para capturar erros de DOM globalmente
+    const handleDOMError = (event: ErrorEvent) => {
+      if (event.message.includes('removeChild') || event.message.includes('Node')) {
+        console.warn('Erro de DOM capturado e tratado em ConfigTab:', event.message);
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    
+    // Adicionar listener de erro global
+    window.addEventListener('error', handleDOMError);
+    
+    // Limpeza ao desmontar
+    return () => {
+      isMounted.current = false;
+      window.removeEventListener('error', handleDOMError);
+    };
+  }, []);
+  
   return (
     <div className="space-y-6">
       <div>
