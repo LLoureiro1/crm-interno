@@ -95,7 +95,7 @@ export const EnrollmentImport = () => {
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
         if (jsonData.length < 2) {
-          toast.error('A planilha deve ter pelo menos um cabeçalho e uma linha de dados');
+          toast.error('A planilha deve ter pelo menos um cabeçalho e uma linha com dados');
           return;
         }
 
