@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ interface MappedData extends EnrollmentImportData {
 }
 
 export const EnrollmentImport = () => {
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [importData, setImportData] = useState<EnrollmentImportData[]>([]);
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
@@ -46,6 +48,21 @@ export const EnrollmentImport = () => {
   const [importProgress, setImportProgress] = useState<number>(0);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Função para registrar interação
+  const registerInteraction = async (studentId: string, description: string) => {
+    try {
+      await supabase.from('student_interactions').insert({
+        student_id: studentId,
+        user_id: user?.id,
+        interaction_type: 'matricula',
+        comments: description,
+        created_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Erro ao registrar interação:', error);
+    }
+  };
 
   // Campos obrigatórios
   const requiredFields = [
@@ -216,6 +233,10 @@ export const EnrollmentImport = () => {
         if (error) {
           console.error('Erro ao atualizar aluno:', error);
           toast.error(`Erro ao atualizar aluno com código CRM ${item.codigo_crm}`);
+        } else {
+          // Registrar a interação na ficha do estudante
+          const description = `Matrícula registrada via importação. Código ERP: ${item.codigo_erp}`;
+          await registerInteraction(item.student_id, description);
         }
 
         processedItems++;
