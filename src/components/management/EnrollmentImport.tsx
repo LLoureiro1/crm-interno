@@ -349,13 +349,13 @@ export const EnrollmentImport = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+            <div className="p-4 rounded-md border border-gray-200">
               <h4 className="text-sm font-medium mb-2">Instruções para preenchimento da planilha:</h4>
               <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
                 <li>O arquivo deve conter as colunas: <strong>codigo_crm</strong>, <strong>codigo_erp</strong> e <strong>status</strong></li>
-                <li>O <strong>codigo_crm</strong> deve ter exatamente 6 dígitos</li>
+                <li>O <strong>codigo_crm</strong> é o código de 6 dígitos do aluno no Laurel Escolar</li>
                 <li>O <strong>codigo_erp</strong> é obrigatório e deve corresponder ao código do aluno no sistema ERP</li>
-                <li>O <strong>status</strong> deve ser preenchido como "matriculado"</li>
+                <li>O <strong>status</strong> neste caso deve ser preenchido como "matriculado"</li>
                 <li>Todos os alunos devem estar previamente cadastrados no sistema</li>
               </ul>
             </div>
