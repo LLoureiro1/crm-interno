@@ -354,17 +354,37 @@ export const EnrollmentImport = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="enrollment-file">Arquivo</Label>
-              <Input
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <h4 className="text-sm font-medium mb-2">Instruções para preenchimento da planilha:</h4>
+              <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                <li>O arquivo deve conter as colunas: <strong>codigo_crm</strong>, <strong>codigo_erp</strong> e <strong>status</strong></li>
+                <li>O <strong>codigo_crm</strong> deve ter exatamente 6 dígitos</li>
+                <li>O <strong>codigo_erp</strong> é obrigatório e deve corresponder ao código do aluno no sistema ERP</li>
+                <li>O <strong>status</strong> deve ser preenchido como "matriculado"</li>
+                <li>Todos os alunos devem estar previamente cadastrados no sistema</li>
+              </ul>
+            </div>
+            
+            <div className="flex flex-col items-center justify-center gap-4">
+              <input
                 id="enrollment-file"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 accept=".xlsx,.xls"
                 disabled={isValidating || isImporting}
+                className="hidden"
               />
+              <Button 
+                variant="outline" 
+                className="w-full max-w-xs flex items-center gap-2 h-20 flex-col justify-center border-dashed"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isValidating || isImporting}
+              >
+                <Upload className="h-5 w-5" />
+                <span>Escolher arquivo</span>
+              </Button>
             </div>
 
             {file && (
