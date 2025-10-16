@@ -9,6 +9,7 @@ import { InterviewerAvailability } from '@/components/management/InterviewerAvai
 import { GradeUpload } from '@/components/management/GradeUpload';
 import { ExamDateManagement } from '@/components/management/ExamDateManagement';
 import { StudentImport } from '@/components/management/StudentImport';
+import { EnrollmentImport } from '@/components/management/EnrollmentImport';
 import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
 
 export const ConfigTab = () => {
@@ -20,7 +21,7 @@ export const ConfigTab = () => {
       </div>
       
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="units">Unidades</TabsTrigger>
           <TabsTrigger value="classes">Turmas</TabsTrigger>
@@ -29,6 +30,7 @@ export const ConfigTab = () => {
           <TabsTrigger value="grades">Notas</TabsTrigger>
           <TabsTrigger value="sources">Origens</TabsTrigger>
           <TabsTrigger value="import">Importação</TabsTrigger>
+          <TabsTrigger value="enrollment">Matrículas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -131,6 +133,20 @@ export const ConfigTab = () => {
 
         <TabsContent value="import">
           <StudentImport />
+        </TabsContent>
+
+        <TabsContent value="enrollment">
+          <Card>
+            <CardHeader>
+              <CardTitle>Importação de Matrículas</CardTitle>
+              <CardDescription>
+                Importe dados de alunos matriculados no sistema ERP
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EnrollmentImport />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
