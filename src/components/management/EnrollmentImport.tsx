@@ -334,12 +334,6 @@ export const EnrollmentImport = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Importação de Matrículas</h3>
-          <p className="text-sm text-gray-500">
-            Importe dados de alunos matriculados no sistema ERP
-          </p>
-        </div>
         <Button variant="outline" onClick={downloadTemplate} className="flex items-center gap-2">
           <Download className="h-4 w-4" />
           Baixar Template
