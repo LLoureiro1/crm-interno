@@ -366,7 +366,7 @@ export const EnrollmentImport = () => {
               </ul>
             </div>
             
-            <div className="flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center justify-start gap-4">
               <input
                 id="enrollment-file"
                 type="file"
@@ -377,12 +377,12 @@ export const EnrollmentImport = () => {
                 className="hidden"
               />
               <Button 
-                variant="outline" 
-                className="w-full max-w-xs flex items-center gap-2 h-20 flex-col justify-center border-dashed"
+                variant="default" 
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isValidating || isImporting}
               >
-                <Upload className="h-5 w-5" />
+                <Upload className="h-4 w-4" />
                 <span>Escolher arquivo</span>
               </Button>
             </div>
