@@ -37,16 +37,16 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
       if (installments === 1) {
         onInstallmentsChange(2);
       }
-      // Se passou de 6x, limitar a 6x
-      if (installments > 6) {
-        onInstallmentsChange(6);
+      // Se passou de 12x, limitar a 12x
+      if (installments > 12) {
+        onInstallmentsChange(12);
       }
     }
   }, [paymentType]);
 
   const getMaxInstallments = () => {
     if (paymentType === 'parcelado_cartao') return 12;
-    if (paymentType === 'parcelado_boleto') return 6;
+    if (paymentType === 'parcelado_boleto') return 12;
     return 1;
   };
 
@@ -101,7 +101,7 @@ export const MaterialPaymentSelector: React.FC<MaterialPaymentSelectorProps> = (
               <FileText className={`${compact ? 'h-3 w-3' : 'h-5 w-5'} text-gray-600`} />
               <div className="flex-1">
                 <div className="font-medium">Boleto</div>
-                {!compact && <div className="text-sm text-gray-600">Até 6x sem desconto</div>}
+                {!compact && <div className="text-sm text-gray-600">Até 12x sem desconto</div>}
               </div>
               <div className="text-gray-500 font-semibold text-xs">0%</div>
             </Label>
