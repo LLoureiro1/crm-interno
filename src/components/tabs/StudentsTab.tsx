@@ -13,6 +13,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import type { Tables } from '@/integrations/supabase/types';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -42,6 +43,7 @@ export const StudentsTab = () => {
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,7 +74,7 @@ export const StudentsTab = () => {
   useEffect(() => {
     filterStudents();
     setCurrentPage(1); // Reset para primeira página quando filtros mudarem
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter]);
+  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -211,6 +213,12 @@ export const StudentsTab = () => {
     if (academicYearFilter.length > 0) {
       filtered = filtered.filter(student => academicYearFilter.includes(student.ano_letivo!));
     }
+
+    filtered = filtered.slice().sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortOrder === 'desc' ? bTime - aTime : aTime - bTime;
+    });
 
     setFilteredStudents(filtered);
   };
@@ -392,6 +400,18 @@ export const StudentsTab = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+
+            <div className="md:col-span-1">
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Ordem de inscrição" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
+                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="md:col-span-1">

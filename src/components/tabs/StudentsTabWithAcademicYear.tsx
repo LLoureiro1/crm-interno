@@ -44,6 +44,7 @@ export const StudentsTabWithAcademicYear = () => {
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,7 +60,7 @@ export const StudentsTabWithAcademicYear = () => {
   useEffect(() => {
     filterStudents();
     setCurrentPage(1); // Reset para primeira página quando filtros mudarem
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter]);
+  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -160,6 +161,12 @@ export const StudentsTabWithAcademicYear = () => {
         student.exam_date && examDateFilter.includes(student.exam_date)
       );
     }
+  
+    filtered = filtered.slice().sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortOrder === 'desc' ? bTime - aTime : aTime - bTime;
+    });
   
     setFilteredStudents(filtered);
   };
@@ -266,6 +273,20 @@ export const StudentsTabWithAcademicYear = () => {
                   className="pl-10"
                 />
               </div>
+            </div>
+
+            {/* Ordenação */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ordem de inscrição</label>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar ordem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
+                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Status */}
