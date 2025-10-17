@@ -472,8 +472,8 @@ export const StudentsTab = () => {
                   <SelectValue placeholder="Ordem de inscrição" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
-                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
+                  <SelectItem value="desc">Inscrições mais recentes primeiro</SelectItem>
+                  <SelectItem value="asc">Inscrições mais antigas primeiro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
