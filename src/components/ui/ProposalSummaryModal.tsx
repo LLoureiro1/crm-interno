@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { GraduationCap, DollarSign, Percent, CreditCard, FileText, Package, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 
 interface ProposalSummaryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   student: {
+    id: string;
     student_name: string;
     classes: {
       name: string;
@@ -28,6 +31,38 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   onOpenChange,
   student
 }) => {
+  // Data do Atendimento
+  const [attendanceDate, setAttendanceDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAttendanceDate = async () => {
+      if (!open || !student?.id) return;
+      const { data, error } = await supabase
+        .from('student_interactions')
+        .select('created_at, interaction_type')
+        .eq('student_id', student.id)
+        .eq('interaction_type', 'atendimento')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao buscar Data do Atendimento:', error);
+        setAttendanceDate(null);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const latest = data[0];
+        const localDateStr = dateToLocalString(new Date(latest.created_at));
+        setAttendanceDate(localDateStr);
+      } else {
+        setAttendanceDate(null);
+      }
+    };
+
+    fetchAttendanceDate();
+  }, [open, student?.id]);
+
   const calculateFinalMonthlyFee = () => {
     if (!student.discount_percentage) return student.classes.monthly_fee;
     return student.classes.monthly_fee * (1 - (student.discount_percentage / 100));
@@ -72,6 +107,13 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
               <span>•</span>
               <span>{student.classes.units.name}</span>                            
             </div>
+            {attendanceDate && (
+              <div className="flex items-center justify-center space-x-1 text-xs text-gray-700 mt-1">
+                <Calendar className="h-3 w-3" />
+                <span>Data do Atendimento:</span>
+                <span className="font-medium text-gray-900">{formatDateForDisplay(attendanceDate)}</span>
+              </div>
+            )}
           </div>
         </DialogHeader>
 
