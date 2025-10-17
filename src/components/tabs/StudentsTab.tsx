@@ -19,6 +19,7 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
+  student_phones?: { phone_number: string }[];
 };
 
 type ExamDate = Tables<'exam_dates'> & {
@@ -82,15 +83,18 @@ export const StudentsTab = () => {
           *,
           units(*),
           series(*)
+        ),
+        student_phones(
+          phone_number
         )
       `)
       .order('created_at', { ascending: false });
-
+  
     if (error) {
       console.error('Error fetching students:', error);
       return;
     }
-
+  
     setStudents((data as Student[]) || []);
   };
 
@@ -145,10 +149,24 @@ export const StudentsTab = () => {
     let filtered = students;
 
     if (searchTerm) {
-      filtered = filtered.filter(student =>
-        student.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.code?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const termLower = searchTerm.toLowerCase();
+      const digits = searchTerm.replace(/\D/g, '');
+      const hasDigits = digits.length >= 3;
+
+      filtered = filtered.filter(student => {
+        const matchesText =
+          student.student_name.toLowerCase().includes(termLower) ||
+          (student.code?.toLowerCase().includes(termLower) || false);
+
+        const primaryPhoneDigits = (student.phone || '').replace(/\D/g, '');
+        const additionalPhonesDigits = (student.student_phones || []).map(p => (p.phone_number || '').replace(/\D/g, ''));
+        const matchesPhone = hasDigits && (
+          (primaryPhoneDigits.includes(digits)) ||
+          additionalPhonesDigits.some(p => p.includes(digits))
+        );
+
+        return matchesText || matchesPhone;
+      });
     }
 
     if (statusFilter.length > 0) {
@@ -369,7 +387,7 @@ export const StudentsTab = () => {
             <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Buscar por nome ou código..."
+                placeholder="Buscar por nome, código ou telefone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

@@ -22,6 +22,7 @@ type Student = Tables<'students'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
   };
+  student_phones?: { phone_number: string }[];
 };
 
 type ExamDate = Tables<'exam_dates'> & {
@@ -69,6 +70,9 @@ export const StudentsTabWithAcademicYear = () => {
           *,
           units(*),
           series(*)
+        ),
+        student_phones(
+          phone_number
         )
       `)
       .order('created_at', { ascending: false });
@@ -105,45 +109,58 @@ export const StudentsTabWithAcademicYear = () => {
 
   const filterStudents = () => {
     let filtered = [...students];
-
+  
     // Filtro por ano letivo
     if (academicYearFilter) {
       filtered = filtered.filter(student => student.ano_letivo === academicYearFilter);
     }
-
+  
     // Filtro por termo de busca
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(student =>
-        student.student_name.toLowerCase().includes(term) ||
-        student.responsible_name.toLowerCase().includes(term) ||
-        student.email.toLowerCase().includes(term) ||
-        student.phone.includes(term)
-      );
+      const digits = searchTerm.replace(/\D/g, '');
+      const hasDigits = digits.length >= 3;
+  
+      filtered = filtered.filter(student => {
+        const matchesText =
+          student.student_name.toLowerCase().includes(term) ||
+          student.responsible_name.toLowerCase().includes(term) ||
+          student.email.toLowerCase().includes(term) ||
+          (student.phone || '').toLowerCase().includes(term);
+  
+        const primaryPhoneDigits = (student.phone || '').replace(/\D/g, '');
+        const additionalPhonesDigits = (student.student_phones || []).map(p => (p.phone_number || '').replace(/\D/g, ''));
+        const matchesPhone = hasDigits && (
+          (primaryPhoneDigits.includes(digits)) ||
+          additionalPhonesDigits.some(p => p.includes(digits))
+        );
+  
+        return matchesText || matchesPhone;
+      });
     }
-
+  
     // Filtro por status
     if (statusFilter.length > 0) {
       filtered = filtered.filter(student => statusFilter.includes(student.status));
     }
-
+  
     // Filtro por unidade
     if (unitFilter.length > 0) {
       filtered = filtered.filter(student => unitFilter.includes(student.classes.unit_id));
     }
-
+  
     // Filtro por série
     if (seriesFilter.length > 0) {
       filtered = filtered.filter(student => seriesFilter.includes(student.classes.series_id));
     }
-
+  
     // Filtro por data de exame
     if (examDateFilter.length > 0) {
       filtered = filtered.filter(student => 
         student.exam_date && examDateFilter.includes(student.exam_date)
       );
     }
-
+  
     setFilteredStudents(filtered);
   };
 
@@ -243,7 +260,7 @@ export const StudentsTabWithAcademicYear = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Nome, responsável, email..."
+                  placeholder="Nome, responsável, email ou telefone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
