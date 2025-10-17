@@ -275,20 +275,6 @@ export const StudentsTabWithAcademicYear = () => {
               </div>
             </div>
 
-            {/* Ordenação */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Ordem de inscrição</label>
-              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar ordem" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
-                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Status */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
@@ -334,6 +320,20 @@ export const StudentsTabWithAcademicYear = () => {
                 onChange={setExamDateFilter}
                 placeholder="Selecionar datas"
               />
+            </div>
+
+            {/* Ordenação */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ordem de inscrição</label>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar ordem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
+                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

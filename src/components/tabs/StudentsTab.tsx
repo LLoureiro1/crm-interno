@@ -402,17 +402,7 @@ export const StudentsTab = () => {
               />
             </div>
 
-            <div className="md:col-span-1">
-              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Ordem de inscrição" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
-                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Ordem de inscrição (movido para o final) */}
             
             <div className="md:col-span-1">
               <MultiSelect
@@ -473,6 +463,19 @@ export const StudentsTab = () => {
                 placeholder="Data da Prova"
                 className="w-full"
               />
+            </div>
+
+            {/* Ordem de inscrição */}
+            <div className="md:col-span-1">
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Ordem de inscrição" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Mais recente primeiro</SelectItem>
+                  <SelectItem value="asc">Mais antiga primeiro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
