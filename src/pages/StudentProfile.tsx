@@ -95,6 +95,7 @@ const StudentProfile = () => {
   // Verificar se hoje é o dia da entrevista (usando data local)
   const today = getCurrentDate();
   const isInterviewDay = student?.interview_date === today;
+  const [forceOpenAttendance, setForceOpenAttendance] = useState(false);
 
 
   useEffect(() => {
@@ -1215,17 +1216,19 @@ const StudentProfile = () => {
                             {isInterviewDay && ' (HOJE)'}
                           </p>
                         </div>
-                        {/* Botão de cancelar entrevista */}
+                        {/* Ações: cancelar entrevista */}
                         {canRegisterAttendance && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCancelInterview}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Cancelar entrevista"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelInterview}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Cancelar entrevista"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
                       </div>
                       {currentAppointment && (
@@ -1234,6 +1237,21 @@ const StudentProfile = () => {
                           <Badge variant={currentAppointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
                             {currentAppointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
                           </Badge>
+                        </div>
+                      )}
+
+                      {canRegisterAttendance && !!student?.interview_date && !((isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente') && (
+                        <div className="mt-2 ml-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setForceOpenAttendance(true)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Abrir Registrar Atendimento"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Registrar Atendimento
+                          </Button>
                         </div>
                       )}
                     </>
@@ -1372,7 +1390,7 @@ const StudentProfile = () => {
             </Card>
 
             {/* Actions - Only show Register Attendance if it's interview day */}
-            {canRegisterAttendance && isInterviewDay && student.status !== 'atendimento_recentemente' && (
+            {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
               <Card>
                 <CardHeader>
                   <CardTitle>Registrar Atendimento</CardTitle>
