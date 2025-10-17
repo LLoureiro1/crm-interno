@@ -101,3 +101,31 @@
 }
 
 a[href*="lovable.dev"], iframe[src*="lovable.dev"], div[style*="Edit with Lovable"], .lovable-badge { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; position: absolute !important; z-index: -9999 !important; }
+
+/* Print styles for Proposal Summary */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .proposal-print-area, .proposal-print-area * {
+    visibility: visible !important;
+  }
+  .proposal-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}

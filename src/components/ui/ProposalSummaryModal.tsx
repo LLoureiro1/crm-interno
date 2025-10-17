@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { GraduationCap, DollarSign, Percent, CreditCard, FileText, Package, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { GraduationCap, DollarSign, Percent, CreditCard, FileText, Package, Calendar, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 
@@ -88,36 +89,48 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   const finalMaterialAnual = calculateFinalMaterialAnual();
   const materialSavings = (student.classes.material_didatico_anual || 0) - finalMaterialAnual;
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
-        <DialogHeader className="pb-3">
-          <DialogTitle className="text-xl font-bold text-center">
-            📋 Resumo da Proposta
-          </DialogTitle>
-          <div className="text-center space-y-1">
-            <p className="text-gray-800 font-semibold">
-              {student.student_name}
-            </p>
-            <div className="flex items-center justify-center space-x-4 text-xs text-gray-600">
-              <span className="flex items-center space-x-1">
-                <GraduationCap className="h-3 w-3" />
-                <span>{student.classes.series.name}</span>
-              </span>
-              <span>•</span>
-              <span>{student.classes.units.name}</span>                            
-            </div>
-            {attendanceDate && (
-              <div className="flex items-center justify-center space-x-1 text-xs text-gray-700 mt-1">
-                <Calendar className="h-3 w-3" />
-                <span>Data do Atendimento:</span>
-                <span className="font-medium text-gray-900">{formatDateForDisplay(attendanceDate)}</span>
-              </div>
-            )}
-          </div>
-        </DialogHeader>
+        <div className="flex justify-end mb-4 no-print">
+          <Button variant="outline" onClick={handlePrint} className="gap-2">
+            <Printer className="h-4 w-4" />
+            <span>Imprimir Proposta</span>
+          </Button>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="proposal-print-area">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-xl font-bold text-center">
+              📋 Resumo da Proposta
+            </DialogTitle>
+            <div className="text-center space-y-1">
+              <p className="text-gray-800 font-semibold">
+                {student.student_name}
+              </p>
+              <div className="flex items-center justify-center space-x-4 text-xs text-gray-600">
+                <span className="flex items-center space-x-1">
+                  <GraduationCap className="h-3 w-3" />
+                  <span>{student.classes.series.name}</span>
+                </span>
+                <span>•</span>
+                <span>{student.classes.units.name}</span>                            
+              </div>
+              {attendanceDate && (
+                <div className="flex items-center justify-center space-x-1 text-xs text-gray-700 mt-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>Data do Atendimento:</span>
+                  <span className="font-medium text-gray-900">{formatDateForDisplay(attendanceDate)}</span>
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Mensalidade */}
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
@@ -215,6 +228,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
               </div>
             </div>
           )}
+        </div>
         </div>
       </DialogContent>
     </Dialog>
