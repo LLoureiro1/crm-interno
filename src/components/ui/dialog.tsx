@@ -4,7 +4,18 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+// Wrapper seguro para Dialog que previne erros de removeChild
+const Dialog = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>
+>(({ children, ...props }, ref) => {
+  return (
+    <DialogPrimitive.Root {...props} ref={ref}>
+      {children}
+    </DialogPrimitive.Root>
+  );
+});
+Dialog.displayName = "Dialog";
 
 const DialogTrigger = DialogPrimitive.Trigger
 
