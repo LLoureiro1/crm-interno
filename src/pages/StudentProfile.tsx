@@ -158,6 +158,7 @@ const StudentProfile = () => {
       .from('profiles')
       .select('*')
       .in('profile', ['entrevistador', 'direcao', 'admin'])
+      .eq('ativo', true)
       .order('name');
 
     if (error) {
