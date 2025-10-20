@@ -1543,6 +1543,7 @@ const StudentProfile = () => {
                           <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
                           <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
                           <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
+                          <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
                           <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
                           <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
