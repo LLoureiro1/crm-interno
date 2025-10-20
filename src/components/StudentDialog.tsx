@@ -117,8 +117,8 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
         updateData.dropout_reason = dropoutReason;
-        // Adicionar comentário se for motivos financeiros e houver texto
-        if (dropoutReason === 'motivos_financeiros' && dropoutComment.trim()) {
+        // Adicionar comentário opcional independentemente do motivo
+        if (dropoutComment.trim()) {
           updateData.dropout_comment = dropoutComment.trim();
         }
       }
@@ -137,7 +137,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'motivos_financeiros' && dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : ''}`
+          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -364,10 +364,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div>
                     <Select value={dropoutReason} onValueChange={(value) => {
                       setDropoutReason(value as Enums<'dropout_reason'>);
-                      // Limpar comentário se mudar de motivos financeiros
-                      if (value !== 'motivos_financeiros') {
-                        setDropoutComment('');
-                      }
                     }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o motivo" />
@@ -383,15 +379,15 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                       </SelectContent>
                     </Select>
                     
-                    {/* Campo de texto para motivos financeiros */}
-                    {dropoutReason === 'motivos_financeiros' && (
+                    {/* Campo de texto opcional para qualquer motivo */}
+                    {dropoutReason && (
                       <div className="mt-3">
-                        <Label htmlFor="dropout-comment">Detalhe os motivos financeiros (opcional)</Label>
+                        <Label htmlFor="dropout-comment">Detalhes do motivo (opcional)</Label>
                         <Textarea
                           id="dropout-comment"
                           value={dropoutComment}
                           onChange={(e) => setDropoutComment(e.target.value)}
-                          placeholder="Ex: Dificuldades financeiras, perda de emprego, etc."
+                          placeholder="Adicione mais contexto, se desejar."
                           className="mt-1"
                           rows={3}
                         />

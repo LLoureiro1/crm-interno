@@ -607,12 +607,15 @@ const StudentProfile = () => {
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
         updateData.dropout_reason = dropoutReason;
+        const commentParts: string[] = [];
         if (dropoutReason === 'outro' && customDropoutReason.trim()) {
-          updateData.dropout_comment = customDropoutReason.trim();
+          commentParts.push(customDropoutReason.trim());
         }
-        // Adicionar comentário se for motivos financeiros e houver texto
-        if (dropoutReason === 'motivos_financeiros' && dropoutComment.trim()) {
-          updateData.dropout_comment = dropoutComment.trim();
+        if (dropoutComment.trim()) {
+          commentParts.push(dropoutComment.trim());
+        }
+        if (commentParts.length) {
+          updateData.dropout_comment = commentParts.join(' - ');
         }
       }
       if (newStatus === 'cadastro_invalido') {
@@ -633,7 +636,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : dropoutReason === 'motivos_financeiros' && dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : ''}`
+          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -642,6 +645,7 @@ const StudentProfile = () => {
       // Limpar campos após sucesso
       setDropoutReason('');
       setCustomDropoutReason('');
+      setDropoutComment('');
       setInvalidReason('');
     } catch (error) {
       console.error('Error updating status:', error);
@@ -1532,9 +1536,7 @@ const StudentProfile = () => {
                         if (value !== 'outro') {
                           setCustomDropoutReason(''); // Limpa o motivo customizado se não for "outro"
                         }
-                        if (value !== 'motivos_financeiros') {
-                          setDropoutComment(''); // Limpa o comentário se não for "motivos_financeiros"
-                        }
+                        // Não limpar mais o comentário ao trocar o motivo; é opcional para todos os motivos
                       }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o motivo" />
@@ -1564,15 +1566,15 @@ const StudentProfile = () => {
                       </div>
                     )}
                     
-                    {/* Campo de texto para motivos financeiros */}
-                    {dropoutReason === 'motivos_financeiros' && (
+                    {/* Campo de texto opcional para qualquer motivo */}
+                    {dropoutReason && (
                       <div>
-                        <Label htmlFor="dropout-comment">Detalhe os motivos financeiros (opcional)</Label>
+                        <Label htmlFor="dropout-comment">Detalhes do motivo (opcional)</Label>
                         <Textarea
                           id="dropout-comment"
                           value={dropoutComment}
                           onChange={(e) => setDropoutComment(e.target.value)}
-                          placeholder="Ex: Dificuldades financeiras, perda de emprego, etc."
+                          placeholder="Adicione mais contexto, se desejar."
                           rows={3}
                         />
                       </div>
