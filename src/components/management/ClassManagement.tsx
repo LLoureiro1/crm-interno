@@ -26,6 +26,7 @@ export const ClassManagement = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
+  const [unitFilter, setUnitFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
@@ -229,6 +230,8 @@ export const ClassManagement = () => {
     setEditingClass(null);
   };
 
+  const visibleClasses = unitFilter === 'all' ? classes : classes.filter(c => c.unit_id === unitFilter);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -375,8 +378,24 @@ export const ClassManagement = () => {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle>Lista de Turmas</CardTitle>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Unidade</Label>
+            <Select value={unitFilter} onValueChange={setUnitFilter}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Todas as unidades" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as unidades</SelectItem>
+                {units.map((unit) => (
+                  <SelectItem key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -395,7 +414,7 @@ export const ClassManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {classes.map((classItem) => (
+              {visibleClasses.map((classItem) => (
                 <TableRow key={classItem.id}>
                   <TableCell>{classItem.name}</TableCell>
                   <TableCell>{classItem.series.name}</TableCell>
