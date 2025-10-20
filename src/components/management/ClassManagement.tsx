@@ -253,13 +253,13 @@ export const ClassManagement = () => {
                   Nova Turma
                 </Button>
               </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[95vw] sm:max-w-[920px] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingClass ? 'Editar Turma' : 'Nova Turma'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Nome *</Label>
                 <Input
@@ -356,7 +356,7 @@ export const ClassManagement = () => {
                   placeholder="Será calculado automaticamente"
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="col-span-2 flex items-center space-x-2">
                 <Checkbox
                   id="has_exam"
                   checked={formData.has_exam}
@@ -364,7 +364,7 @@ export const ClassManagement = () => {
                 />
                 <Label htmlFor="has_exam">Possui prova de seleção</Label>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="col-span-2 flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
                 </Button>
