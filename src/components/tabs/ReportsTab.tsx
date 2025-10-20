@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
@@ -56,6 +56,9 @@ export const ReportsTab = () => {
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
   const [todayAppointmentsStudents, setTodayAppointmentsStudents] = useState<Student[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState<string>('');
+  const [dialogStudents, setDialogStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     fetchUnits();
@@ -211,43 +214,38 @@ export const ReportsTab = () => {
     return studentsData.filter(s => s.status === status);
   };
 
-  const StudentsList = ({ students, title }: { students: Student[], title: string }) => (
-    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-      </DialogHeader>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome do Aluno</TableHead>
-            <TableHead>Responsável</TableHead>
-            <TableHead>Telefone</TableHead>
-            <TableHead>Turma</TableHead>
-            <TableHead>Unidade</TableHead>
-            <TableHead>Status</TableHead>
+  const StudentsTable = ({ students }: { students: Student[] }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nome do Aluno</TableHead>
+          <TableHead>Responsável</TableHead>
+          <TableHead>Telefone</TableHead>
+          <TableHead>Turma</TableHead>
+          <TableHead>Unidade</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {students.map((student) => (
+          <TableRow key={student.id}>
+            <TableCell>
+              <Link 
+                to={`/student/${student.id}`} 
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {student.student_name}
+              </Link>
+            </TableCell>
+            <TableCell>{student.responsible_name}</TableCell>
+            <TableCell>{student.phone}</TableCell>
+            <TableCell>{student.classes.name}</TableCell>
+            <TableCell>{student.classes.units.name}</TableCell>
+            <TableCell>{statusLabels[student.status] || student.status}</TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.map((student) => (
-            <TableRow key={student.id}>
-              <TableCell>
-                <Link 
-                  to={`/student/${student.id}`} 
-                  className="text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                  {student.student_name}
-                </Link>
-              </TableCell>
-              <TableCell>{student.responsible_name}</TableCell>
-              <TableCell>{student.phone}</TableCell>
-              <TableCell>{student.classes.name}</TableCell>
-              <TableCell>{student.classes.units.name}</TableCell>
-              <TableCell>{statusLabels[student.status] || student.status}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DialogContent>
+        ))}
+      </TableBody>
+    </Table>
   );
 
   const statusLabels: { [key: string]: string } = {
@@ -262,6 +260,12 @@ export const ReportsTab = () => {
     'ausente': 'Ausente',
     'desistente': 'Desistente',
     'matriculado': 'Matriculado'
+  };
+
+  const openDialog = (students: Student[], title: string) => {
+    setDialogStudents(students);
+    setDialogTitle(title);
+    setDialogOpen(true);
   };
 
   return (
@@ -300,74 +304,45 @@ export const ReportsTab = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.totalInscricoes}</div>
-              </CardContent>
-            </Card>
-          </DialogTrigger>
-          <StudentsList 
-            students={getFilteredStudents('total')} 
-            title="Total de Inscrições" 
-          />
-        </Dialog>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.totalInscricoes}</div>
+          </CardContent>
+        </Card>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.alunosProximaProva}</div>
-              </CardContent>
-            </Card>
-          </DialogTrigger>
-          <StudentsList 
-            students={getFilteredStudents('proxima_prova')} 
-            title="Alunos com Próxima Prova" 
-          />
-        </Dialog>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.alunosProximaProva}</div>
+          </CardContent>
+        </Card>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>                
-              </CardContent>
-            </Card>
-          </DialogTrigger>
-          <StudentsList students={todayAppointmentsStudents} title="Alunos com Agendamentos Hoje" />
-        </Dialog>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(todayAppointmentsStudents, 'Alunos com Agendamentos Hoje')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>                
+          </CardContent>
+        </Card>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportData.matriculados}</div>
-              </CardContent>
-            </Card>
-          </DialogTrigger>
-          <StudentsList 
-            students={getFilteredStudents('matriculados')} 
-            title="Alunos Matriculados" 
-          />
-        </Dialog>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.matriculados}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Status Breakdown */}
@@ -395,25 +370,30 @@ export const ReportsTab = () => {
 
               // Filtrar apenas os status que existem nos dados e ordenar conforme a ordem definida
               return statusOrder
-                .filter(status => reportData.statusCounts[status] !== undefined)
-                .map(status => (
-                  <Dialog key={status}>
-                    <DialogTrigger asChild>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow">
-                        <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
-                        <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
-                      </div>
-                    </DialogTrigger>
-                    <StudentsList 
-                      students={getStudentsByStatus(status)} 
-                      title={`Alunos com Status: ${statusLabels[status] || status}`} 
-                    />
-                  </Dialog>
-                ));
+            .filter(status => reportData.statusCounts[status] !== undefined)
+            .map(status => (
+              <div
+                key={status}
+                className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}
+              >
+                <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
+                <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
+              </div>
+            ));
             })()}
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <StudentsTable students={dialogStudents} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
