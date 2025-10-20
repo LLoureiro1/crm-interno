@@ -9,6 +9,7 @@ import { AppointmentsTab } from './tabs/AppointmentsTab';
 import { ConfigTab } from './tabs/ConfigTab';
 import { AdvancedReportsTab } from './tabs/AdvancedReportsTab';
 import { BarChart3, Users, Calendar, Settings, TrendingUp, UserPlus } from 'lucide-react';
+import ErrorBoundary from './ErrorBoundary';
 
 export const Dashboard = () => {
   const { profile } = useAuth();
@@ -65,26 +66,36 @@ export const Dashboard = () => {
         </div>
 
         <TabsContent value="reports" className="space-y-4">
-          <ReportsTab />
+          <ErrorBoundary>
+            <ReportsTab />
+          </ErrorBoundary>
         </TabsContent>
 
         {canAccessAdvancedReports && (
           <TabsContent value="advanced-reports" className="space-y-4">
-            <AdvancedReportsTab />
+            <ErrorBoundary>
+              <AdvancedReportsTab />
+            </ErrorBoundary>
           </TabsContent>
         )}
 
         <TabsContent value="students" className="space-y-4">
-          <StudentsTab />
+          <ErrorBoundary>
+            <StudentsTab />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="appointments" className="space-y-4">
-          <AppointmentsTab />
+          <ErrorBoundary>
+            <AppointmentsTab />
+          </ErrorBoundary>
         </TabsContent>
 
         {canAccessConfig && (
           <TabsContent value="config" className="space-y-4">
-            <ConfigTab />
+            <ErrorBoundary>
+              <ConfigTab />
+            </ErrorBoundary>
           </TabsContent>
         )}
       </Tabs>

@@ -11,29 +11,48 @@ import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Confirmation from './components/registration/Confirmation';
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
+// Componente de fallback simples para erros não relacionados a removeChild
+const ErrorFallback = () => (
+  <div className="flex items-center justify-center h-screen bg-red-50">
+    <div className="text-center p-6 bg-white rounded-lg shadow-lg">
+      <h2 className="text-xl font-bold text-red-600 mb-2">Algo deu errado</h2>
+      <p className="mb-4">Ocorreu um erro inesperado. Por favor, tente recarregar a página.</p>
+      <button 
+        onClick={() => window.location.reload()} 
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Recarregar
+      </button>
+    </div>
+  </div>
+);
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/inscricao/:unitSlug" element={<Registration />} />
-          <Route path="/inscricao" element={<Registration />} />
-          <Route path="/student/:id" element={<StudentProfile />} />
-          <Route path="/set-password" element={<SetPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/confirmacao" element={<Confirmation />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary fallback={<ErrorFallback />}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/inscricao/:unitSlug" element={<Registration />} />
+            <Route path="/inscricao" element={<Registration />} />
+            <Route path="/student/:id" element={<StudentProfile />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/confirmacao" element={<Confirmation />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
