@@ -29,6 +29,20 @@ export const ClassManagement = () => {
   const [unitFilter, setUnitFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const computeMonthlyFee = (annuityStr: string, parcelasStr: string) => {
+    const annuity = parseFloat(annuityStr);
+    const parcelas = parseInt(parcelasStr);
+    if (isNaN(annuity) || isNaN(parcelas) || parcelas <= 0) return null;
+    return parseFloat((annuity / parcelas).toFixed(2));
+  };
+
+  const computeMaterialMensal = (anualStr: string, parcelasStr: string) => {
+    const anual = parseFloat(anualStr);
+    const parcelas = parseInt(parcelasStr);
+    if (isNaN(anual) || isNaN(parcelas) || parcelas <= 0) return null;
+    return parseFloat((anual / parcelas).toFixed(2));
+  };
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -50,40 +64,14 @@ export const ClassManagement = () => {
 
   // Calcular mensalidade automaticamente baseado na anuidade e parcelas
   useEffect(() => {
-    if (formData.annuity && formData.parcelas) {
-      const annuityValue = parseFloat(formData.annuity);
-      const parcelasValue = parseInt(formData.parcelas);
-      
-      if (!isNaN(annuityValue) && !isNaN(parcelasValue) && parcelasValue > 0 && annuityValue > 0) {
-        const mensalidadeCalculada = annuityValue / parcelasValue;
-        setFormData(prev => ({ ...prev, monthly_fee: mensalidadeCalculada.toFixed(2) }));
-      } else {
-        // Limpar mensalidade se os valores não forem válidos
-        setFormData(prev => ({ ...prev, monthly_fee: '' }));
-      }
-    } else {
-      // Limpar mensalidade se algum campo estiver vazio
-      setFormData(prev => ({ ...prev, monthly_fee: '' }));
-    }
+    const fee = computeMonthlyFee(formData.annuity, formData.parcelas);
+    setFormData(prev => ({ ...prev, monthly_fee: fee !== null ? fee.toFixed(2) : '' }));
   }, [formData.annuity, formData.parcelas]);
 
   // Calcular recursos didáticos mensal automaticamente baseado no material anual e parcelas
   useEffect(() => {
-    if (formData.material_didatico_anual && formData.parcelas) {
-      const materialAnualValue = parseFloat(formData.material_didatico_anual);
-      const parcelasValue = parseInt(formData.parcelas);
-      
-      if (!isNaN(materialAnualValue) && !isNaN(parcelasValue) && parcelasValue > 0 && materialAnualValue > 0) {
-        const materialMensalCalculado = materialAnualValue / parcelasValue;
-        setFormData(prev => ({ ...prev, material_didatico_mes: materialMensalCalculado.toFixed(2) }));
-      } else {
-        // Limpar material mensal se os valores não forem válidos
-        setFormData(prev => ({ ...prev, material_didatico_mes: '' }));
-      }
-    } else {
-      // Limpar material mensal se algum campo estiver vazio
-      setFormData(prev => ({ ...prev, material_didatico_mes: '' }));
-    }
+    const materialMensal = computeMaterialMensal(formData.material_didatico_anual, formData.parcelas);
+    setFormData(prev => ({ ...prev, material_didatico_mes: materialMensal !== null ? materialMensal.toFixed(2) : '' }));
   }, [formData.material_didatico_anual, formData.parcelas]);
 
   const fetchClasses = async () => {
@@ -137,16 +125,25 @@ export const ClassManagement = () => {
     setLoading(true);
 
     try {
+      const feeNum = computeMonthlyFee(formData.annuity, formData.parcelas);
+      const materialMensalNum = computeMaterialMensal(formData.material_didatico_anual, formData.parcelas);
+
+      if (feeNum === null) {
+        toast.error('Informe anuidade e número de parcelas maiores que 0 para calcular a mensalidade.');
+        setLoading(false);
+        return;
+      }
+
       const classData = {
         name: formData.name,
         series_id: formData.series_id,
         unit_id: formData.unit_id,
         has_exam: formData.has_exam,
-        monthly_fee: parseFloat(formData.monthly_fee),
+        monthly_fee: feeNum,
         annuity: parseFloat(formData.annuity),
         parcelas: parseInt(formData.parcelas),
         material_didatico_anual: parseFloat(formData.material_didatico_anual),
-        material_didatico_mes: parseFloat(formData.material_didatico_mes)
+        material_didatico_mes: materialMensalNum ?? 0
       };
 
       if (editingClass) {
@@ -182,17 +179,20 @@ export const ClassManagement = () => {
     const annuity = (classItem as any).annuity?.toString() || '0';
     const parcelas = (classItem as any).parcelas?.toString() || '1';
     const materialAnual = (classItem as any).material_didatico_anual?.toString() || '0';
+
+    const feeNum = computeMonthlyFee(annuity, parcelas);
+    const materialMensalNum = computeMaterialMensal(materialAnual, parcelas);
     
     setFormData({
       name: classItem.name,
       series_id: classItem.series_id,
       unit_id: classItem.unit_id,
       has_exam: classItem.has_exam,
-      monthly_fee: '', // Será calculado pelo useEffect
+      monthly_fee: feeNum !== null ? feeNum.toFixed(2) : '',
       annuity: annuity,
       parcelas: parcelas,
       material_didatico_anual: materialAnual,
-      material_didatico_mes: '' // Será calculado pelo useEffect
+      material_didatico_mes: materialMensalNum !== null ? materialMensalNum.toFixed(2) : ''
     });
     setDialogOpen(true);
   };
