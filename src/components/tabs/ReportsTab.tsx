@@ -79,27 +79,30 @@ export const ReportsTab = () => {
   // Função para contar alunos da próxima prova específica
   const getNextExamStudentCount = async (students: Student[]): Promise<number> => {
     try {
-      // Buscar a próxima data de exame (mais próxima do hoje)
       const { data: nextExamDate, error } = await supabase
         .from('exam_dates')
         .select('exam_date')
         .gte('exam_date', getCurrentDate())
         .order('exam_date', { ascending: true })
         .limit(1)
-        .single();
-
-      if (error || !nextExamDate) {
+        .maybeSingle();
+  
+      if (error) {
+        console.error('Erro ao buscar próxima prova:', error);
+        return 0;
+      }
+  
+      if (!nextExamDate?.exam_date) {
         console.log('Nenhuma prova futura encontrada');
         return 0;
       }
-
-      // Contar apenas alunos com exam_date igual à próxima data
+  
       const count = students.filter(student => {
         const isConfirmedStudent = student.status === 'confirmado' || student.status === 'nao_confirmado';
         const hasExamDate = student.exam_date === nextExamDate.exam_date;
         return isConfirmedStudent && hasExamDate;
       }).length;
-
+  
       return count;
     } catch (error) {
       console.error('Erro ao contar alunos da próxima prova:', error);
