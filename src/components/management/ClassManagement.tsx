@@ -51,7 +51,7 @@ export const ClassManagement = () => {
     has_exam: true,
     monthly_fee: '',
     annuity: '',
-    parcelas: '',
+    parcelas: '12',
     material_didatico_anual: '',
     material_didatico_mes: ''
   });
@@ -177,7 +177,7 @@ export const ClassManagement = () => {
   const handleEdit = (classItem: Class) => {
     setEditingClass(classItem);
     const annuity = (classItem as any).annuity?.toString() || '0';
-    const parcelas = (classItem as any).parcelas?.toString() || '1';
+    const parcelas = (classItem as any).parcelas?.toString() || '12';
     const materialAnual = (classItem as any).material_didatico_anual?.toString() || '0';
 
     const feeNum = computeMonthlyFee(annuity, parcelas);
@@ -223,7 +223,7 @@ export const ClassManagement = () => {
       has_exam: true,
       monthly_fee: '',
       annuity: '',
-      parcelas: '',
+      parcelas: '12',
       material_didatico_anual: '',
       material_didatico_mes: ''
     });

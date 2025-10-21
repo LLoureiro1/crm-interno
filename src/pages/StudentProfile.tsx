@@ -49,6 +49,7 @@ const StudentProfile = () => {
   const [discountPercentage, setDiscountPercentage] = useState<string>('');
   const [materialPaymentType, setMaterialPaymentType] = useState<'a_vista' | 'parcelado_cartao' | 'parcelado_boleto' | ''>('');
   const [materialInstallments, setMaterialInstallments] = useState<number>(2);
+  const [tuitionInstallments, setTuitionInstallments] = useState<number>(12);
   const [newStatus, setNewStatus] = useState<Enums<'student_status'> | ''>('');
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [dropoutComment, setDropoutComment] = useState<string>('');
@@ -120,6 +121,14 @@ const StudentProfile = () => {
       setSelectedClassId(student.class_id);
     }
   }, [student]);
+
+  useEffect(() => {
+    if (student?.classes?.parcelas) {
+      setTuitionInstallments(student.classes.parcelas);
+    } else {
+      setTuitionInstallments(12);
+    }
+  }, [student?.classes?.parcelas]);
 
   // Buscar turmas quando unidade ou série mudarem
   useEffect(() => {
@@ -560,6 +569,13 @@ const StudentProfile = () => {
       const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' : 
                               materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
                               `Boleto ${materialInstallments}x`;
+
+      const annuityOriginal = student?.classes?.annuity ?? (
+        (student?.classes?.monthly_fee || 0) * (student?.classes?.parcelas || 12)
+      );
+      const finalMonthlyFee = (
+        annuityOriginal * (1 - (discount / 100))
+      ) / Math.max(1, tuitionInstallments);
       
       const { error: interactionError } = await supabase
         .from('student_interactions')
@@ -567,7 +583,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto mensalidade: ${discount}%. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
+          comments: `Atendimento realizado. Mensalidade negociada: R$ ${finalMonthlyFee.toFixed(2)} em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
         });
 
       if (interactionError) throw interactionError;
@@ -1420,6 +1436,18 @@ const StudentProfile = () => {
                       placeholder="Ex: 10.0"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="tuition-installments">Parcelas da Anuidade</Label>
+                    <Input
+                      id="tuition-installments"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={tuitionInstallments}
+                      onChange={(e) => setTuitionInstallments(Math.max(1, parseInt(e.target.value || '1')))}
+                      placeholder="Ex: 12"
+                    />
+                  </div>
 
                   {/* Cálculo em tempo real da mensalidade */}
                   {student?.classes?.monthly_fee && (
@@ -1431,8 +1459,12 @@ const StudentProfile = () => {
                       {(() => {
                         const discount = discountPercentage ? parseFloat(discountPercentage) : 0;
                         const originalFee = student.classes.monthly_fee;
-                        const finalFee = originalFee * (1 - (discount / 100));
-                        const savings = originalFee - finalFee;
+                        const annuityOriginal = student.classes.annuity ?? (
+                          originalFee * (student.classes.parcelas || 12)
+                        );
+                        const annuityDiscounted = annuityOriginal * (1 - (discount / 100));
+                        const monthlyNegotiated = annuityDiscounted / Math.max(1, tuitionInstallments);
+                        const savings = originalFee - monthlyNegotiated;
                         
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1442,7 +1474,7 @@ const StudentProfile = () => {
                             </div>
                             <div>
                               <span className="text-gray-600">Valor Final:</span>
-                              <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
+                              <p className="font-bold text-xl text-green-700">R$ {monthlyNegotiated.toFixed(2)}</p>
                             </div>
                             <div>
                               <span className="text-gray-600">Economia Mensal:</span>
@@ -1451,6 +1483,14 @@ const StudentProfile = () => {
                             <div>
                               <span className="text-gray-600">Economia Anual:</span>
                               <p className="font-semibold text-lg text-green-600">R$ {(savings * 12).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Anuidade com desconto:</span>
+                              <p className="font-semibold text-lg text-green-700">R$ {annuityDiscounted.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Parcelas:</span>
+                              <p className="font-semibold text-lg text-green-700">{tuitionInstallments}x de R$ {monthlyNegotiated.toFixed(2)}</p>
                             </div>
                           </div>
                         );

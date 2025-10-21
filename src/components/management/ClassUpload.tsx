@@ -64,7 +64,7 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
         series: row['Série'] || row['serie'] || row['Series'] || '',
         unit: row['Unidade'] || row['unidade'] || row['Unit'] || '',
         annuity: parseFloat(row['Anuidade'] || row['anuidade'] || row['Annuity'] || '0'),
-        parcelas: parseInt(row['Parcelas'] || row['parcelas'] || row['Parcels'] || '0'),
+        parcelas: parseInt(row['Parcelas'] || row['parcelas'] || row['Parcels'] || '12'),
         material_anual: parseFloat(row['Material Anual'] || row['material_anual'] || row['Material'] || '0'),
         tem_prova: row['Tem Prova'] === 'Sim' || row['Tem Prova'] === 'sim' || row['Tem Prova'] === 'SIM' || row['Tem Prova'] === true || row['Tem Prova'] === '1'
       }));
@@ -91,7 +91,7 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
         series: row['Série'] || row['serie'] || row['Series'] || '',
         unit: row['Unidade'] || row['unidade'] || row['Unit'] || '',
         annuity: parseFloat(row['Anuidade'] || row['anuidade'] || row['Annuity'] || '0'),
-        parcelas: parseInt(row['Parcelas'] || row['parcelas'] || row['Parcels'] || '0'),
+        parcelas: parseInt(row['Parcelas'] || row['parcelas'] || row['Parcels'] || '12'),
         material_anual: parseFloat(row['Material Anual'] || row['material_anual'] || row['Material'] || '0'),
         tem_prova: row['Tem Prova'] === 'Sim' || row['Tem Prova'] === 'sim' || row['Tem Prova'] === 'SIM' || row['Tem Prova'] === true || row['Tem Prova'] === '1'
       }));

@@ -76,6 +76,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [attendanceComments, setAttendanceComments] = useState('');
   const [materialPaymentType, setMaterialPaymentType] = useState<MaterialPaymentType>('');
   const [materialInstallments, setMaterialInstallments] = useState<number>(2);
+  const [tuitionInstallments, setTuitionInstallments] = useState<number>(12);
 
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -269,6 +270,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     setAttendanceComments('');
     setMaterialPaymentType('');
     setMaterialInstallments(2);
+    setTuitionInstallments(appointment?.students?.classes?.parcelas || 12);
     setShowAttendanceModal(true);
   };
 
@@ -341,13 +343,20 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                               materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
                               `Boleto ${materialInstallments}x`;
 
+      const annuityOriginal = currentAppointment?.students?.classes?.annuity ?? (
+        (currentAppointment?.students?.classes?.monthly_fee || 0) * (currentAppointment?.students?.classes?.parcelas || 12)
+      );
+      const monthlyFeeDiscounted = (
+        annuityOriginal * (1 - (discount / 100))
+      ) / Math.max(1, tuitionInstallments);
+
       const { error: interactionError } = await supabase
         .from('student_interactions')
         .insert({
           student_id: currentAppointment.student_id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Desconto mensalidade: ${discount}%. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${attendanceComments.trim() || 'Sem comentários.'}`
+          comments: `Atendimento realizado. Mensalidade negociada: R$ ${monthlyFeeDiscounted.toFixed(2)} em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${attendanceComments.trim() || 'Sem comentários.'}`
         });
 
       if (interactionError) throw interactionError;
@@ -783,16 +792,58 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                         placeholder="Ex: 10"
                       />
                     </div>
+                    <div className="flex flex-col space-y-1 mt-1">
+                      <label htmlFor="tuition-installments" className="text-xs">Parcelas da Anuidade</label>
+                      <Input
+                        id="tuition-installments"
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={tuitionInstallments}
+                        onChange={(e) => setTuitionInstallments(Math.max(1, parseInt(e.target.value || '1')))}
+                        className="text-xs h-7"
+                        placeholder="Ex: 12"
+                      />
+                    </div>
                   </div>
 
                   {attendanceDiscount && !isNaN(parseFloat(attendanceDiscount)) && (
                     <div className="bg-green-50 p-1.5 rounded-lg border border-green-200 text-xs">
                       <div className="flex justify-between">
-                        <span>Valor com desconto:</span>
+                        <span>Mensalidade com desconto:</span>
                         <span className="text-green-700 font-semibold">
-                          R$ {calculateMonthlyFeeWithDiscount(
-                            currentAppointment?.students?.classes?.monthly_fee || 0,
-                            parseFloat(attendanceDiscount)
+                          R$ {(
+                            (
+                              (
+                                (currentAppointment?.students?.classes?.annuity ?? (
+                                  (currentAppointment?.students?.classes?.monthly_fee || 0) * (currentAppointment?.students?.classes?.parcelas || 12)
+                                )) * (1 - (parseFloat(attendanceDiscount) / 100))
+                              )
+                            ) / Math.max(1, tuitionInstallments)
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Anuidade com desconto:</span>
+                        <span className="text-green-700 font-semibold">
+                          R$ {(
+                            (currentAppointment?.students?.classes?.annuity ?? (
+                              (currentAppointment?.students?.classes?.monthly_fee || 0) * (currentAppointment?.students?.classes?.parcelas || 12)
+                            )) * (1 - (parseFloat(attendanceDiscount) / 100))
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span>Parcelas:</span>
+                        <span className="text-green-700 font-semibold">
+                          {tuitionInstallments}x de R$ {(
+                            (
+                              (
+                                (currentAppointment?.students?.classes?.annuity ?? (
+                                  (currentAppointment?.students?.classes?.monthly_fee || 0) * (currentAppointment?.students?.classes?.parcelas || 12)
+                                )) * (1 - (parseFloat(attendanceDiscount) / 100))
+                              )
+                            ) / Math.max(1, tuitionInstallments)
                           ).toFixed(2)}
                         </span>
                       </div>
