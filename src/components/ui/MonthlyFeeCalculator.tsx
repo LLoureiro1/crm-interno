@@ -75,11 +75,7 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
             <div>
               <span className="text-gray-600">Valor Final:</span>
               <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
-            </div>
-            <div>
-              <span className="text-gray-600">Economia Mensal:</span>
-              <p className="font-semibold text-lg text-green-600">R$ {savings.toFixed(2)}</p>
-            </div>
+            </div>           
             {showAnnualSavings && (
               <div>
                 <span className="text-gray-600">Economia Anual:</span>
