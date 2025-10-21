@@ -6,65 +6,7 @@ interface DOMErrorPreventionProps {
 
 export const DOMErrorPrevention: React.FC<DOMErrorPreventionProps> = ({ children }) => {
   useEffect(() => {
-    // Intercepta erros globais de DOM
-    const originalRemoveChild = Node.prototype.removeChild;
-    const originalReplaceChild = Node.prototype.replaceChild;
-    const originalAppendChild = Node.prototype.appendChild;
-    const originalInsertBefore = Node.prototype.insertBefore;
-
-    // Override seguro para removeChild
-    Node.prototype.removeChild = function<T extends Node>(child: T): T {
-      try {
-        if (this.contains(child)) {
-          return originalRemoveChild.call(this, child);
-        }
-        return child;
-      } catch (error) {
-        console.debug('Prevented removeChild error:', error);
-        return child;
-      }
-    };
-
-    // Override seguro para replaceChild
-    Node.prototype.replaceChild = function<T extends Node>(newChild: Node, oldChild: T): T {
-      try {
-        if (this.contains(oldChild)) {
-          return originalReplaceChild.call(this, newChild, oldChild);
-        }
-        return oldChild;
-      } catch (error) {
-        console.debug('Prevented replaceChild error:', error);
-        return oldChild;
-      }
-    };
-
-    // Override seguro para appendChild
-    Node.prototype.appendChild = function<T extends Node>(child: T): T {
-      try {
-        if (!this.contains(child)) {
-          return originalAppendChild.call(this, child);
-        }
-        return child;
-      } catch (error) {
-        console.debug('Prevented appendChild error:', error);
-        return child;
-      }
-    };
-
-    // Override seguro para insertBefore
-    Node.prototype.insertBefore = function<T extends Node>(newChild: T, referenceChild: Node | null): T {
-      try {
-        if (!this.contains(newChild) && (!referenceChild || this.contains(referenceChild))) {
-          return originalInsertBefore.call(this, newChild, referenceChild);
-        }
-        return newChild;
-      } catch (error) {
-        console.debug('Prevented insertBefore error:', error);
-        return newChild;
-      }
-    };
-
-    // Intercepta erros não capturados
+    // Apenas monitora erros DOM sem interferir nas operações nativas
     const handleUnhandledError = (event: ErrorEvent) => {
       const error = event.error;
       if (error && (
@@ -74,9 +16,9 @@ export const DOMErrorPrevention: React.FC<DOMErrorPreventionProps> = ({ children
         error.message?.includes('insertBefore') ||
         error.message?.includes('Failed to execute')
       )) {
-        console.debug('Prevented unhandled DOM error:', error.message);
-        event.preventDefault();
-        return false;
+        // Apenas loga o erro sem impedir sua propagação
+        console.warn('DOM error detectado:', error.message);
+        // Não usamos event.preventDefault() para permitir que o React/Radix lidem com o erro
       }
     };
 
@@ -88,9 +30,9 @@ export const DOMErrorPrevention: React.FC<DOMErrorPreventionProps> = ({ children
         reason.message.includes('appendChild') ||
         reason.message.includes('insertBefore')
       )) {
-        console.debug('Prevented unhandled DOM promise rejection:', reason.message);
-        event.preventDefault();
-        return false;
+        // Apenas loga a rejeição sem impedir sua propagação
+        console.warn('DOM promise rejection detectado:', reason.message);
+        // Não usamos event.preventDefault() para permitir que o React/Radix lidem com a rejeição
       }
     };
 
@@ -99,11 +41,6 @@ export const DOMErrorPrevention: React.FC<DOMErrorPreventionProps> = ({ children
 
     // Cleanup
     return () => {
-      Node.prototype.removeChild = originalRemoveChild;
-      Node.prototype.replaceChild = originalReplaceChild;
-      Node.prototype.appendChild = originalAppendChild;
-      Node.prototype.insertBefore = originalInsertBefore;
-      
       window.removeEventListener('error', handleUnhandledError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
