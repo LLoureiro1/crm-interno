@@ -24,6 +24,11 @@ import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 import { sanitizeInteractionComment, sanitizeInput } from '@/utils/sanitization';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -1352,21 +1357,62 @@ const StudentProfile = () => {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label htmlFor="interview-date">Data</Label>
-                    <Input
-                      id="interview-date"
-                      type="date"
-                      value={interviewDate}
-                      onChange={(e) => setInterviewDate(e.target.value)}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {interviewDate ? (
+                            format(new Date(interviewDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={interviewDate ? new Date(interviewDate + 'T00:00:00') : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              setInterviewDate(`${year}-${month}-${day}`);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <Label htmlFor="interview-time">Horário</Label>
-                    <Input
-                      id="interview-time"
-                      type="time"
-                      value={interviewTime}
-                      onChange={(e) => setInterviewTime(e.target.value)}
-                    />
+                    <Select value={interviewTime} onValueChange={setInterviewTime}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o horário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, hour) => {
+                          return [0, 15, 30, 45].map(minute => {
+                            const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                            const displayTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                            return (
+                              <SelectItem key={timeValue} value={timeValue}>
+                                {displayTime}
+                              </SelectItem>
+                            );
+                          });
+                        }).flat()}
+                      </SelectContent>
+                    </Select>
+                    {interviewTime && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Horário selecionado: {interviewTime}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="interviewer">Entrevistador</Label>
