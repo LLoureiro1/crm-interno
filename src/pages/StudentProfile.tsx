@@ -1316,6 +1316,8 @@ const StudentProfile = () => {
                     showClassName={true}
                     className={student.classes.name}
                     hasHadInterview={hasHadInterview}
+                    annuity={student.classes.annuity ?? ((student.classes.monthly_fee || 0) * (student.classes.parcelas || 12))}
+                    parcelas={student.classes.parcelas || 12}
                   />
                 </div>
 
@@ -1465,6 +1467,7 @@ const StudentProfile = () => {
                         const annuityDiscounted = annuityOriginal * (1 - (discount / 100));
                         const monthlyNegotiated = annuityDiscounted / Math.max(1, tuitionInstallments);
                         const savings = originalFee - monthlyNegotiated;
+                        const annualSavings = annuityOriginal - annuityDiscounted;
                         
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1482,7 +1485,7 @@ const StudentProfile = () => {
                             </div>
                             <div>
                               <span className="text-gray-600">Economia Anual:</span>
-                              <p className="font-semibold text-lg text-green-600">R$ {(savings * 12).toFixed(2)}</p>
+                              <p className="font-semibold text-lg text-green-600">R$ {annualSavings.toFixed(2)}</p>
                             </div>                            
                           </div>
                         );

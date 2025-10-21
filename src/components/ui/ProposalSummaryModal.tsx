@@ -18,6 +18,8 @@ interface ProposalSummaryModalProps {
       units: { name: string };
       monthly_fee: number;
       material_didatico_anual?: number | null;
+      annuity?: number | null;
+      parcelas?: number | null;
     };
     discount_percentage: number | null;
     discount_material: number | null;
@@ -89,6 +91,12 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   const finalMaterialAnual = calculateFinalMaterialAnual();
   const materialSavings = (student.classes.material_didatico_anual || 0) - finalMaterialAnual;
 
+  // Economia anual baseada na anuidade da turma
+  const parcelasCount = student.classes.parcelas || 12;
+  const annuityOriginal = student.classes.annuity ?? (student.classes.monthly_fee * parcelasCount);
+  const annuityDiscounted = student.discount_percentage ? annuityOriginal * (1 - (student.discount_percentage / 100)) : annuityOriginal;
+  const annualSavings = annuityOriginal - annuityDiscounted;
+
   const handlePrint = () => {
     window.print();
   };
@@ -157,7 +165,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                 <div className="bg-green-100 p-1.5 rounded text-center">
                   <p className="text-xs text-green-700">
                     💰 <strong>-R$ {monthlySavings.toFixed(2)}/mês</strong>
-                    <span className="block text-xs mt-0.5">(-R$ {(monthlySavings * 12).toFixed(2)}/ano)</span>
+                    <span className="block text-xs mt-0.5">(-R$ {annualSavings.toFixed(2)}/ano)</span>
                   </p>
                 </div>
               )}

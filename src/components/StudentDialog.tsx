@@ -312,6 +312,8 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     originalFee={student.classes.monthly_fee || 0}
                     discountPercentage={student.discount_percentage || 0}
                     hasHadInterview={hasHadInterview}
+                    annuity={student.classes.annuity ?? ((student.classes.monthly_fee || 0) * (student.classes.parcelas || 12))}
+                    parcelas={student.classes.parcelas || 12}
                   />
                 </div>
 

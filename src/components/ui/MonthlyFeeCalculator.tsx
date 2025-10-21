@@ -9,6 +9,8 @@ interface MonthlyFeeCalculatorProps {
   showClassName?: boolean;
   className?: string;
   hasHadInterview?: boolean;
+  annuity?: number; // anuidade da turma (opcional)
+  parcelas?: number; // número de parcelas da anuidade (opcional)
 }
 
 export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
@@ -18,7 +20,9 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   showAnnualSavings = true,
   showClassName = false,
   className,
-  hasHadInterview = false
+  hasHadInterview = false,
+  annuity,
+  parcelas,
 }) => {
   // Função para calcular mensalidade com desconto
   const calculateMonthlyFeeWithDiscount = (originalFee: number, discountPercentage: number) => {
@@ -29,6 +33,12 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
   const hasDiscount = discountPercentage && discountPercentage > 0;
   const finalFee = hasDiscount ? calculateMonthlyFeeWithDiscount(originalFee, discountPercentage) : originalFee;
   const savings = originalFee - finalFee;
+
+  // Cálculo de anuidade e economia anual
+  const parcelasCount = parcelas ?? 12;
+  const annuityOriginal = annuity ?? (originalFee * parcelasCount);
+  const annuityDiscounted = hasDiscount ? annuityOriginal * (1 - (Number(discountPercentage) / 100)) : annuityOriginal;
+  const annualSavings = hasDiscount ? annuityOriginal - annuityDiscounted : 0;
 
   // Determinar a mensagem adequada baseada em hasHadInterview
   const getNoDiscountMessage = () => {
@@ -75,11 +85,11 @@ export const MonthlyFeeCalculator: React.FC<MonthlyFeeCalculatorProps> = ({
             <div>
               <span className="text-gray-600">Valor Final:</span>
               <p className="font-bold text-xl text-green-700">R$ {finalFee.toFixed(2)}</p>
-            </div>           
+            </div>
             {showAnnualSavings && (
               <div>
                 <span className="text-gray-600">Economia Anual:</span>
-                <p className="font-semibold text-lg text-green-600">R$ {(savings * 12).toFixed(2)}</p>
+                <p className="font-semibold text-lg text-green-600">R$ {annualSavings.toFixed(2)}</p>
               </div>
             )}
           </div>
