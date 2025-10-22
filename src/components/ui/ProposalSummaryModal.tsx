@@ -159,7 +159,10 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
               )}
               <div className="flex justify-between items-center pt-1 border-t border-green-200">
                 <span className="font-semibold text-gray-800 text-xs">Final:</span>
-                <span className="text-lg font-bold text-green-700">{parcelasCount}x R$ {finalMonthlyFee.toFixed(2)}</span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-base font-semibold text-green-700">{parcelasCount}x</span>
+                  <span className="text-lg font-bold text-green-700">R$ {finalMonthlyFee.toFixed(2)}</span>
+                </div>
               </div>
               {monthlySavings > 0 && (
                 <div className="bg-green-100 p-1.5 rounded text-center">
@@ -219,9 +222,10 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                         <Calendar className="h-3 w-3 text-purple-700" />
                         <span className="text-xs font-medium text-purple-900">Parcelas:</span>
                       </div>
-                      <span className="text-sm font-bold text-purple-700">
-                        {student.material_installments}x R$ {student.material_parcela.toFixed(2)}
-                      </span>
+                      <div className="flex items-baseline space-x-2">
+                <span className="text-xs font-semibold text-purple-700">{student.material_installments}x</span>
+                <span className="text-sm font-bold text-purple-700">R$ {student.material_parcela.toFixed(2)}</span>
+              </div>
                     </div>
                   </div>
                 )}
