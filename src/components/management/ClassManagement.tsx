@@ -43,6 +43,20 @@ export const ClassManagement = () => {
     if (isNaN(anual) || isNaN(parcelas) || parcelas <= 0) return null;
     return parseFloat((anual / parcelas).toFixed(2));
   };
+
+  // Normaliza entrada decimal permitindo vírgula ou ponto como separador
+  const normalizeDecimalInput = (value: string): string => {
+    if (!value) return '';
+    const sanitized = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+    const lastDotIndex = sanitized.lastIndexOf('.');
+    if (lastDotIndex !== -1) {
+      const before = sanitized.slice(0, lastDotIndex).replace(/\./g, '');
+      const after = sanitized.slice(lastDotIndex + 1).replace(/\./g, '');
+      return `${before}.${after}`;
+    }
+    return sanitized.replace(/\./g, '');
+  };
+
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -253,44 +267,141 @@ export const ClassManagement = () => {
                   Nova Turma
                 </Button>
               </DialogTrigger>
-          <DialogContent className="w-[95vw] sm:max-w-[920px] max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingClass ? 'Editar Turma' : 'Nova Turma'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Nome *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="series">Série *</Label>
-                <Select value={formData.series_id} onValueChange={(value) => setFormData(prev => ({ ...prev, series_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a série" />
+              <DialogContent className="w-[95vw] sm:max-w-[920px] max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingClass ? 'Editar Turma' : 'Nova Turma'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Nome *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="series">Série *</Label>
+                    <Select value={formData.series_id} onValueChange={(value) => setFormData(prev => ({ ...prev, series_id: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a série" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {series.map((serie) => (
+                          <SelectItem key={serie.id} value={serie.id}>
+                            {serie.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="unit">Unidade *</Label>
+                    <Select value={formData.unit_id} onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a unidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {units.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.id}>
+                            {unit.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="monthly_fee">Mensalidade (R$) - Calculada automaticamente</Label>
+                    <Input
+                      id="monthly_fee"
+                      type="number"
+                      step="0.01"
+                      value={formData.monthly_fee}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed"
+                      placeholder="Será calculada automaticamente"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="annuity">Anuidade (R$) *</Label>
+                    <Input
+                      id="annuity"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.annuity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, annuity: normalizeDecimalInput(e.target.value) }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="parcelas">Número de Parcelas *</Label>
+                    <Input
+                      id="parcelas"
+                      type="number"
+                      min="1"
+                      value={formData.parcelas}
+                      onChange={(e) => setFormData(prev => ({ ...prev, parcelas: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="material_didatico_anual">Recursos Didáticos Anual (R$) *</Label>
+                    <Input
+                      id="material_didatico_anual"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.material_didatico_anual}
+                      onChange={(e) => setFormData(prev => ({ ...prev, material_didatico_anual: normalizeDecimalInput(e.target.value) }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="material_didatico_mes">Recursos Didáticos Mensal (R$) - Calculado automaticamente</Label>
+                    <Input
+                      id="material_didatico_mes"
+                      type="number"
+                      step="0.01"
+                      value={formData.material_didatico_mes}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed"
+                      placeholder="Será calculado automaticamente"
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <Checkbox
+                      id="has_exam"
+                      checked={formData.has_exam}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_exam: !!checked }))}
+                    />
+                    <Label htmlFor="has_exam">Possui prova de seleção</Label>
+                  </div>
+                  <div className="col-span-2 flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? 'Salvando...' : editingClass ? 'Atualizar' : 'Criar'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <CardTitle>Lista de Turmas</CardTitle>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Unidade</Label>
+                <Select value={unitFilter} onValueChange={setUnitFilter}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Todas as unidades" />
                   </SelectTrigger>
                   <SelectContent>
-                    {series.map((serie) => (
-                      <SelectItem key={serie.id} value={serie.id}>
-                        {serie.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="unit">Unidade *</Label>
-                <Select value={formData.unit_id} onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
                     {units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name}
@@ -299,162 +410,65 @@ export const ClassManagement = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="monthly_fee">Mensalidade (R$) - Calculada automaticamente</Label>
-                <Input
-                  id="monthly_fee"
-                  type="number"
-                  step="0.01"
-                  value={formData.monthly_fee}
-                  readOnly
-                  className="bg-gray-50 cursor-not-allowed"
-                  placeholder="Será calculada automaticamente"
-                />
-              </div>
-              <div>
-                <Label htmlFor="annuity">Anuidade (R$) *</Label>
-                <Input
-                  id="annuity"
-                  type="number"
-                  step="0.01"
-                  value={formData.annuity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, annuity: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="parcelas">Número de Parcelas *</Label>
-                <Input
-                  id="parcelas"
-                  type="number"
-                  min="1"
-                  value={formData.parcelas}
-                  onChange={(e) => setFormData(prev => ({ ...prev, parcelas: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="material_didatico_anual">Recursos Didáticos Anual (R$) *</Label>
-                <Input
-                  id="material_didatico_anual"
-                  type="number"
-                  step="0.01"
-                  value={formData.material_didatico_anual}
-                  onChange={(e) => setFormData(prev => ({ ...prev, material_didatico_anual: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="material_didatico_mes">Recursos Didáticos Mensal (R$) - Calculado automaticamente</Label>
-                <Input
-                  id="material_didatico_mes"
-                  type="number"
-                  step="0.01"
-                  value={formData.material_didatico_mes}
-                  readOnly
-                  className="bg-gray-50 cursor-not-allowed"
-                  placeholder="Será calculado automaticamente"
-                />
-              </div>
-              <div className="col-span-2 flex items-center space-x-2">
-                <Checkbox
-                  id="has_exam"
-                  checked={formData.has_exam}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_exam: !!checked }))}
-                />
-                <Label htmlFor="has_exam">Possui prova de seleção</Label>
-              </div>
-              <div className="col-span-2 flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : editingClass ? 'Atualizar' : 'Criar'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Lista de Turmas</CardTitle>
-          <div className="flex items-center gap-2">
-            <Label className="text-sm">Unidade</Label>
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Todas as unidades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as unidades</SelectItem>
-                {units.map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Série</TableHead>
-                <TableHead>Unidade</TableHead>
-                <TableHead>Mensalidade</TableHead>
-                <TableHead>Anuidade</TableHead>
-                <TableHead>Parcelas</TableHead>
-                <TableHead>Recuros Didáticos Anual</TableHead>
-                <TableHead>Recursos Didáticos Mensal</TableHead>
-                <TableHead>Tem Prova</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleClasses.map((classItem) => (
-                <TableRow key={classItem.id}>
-                  <TableCell>{classItem.name}</TableCell>
-                  <TableCell>{classItem.series.name}</TableCell>
-                  <TableCell>{classItem.units.name}</TableCell>
-                  <TableCell>R$ {classItem.monthly_fee.toFixed(2)}</TableCell>
-                  <TableCell>R$ {((classItem as any).annuity || 0).toFixed(2)}</TableCell>
-                  <TableCell>{(classItem as any).parcelas || 1}</TableCell>
-                  <TableCell>R$ {((classItem as any).material_didatico_anual || 0).toFixed(2)}</TableCell>
-                  <TableCell>R$ {((classItem as any).material_didatico_mes || 0).toFixed(2)}</TableCell>
-                  <TableCell>{classItem.has_exam ? 'Sim' : 'Não'}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(classItem)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(classItem)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-        </TabsContent>
-        
-        <TabsContent value="upload">
-          <ClassUpload onUploadSuccess={fetchClasses} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Série</TableHead>
+                    <TableHead>Unidade</TableHead>
+                    <TableHead>Mensalidade</TableHead>
+                    <TableHead>Anuidade</TableHead>
+                    <TableHead>Parcelas</TableHead>
+                    <TableHead>Recuros Didáticos Anual</TableHead>
+                    <TableHead>Recursos Didáticos Mensal</TableHead>
+                    <TableHead>Tem Prova</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleClasses.map((classItem) => (
+                    <TableRow key={classItem.id}>
+                      <TableCell>{classItem.name}</TableCell>
+                      <TableCell>{classItem.series.name}</TableCell>
+                      <TableCell>{classItem.units.name}</TableCell>
+                      <TableCell>R$ {classItem.monthly_fee.toFixed(2)}</TableCell>
+                      <TableCell>R$ {((classItem as any).annuity || 0).toFixed(2)}</TableCell>
+                      <TableCell>{(classItem as any).parcelas || 1}</TableCell>
+                      <TableCell>R$ {((classItem as any).material_didatico_anual || 0).toFixed(2)}</TableCell>
+                      <TableCell>R$ {((classItem as any).material_didatico_mes || 0).toFixed(2)}</TableCell>
+                      <TableCell>{classItem.has_exam ? 'Sim' : 'Não'}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(classItem)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(classItem)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+            </TabsContent>
+            
+            <TabsContent value="upload">
+              <ClassUpload onUploadSuccess={fetchClasses} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      );
 };
