@@ -356,7 +356,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
           student_id: currentAppointment.student_id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Mensalidade negociada: R$ ${monthlyFeeDiscounted.toFixed(2)} em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${attendanceComments.trim() || 'Sem comentários.'}`
+          comments: `Atendimento realizado. Mensalidade negociada: ${discount}% de desconto em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${attendanceComments.trim() || 'Sem comentários.'}`
         });
 
       if (interactionError) throw interactionError;

@@ -588,7 +588,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Mensalidade negociada: R$ ${finalMonthlyFee.toFixed(2)} em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
+          comments: `Atendimento realizado. Mensalidade negociada: ${discount}% de desconto em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
         });
 
       if (interactionError) throw interactionError;
