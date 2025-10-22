@@ -159,7 +159,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
               )}
               <div className="flex justify-between items-center pt-1 border-t border-green-200">
                 <span className="font-semibold text-gray-800 text-xs">Final:</span>
-                <span className="text-lg font-bold text-green-700">R$ {finalMonthlyFee.toFixed(2)}</span>
+                <span className="text-lg font-bold text-green-700">{parcelasCount}x R$ {finalMonthlyFee.toFixed(2)}</span>
               </div>
               {monthlySavings > 0 && (
                 <div className="bg-green-100 p-1.5 rounded text-center">
