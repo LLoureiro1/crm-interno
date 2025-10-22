@@ -1367,7 +1367,7 @@ const StudentProfile = () => {
                           {interviewDate ? (
                             format(new Date(interviewDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
                           ) : (
-                            <span>Selecione uma data</span>
+                            <span>Escolha a data</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -1392,11 +1392,11 @@ const StudentProfile = () => {
                     <Label htmlFor="interview-time">Horário</Label>
                     <Select value={interviewTime} onValueChange={setInterviewTime}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o horário" />
+                        <SelectValue placeholder="Escolha o horário" />
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 24 }, (_, hour) => {
-                          return [0, 15, 30, 45].map(minute => {
+                          return [0, 30].map(minute => {
                             const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
                             const displayTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
                             return (
