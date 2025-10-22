@@ -27,7 +27,7 @@ import { sanitizeInteractionComment, sanitizeInput } from '@/utils/sanitization'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type Student = Tables<'students'> & {
@@ -1383,6 +1383,8 @@ const StudentProfile = () => {
                               setInterviewDate(`${year}-${month}-${day}`);
                             }
                           }}
+                          fromDate={startOfToday()}
+                          disabled={{ before: startOfToday() }}
                           initialFocus
                         />
                       </PopoverContent>
