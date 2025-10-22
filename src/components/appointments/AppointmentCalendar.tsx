@@ -809,20 +809,6 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
                   {attendanceDiscount && !isNaN(parseFloat(attendanceDiscount)) && (
                     <div className="bg-green-50 p-1.5 rounded-lg border border-green-200 text-xs">
-                      <div className="flex justify-between">
-                        <span>Mensalidade com desconto:</span>
-                        <span className="text-green-700 font-semibold">
-                          R$ {(
-                            (
-                              (
-                                (currentAppointment?.students?.classes?.annuity ?? (
-                                  (currentAppointment?.students?.classes?.monthly_fee || 0) * (currentAppointment?.students?.classes?.parcelas || 12)
-                                )) * (1 - (parseFloat(attendanceDiscount) / 100))
-                              )
-                            ) / Math.max(1, tuitionInstallments)
-                          ).toFixed(2)}
-                        </span>
-                      </div>
                       <div className="flex justify-between mt-1">
                         <span>Anuidade com desconto:</span>
                         <span className="text-green-700 font-semibold">
