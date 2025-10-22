@@ -1407,12 +1407,7 @@ const StudentProfile = () => {
                           });
                         }).flat()}
                       </SelectContent>
-                    </Select>
-                    {interviewTime && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Horário selecionado: {interviewTime}
-                      </p>
-                    )}
+                    </Select>                   
                   </div>
                   <div>
                     <Label htmlFor="interviewer">Entrevistador</Label>
