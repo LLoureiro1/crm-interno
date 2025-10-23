@@ -222,3 +222,19 @@ export const sanitizeInteractionComment = (comment: string): string => {
   
   return sanitized;
 };
+
+/**
+ * Sanitiza código de rastreamento
+ * Permite apenas caracteres alfanuméricos, hífens e underscores
+ */
+export const sanitizeTrackingCode = (code: string): string => {
+  if (!code || typeof code !== 'string') return '';
+  
+  // Remove caracteres perigosos e mantém apenas alfanuméricos, hífens e underscores
+  const sanitized = code
+    .trim()
+    .replace(/[^a-zA-Z0-9\-_]/g, '')
+    .substring(0, 50); // Limita comprimento
+  
+  return sanitized;
+};

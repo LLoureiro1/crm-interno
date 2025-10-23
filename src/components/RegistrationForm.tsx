@@ -11,6 +11,7 @@ import { AcademicDataSection } from './registration/AcademicDataSection';
 import { RegistrationSourceSection } from './registration/RegistrationSourceSection';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { useRegistrationSources } from '@/hooks/useRegistrationSources';
+import { useTrackingCode } from '@/hooks/useTrackingCode';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
@@ -56,6 +57,7 @@ export const RegistrationForm = () => {
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
   const { hasSources } = useRegistrationSources(formData.unitId);
+  const { activeTrackingCode } = useTrackingCode();
 
   // Detectar e pré-selecionar unidade baseado no slug da URL
   useEffect(() => {
@@ -227,6 +229,7 @@ export const RegistrationForm = () => {
         class_id: sanitizedFormData.classId,
         unit_id: sanitizedFormData.unitId,
         registration_source_id: hasSources ? sanitizedFormData.registrationSourceId : null,
+        tracking_code: activeTrackingCode, // Código de rastreamento capturado da URL
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
       };
 
