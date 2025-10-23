@@ -54,11 +54,23 @@ export const StudentImport = () => {
   // Campos obrigatórios
   const requiredFields = [
     'student_name',
-    'responsible_name', 
+    'responsible_name',
+    'phone',
+    'status',
+    'ano_letivo',
+    'unidade',
+    'turma'
+  ];
+
+  // Campos reconhecidos (incluindo opcionais)
+  const recognizedFields = [
+    'student_name',
+    'responsible_name',
     'email',
     'phone',
     'birth_date',
     'status',
+    'tag',
     'ano_letivo',
     'unidade',
     'turma'
@@ -198,7 +210,7 @@ export const StudentImport = () => {
           const rowData: any = {};
           headers.forEach((header, colIndex) => {
             const fieldName = header?.toLowerCase().trim();
-            if (requiredFields.includes(fieldName)) {
+            if (recognizedFields.includes(fieldName)) {
               let value = row[colIndex] || '';
               
               // Converter data de nascimento se necessário
@@ -391,9 +403,9 @@ export const StudentImport = () => {
              .insert({
                student_name: item.student_name,
                responsible_name: item.responsible_name,
-               email: item.email,
+               email: item.email || null,
                phone: item.phone,
-               birth_date: item.birth_date,
+               birth_date: item.birth_date || null,
                status: item.status as any,
                tag: item.tag || null, // Permitir null se tag estiver vazia
                ano_letivo: item.ano_letivo,
@@ -534,9 +546,9 @@ export const StudentImport = () => {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Campos obrigatórios:</strong> student_name (Nome do aluno), responsible_name (Nome do responsável), email, phone (telefone principal), birth_date (data de nascimento), status, ano_letivo, unidade, serie, turma.
+              <strong>Campos obrigatórios:</strong> student_name (Nome do aluno), responsible_name (Nome do responsável), phone (telefone principal), status, ano_letivo, unidade, serie, turma.
               <br />
-              <strong>Campos opcionais:</strong> tag (tag do aluno).
+              <strong>Campos opcionais:</strong> tag (tag do aluno), email, birth_date (data de nascimento).
               <br />
               <strong>Atenção:</strong> Siga o template de importação para garantir que os dados estarão corretos. Utilize o mesmo formato de data e telefone. 
               <br />
