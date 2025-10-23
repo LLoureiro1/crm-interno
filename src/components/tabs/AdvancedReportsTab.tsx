@@ -863,9 +863,9 @@ export const AdvancedReportsTab = () => {
       {/* Relatório de Tracking Codes */}
       <Card>
         <CardHeader>
-          <CardTitle>Relatório de Tracking Codes</CardTitle>
+          <CardTitle>Relatório de Promotores de Inscrições</CardTitle>
           <CardDescription>
-            Análise de cadastros e matrículas por código de rastreamento
+            Análise de cadastros e matrículas por código de promotor
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -878,13 +878,13 @@ export const AdvancedReportsTab = () => {
                     <div className="text-2xl font-bold text-blue-600">
                       {trackingSources.length}
                     </div>
-                    <div className="text-sm text-blue-600">Códigos de Tracking Ativos</div>
+                    <div className="text-sm text-blue-600">Códigos Ativos</div>
                   </div>
                   <div className="bg-green-50 p-4 rounded-lg">
                     <div className="text-2xl font-bold text-green-600">
                       {trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
                     </div>
-                    <div className="text-sm text-green-600">Total de Alunos Rastreados</div>
+                    <div className="text-sm text-green-600">Total de Alunos com Código</div>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg">
                     <div className="text-2xl font-bold text-purple-600">
