@@ -411,6 +411,31 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
 
           {/* Interactions */}
           <div className="space-y-4">
+            {/* Origin/Tracking Information */}
+            {student.tracking_code && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>Origem</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-sm text-blue-600 font-medium">
+                      Código de Rastreamento
+                    </div>
+                    <div className="text-blue-800 font-semibold">
+                      {student.tracking_code}
+                    </div>
+                    <div className="text-xs text-blue-500 mt-1">
+                      Este aluno foi cadastrado através de uma fonte rastreada
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Adicionar Comentário</CardTitle>

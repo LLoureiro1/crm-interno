@@ -48,6 +48,15 @@ export const AdvancedReportsTab = () => {
         conversion_rate: number;
     }>>([]);
 
+    // Estados para relatório de tracking codes
+    const [trackingSources, setTrackingSources] = useState<Array<{
+        tracking_code: string;
+        total_students: number;
+        percentage: number;
+        enrolled_students: number;
+        conversion_rate: number;
+    }>>([]);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -508,6 +517,67 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    // Função para buscar estatísticas de tracking codes
+    const fetchTrackingSources = async () => {
+        try {
+            // Buscar todos os estudantes com tracking_code
+            let query = supabase
+                .from('students')
+                .select('tracking_code, status');
+
+            // Aplicar filtros
+            query = applyFilters(query);
+
+            const { data: students, error } = await query;
+
+            if (error) {
+                console.error('Erro ao buscar dados de tracking:', error);
+                return;
+            }
+
+            // Filtrar apenas estudantes com tracking_code
+            const studentsWithTracking = students?.filter(student => student.tracking_code && student.tracking_code.trim() !== '') || [];
+
+            // Agrupar por tracking_code
+            const trackingMap = new Map();
+
+            studentsWithTracking.forEach((student: any) => {
+                const trackingCode = student.tracking_code;
+                const isEnrolled = student.status === 'enrolled';
+
+                if (!trackingMap.has(trackingCode)) {
+                    trackingMap.set(trackingCode, {
+                        tracking_code: trackingCode,
+                        total_students: 0,
+                        enrolled_students: 0
+                    });
+                }
+
+                const stats = trackingMap.get(trackingCode);
+                stats.total_students++;
+                if (isEnrolled) {
+                    stats.enrolled_students++;
+                }
+            });
+
+            // Calcular percentuais e taxa de conversão
+            const totalStudents = studentsWithTracking.length;
+            const trackingStats = Array.from(trackingMap.values())
+                .map(stats => ({
+                    ...stats,
+                    percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
+                    conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
+                }))
+                .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
+
+            setTrackingSources(trackingStats);
+
+        } catch (error) {
+            console.error('Erro ao calcular estatísticas de tracking:', error);
+            setTrackingSources([]);
+        }
+    };
+
     // Função para buscar todos os dados
     const fetchAllData = () => {
         fetchConversionRate();
@@ -516,6 +586,7 @@ export const AdvancedReportsTab = () => {
         fetchInterviewerConversion();
         fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
         fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
+        fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
     };
 
     // Effect inicial para buscar dados básicos
@@ -782,6 +853,91 @@ export const AdvancedReportsTab = () => {
                 <div className="text-lg font-medium mb-2">Nenhum dado de origem disponível</div>
                 <div className="text-sm">
                   Configure origens de inscrição nas configurações para ver este relatório
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Relatório de Tracking Codes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Relatório de Tracking Codes</CardTitle>
+          <CardDescription>
+            Análise de cadastros e matrículas por código de rastreamento
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {trackingSources.length > 0 ? (
+              <>
+                {/* Resumo geral */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {trackingSources.length}
+                    </div>
+                    <div className="text-sm text-blue-600">Códigos de Tracking Ativos</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    </div>
+                    <div className="text-sm text-green-600">Total de Alunos Rastreados</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {trackingSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    </div>
+                    <div className="text-sm text-purple-600">Alunos Matriculados</div>
+                  </div>
+                </div>
+
+                {/* Lista detalhada */}
+                <div className="space-y-3">
+                  {trackingSources.map((source, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-medium text-gray-900">
+                            Código: {source.tracking_code}
+                          </h4>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {source.total_students} cadastros • {source.enrolled_students} matriculados
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-gray-900">
+                            {source.conversion_rate.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500">conversão</div>
+                        </div>
+                      </div>
+                      
+                      {/* Barra de progresso */}
+                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full" 
+                          style={{ width: `${source.percentage}%` }}
+                        ></div>
+                      </div>
+                      
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{source.percentage.toFixed(1)}% do total rastreado</span>
+                        <span>
+                          {source.enrolled_students}/{source.total_students} matriculados
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <div className="text-lg font-medium mb-2">Nenhum código de tracking encontrado</div>
+                <div className="text-sm">
+                  Adicione códigos de tracking aos cadastros para ver este relatório
                 </div>
               </div>
             )}
