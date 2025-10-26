@@ -262,9 +262,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <span className="font-medium">Unidade:</span>
                     <p><TruncatedText text={student.classes.units.name} /></p>
                   </div>
-                  <div className="col-span-2">
-                    <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
-                  </div>
+                  {student.classes?.has_exam && (
+                    <div className="col-span-2">
+                      <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
+                    </div>
+                  )}
                   <div className="flex items-center space-x-1">
                     <Percent className="h-3 w-3" />
                     <span className="font-medium">Desconto:</span>
