@@ -96,7 +96,7 @@ const StudentProfile = () => {
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
-  const canEditPersonalData = profile?.profile === 'admin' || profile?.profile === 'direcao';
+  const canEditPersonalData = !!profile; // todos os perfis autenticados podem editar
   
   // Verificar se hoje é o dia da entrevista (usando data local)
   const today = getCurrentDate();
