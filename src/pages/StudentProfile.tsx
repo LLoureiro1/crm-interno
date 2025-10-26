@@ -1398,15 +1398,25 @@ const StudentProfile = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 24 }, (_, hour) => {
-                          return [0, 30].map(minute => {
-                            const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                            const displayTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                            return (
-                              <SelectItem key={timeValue} value={timeValue}>
-                                {displayTime}
-                              </SelectItem>
-                            );
-                          });
+                          return [0, 30]
+                            .map((minute) => {
+                              const withinBusinessHours = hour >= 7 && hour <= 21;
+                              const isDisallowedLateSlot = hour === 21 && minute === 30; // Excluir 21:30
+                              if (!withinBusinessHours || isDisallowedLateSlot) return null;
+
+                              const timeValue = `${hour.toString().padStart(2, '0')}:${minute
+                                .toString()
+                                .padStart(2, '0')}`;
+                              const displayTime = `${hour.toString().padStart(2, '0')}:${minute
+                                .toString()
+                                .padStart(2, '0')}`;
+                              return (
+                                <SelectItem key={timeValue} value={timeValue}>
+                                  {displayTime}
+                                </SelectItem>
+                              );
+                            })
+                            .filter(Boolean);
                         }).flat()}
                       </SelectContent>
                     </Select>                   
