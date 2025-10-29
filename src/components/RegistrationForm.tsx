@@ -385,8 +385,8 @@ export const RegistrationForm = () => {
                   para garantir uma vaga com condições especiais e conhecer de perto tudo o que nossa escola oferece!
                 </p>
                 <p className="mt-3 text-gray-800">
-                  Se o seu filho ainda está na Educação Infantil, não se preocupe, basta realizar o cadastro e nossa equipe
-                  entrará em contato para agendar um atendimento personalizado na escola. 💛
+                  Se o seu filho ainda está na Educação Infantil, basta realizar o cadastro e nossa equipe
+                  entrará em contato para agendar um atendimento personalizado na escola.
                 </p>
               </div>
             )}
