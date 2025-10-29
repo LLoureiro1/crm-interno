@@ -15,36 +15,59 @@ const Confirmation: React.FC = () => {
   const classId = state?.classId;
   const hasExam = state?.hasExam;
   const [examDetails, setExamDetails] = useState<Tables<'exam_dates'> & { units: Tables<'units'> } | null>(null);
+  const [unit, setUnit] = useState<Tables<'units'> | null>(null);
 
   useEffect(() => {
     const fetchExamDetails = async () => {
-      if (hasExam && classId) {
-        const { data: classData, error: classError } = await supabase
-          .from('classes')
-          .select('unit_id')
-          .eq('id', classId)
+      if (!classId) return;
+
+      // Buscar unidade a partir da turma
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('unit_id')
+        .eq('id', classId)
+        .single();
+
+      if (classError) {
+        console.error('Error fetching class details:', classError);
+        return;
+      }
+
+      if (!classData?.unit_id) return;
+
+      if (hasExam) {
+        // Se houver exame, buscar o próximo exame e já obter os dados da unidade
+        const { data: examData, error: examError } = await supabase
+          .from('exam_dates')
+          .select('*, units(*)')
+          .eq('unit_id', classData.unit_id)
+          .gte('exam_date', getCurrentDate())
+          .order('exam_date', { ascending: true })
+          .limit(1)
           .single();
 
-        if (classError) {
-          console.error('Error fetching class details:', classError);
-          return;
-        }
-
-        if (classData?.unit_id) {
-          const { data: examData, error: examError } = await supabase
-            .from('exam_dates')
-            .select('*, units(*)')
-            .eq('unit_id', classData.unit_id)
-            .gte('exam_date', getCurrentDate())
-            .order('exam_date', { ascending: true })
-            .limit(1)
-            .single();
-
-          if (examError) {
-            console.error('Error fetching exam details:', examError);
-            return;
-          }
+        if (examError) {
+          console.error('Error fetching exam details:', examError);
+        } else {
           setExamDetails(examData);
+          // Guardar a unidade também, se disponível
+          const unitsFromExam = (examData as unknown as { units?: Tables<'units'> }).units;
+          if (unitsFromExam) setUnit(unitsFromExam);
+        }
+      }
+
+      // Independente de haver exame, garantir que temos os dados da unidade
+      if (!unit) {
+        const { data: unitData, error: unitError } = await supabase
+          .from('units')
+          .select('*')
+          .eq('id', classData.unit_id)
+          .single();
+
+        if (unitError) {
+          console.error('Error fetching unit details:', unitError);
+        } else {
+          setUnit(unitData);
         }
       }
     };
@@ -55,6 +78,14 @@ const Confirmation: React.FC = () => {
   const handleGoHome = () => {
     navigate('/');
   };
+
+  // Construir link do WhatsApp com telefone da unidade
+  const unitPhoneRaw = unit?.phone || examDetails?.units?.phone || '';
+  const unitPhoneDigits = unitPhoneRaw.replace(/\D/g, '');
+  const waPhone = unitPhoneDigits
+    ? (unitPhoneDigits.startsWith('55') ? unitPhoneDigits : `55${unitPhoneDigits}`)
+    : '';
+  const whatsappHref = waPhone ? `https://wa.me/${waPhone}` : 'https://wa.me/553284193583';
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -99,7 +130,7 @@ const Confirmation: React.FC = () => {
               className="w-full bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
             >
               <a 
-                href="https://wa.me/553284193583" 
+                href={whatsappHref} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2"
