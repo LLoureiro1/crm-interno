@@ -354,18 +354,11 @@ export const RegistrationForm = () => {
         {/* Logos da unidade */}
         <div className="flex justify-center mb-6">
           {unitSlug?.toLowerCase() === 'lima-duarte' ? (
-            <div className="flex items-center gap-6">
-              <img 
-                src="/logo_piaget.png" 
-                alt="APOGEU Piaget" 
-                className="h-20 w-auto object-contain"
-              />
-              <img 
-                src="/logo_apogeu_nobg.png" 
-                alt="Rede de Ensino Apogeu" 
-                className="h-20 w-auto object-contain"
-              />
-            </div>
+            <img 
+              src="/logo_piaget_apogeu.png" 
+              alt="APOGEU Piaget e Rede de Ensino Apogeu" 
+              className="h-20 w-auto object-contain"
+            />
           ) : (
             <img 
               src="/logo_apogeu_nobg.png" 
