@@ -394,7 +394,9 @@ export const RegistrationForm = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl text-center text-gray-900">
-              Inscrição de Candidatos
+              {unitSlug?.toLowerCase() === 'lima-duarte'
+                ? 'Inscrição de Candidatos - Bolsão 2026'
+                : 'Inscrição de Candidatos'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -403,9 +405,9 @@ export const RegistrationForm = () => {
               <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
                 <h3 className="text-lg font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
                 <p className="mt-2 text-gray-800">
-                  Estamos com inscrições abertas para o Bolsão 2026, que acontecerá dia 6 de dezembro, às 9h,
+                  O Bolsão 2026 acontecerá dia 6 de dezembro, às 9h,
                   para alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
-                  para garantir uma vaga com condições especiais e conhecer de perto tudo o que nossa escola oferece!
+                  para garantir até 60% de desconto e conhecer de perto tudo o que nossa escola oferece!
                 </p>
                 <p className="mt-3 text-gray-800">
                   Se seu filho(a) está na Educação Infantil, basta realizar o cadastro e nossa equipe
