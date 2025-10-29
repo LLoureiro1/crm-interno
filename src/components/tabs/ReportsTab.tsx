@@ -14,9 +14,10 @@ import { Link } from 'react-router-dom';
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 type Student = Tables<'students'> & {
-  classes: { 
+  classes: {
     name: string;
-    units: { name: string };
+    unit_id: string;
+    units: { id: string; name: string };
   };
 };
 
@@ -79,37 +80,58 @@ export const ReportsTab = () => {
     if (data) setSeries(data);
   };
 
-  // Função para contar alunos da próxima prova específica
-  const getNextExamStudentCount = async (students: Student[]): Promise<number> => {
+  // Guardar as próximas datas de prova por unidade para alinhar contagem e lista
+  const [nextExamDatesByUnit, setNextExamDatesByUnit] = useState<Record<string, string>>({});
+
+  // Obtém o mapa de próxima prova por unidade e totaliza alunos alinhados a esse critério
+  const getNextExamStudentInfoAggregated = async (
+    students: Student[],
+    unitId?: string
+  ): Promise<{ count: number; datesByUnit: Record<string, string> }> => {
     try {
-      const { data: nextExamDate, error } = await supabase
+      const today = getCurrentDate();
+      // Determinar conjunto de unidades de interesse
+      const unitIds = unitId
+        ? [unitId]
+        : Array.from(new Set(students.map((s) => s.classes.unit_id)));
+
+      if (unitIds.length === 0) {
+        return { count: 0, datesByUnit: {} };
+      }
+
+      // Buscar todas as datas de prova futuras para as unidades de interesse
+      const { data: upcomingDates, error } = await supabase
         .from('exam_dates')
-        .select('exam_date')
-        .gte('exam_date', getCurrentDate())
-        .order('exam_date', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-  
+        .select('unit_id, exam_date')
+        .gte('exam_date', today)
+        .in('unit_id', unitIds)
+        .order('exam_date', { ascending: true });
+
       if (error) {
-        console.error('Erro ao buscar próxima prova:', error);
-        return 0;
+        console.error('Erro ao buscar datas de prova por unidade:', error);
+        return { count: 0, datesByUnit: {} };
       }
-  
-      if (!nextExamDate?.exam_date) {
-        console.log('Nenhuma prova futura encontrada');
-        return 0;
-      }
-  
-      const count = students.filter(student => {
-        const isConfirmedStudent = student.status === 'confirmado' || student.status === 'nao_confirmado';
-        const hasExamDate = student.exam_date === nextExamDate.exam_date;
-        return isConfirmedStudent && hasExamDate;
+
+      // Agrupar e pegar a primeira (mais próxima futura) por unidade
+      const earliestByUnit: Record<string, string> = {};
+      (upcomingDates || []).forEach((row) => {
+        if (!earliestByUnit[row.unit_id]) {
+          earliestByUnit[row.unit_id] = row.exam_date as string;
+        }
+      });
+
+      // Contar alunos confirmados/nao_confirmado cuja exam_date coincide com a próxima da sua unidade
+      const count = students.filter((student) => {
+        const isConfirmed =
+          student.status === 'confirmado' || student.status === 'nao_confirmado';
+        const unitNextDate = earliestByUnit[student.classes.unit_id];
+        return isConfirmed && !!unitNextDate && student.exam_date === unitNextDate;
       }).length;
-  
-      return count;
+
+      return { count, datesByUnit: earliestByUnit };
     } catch (error) {
-      console.error('Erro ao contar alunos da próxima prova:', error);
-      return 0;
+      console.error('Erro ao agregar alunos por próxima prova de unidade:', error);
+      return { count: 0, datesByUnit: {} };
     }
   };
 
@@ -118,7 +140,8 @@ export const ReportsTab = () => {
       *,
       classes!inner(
         name,
-        units!inner(name)
+        unit_id,
+        units!inner(id, name)
       )
     `);
 
@@ -152,7 +175,11 @@ export const ReportsTab = () => {
         s.status !== 'cadastro_invalido' && 
         s.status !== 'processo_anos_anteriores'
       ).length;
-      const alunosProximaProva = await getNextExamStudentCount(students);
+      const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
+        students,
+        selectedUnit !== 'all' ? selectedUnit : undefined
+      );
+      setNextExamDatesByUnit(datesByUnit);
       const matriculados = students.filter(s => s.status === 'matriculado').length;
 
       // Fetch today's appointments
@@ -202,7 +229,18 @@ export const ReportsTab = () => {
       case 'total':
         return studentsData;
       case 'proxima_prova':
-        return studentsData.filter(s => s.status === 'confirmado' || s.status === 'nao_confirmado');
+        // Alinhar com a próxima prova por unidade (quando "Todas as unidades"),
+        // ou apenas daquela unidade quando um filtro específico estiver selecionado
+        if (Object.keys(nextExamDatesByUnit).length > 0) {
+          return studentsData.filter((s) =>
+            (s.status === 'confirmado' || s.status === 'nao_confirmado') &&
+            !!nextExamDatesByUnit[s.classes.unit_id] &&
+            s.exam_date === nextExamDatesByUnit[s.classes.unit_id]
+          );
+        }
+        return studentsData.filter(
+          (s) => s.status === 'confirmado' || s.status === 'nao_confirmado'
+        );
       case 'matriculados':
         return studentsData.filter(s => s.status === 'matriculado');
       default:
