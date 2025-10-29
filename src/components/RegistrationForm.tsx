@@ -380,12 +380,12 @@ export const RegistrationForm = () => {
               <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
                 <h3 className="text-lg font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
                 <p className="mt-2 text-gray-800">
-                  Estamos com inscrições abertas para o Bolsão 2026, que acontecerá no dia 6 de dezembro, às 9h,
-                  destinado a alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
+                  Estamos com inscrições abertas para o Bolsão 2026, que acontecerá dia 6 de dezembro, às 9h,
+                  para alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
                   para garantir uma vaga com condições especiais e conhecer de perto tudo o que nossa escola oferece!
                 </p>
                 <p className="mt-3 text-gray-800">
-                  Se o seu filho ainda está na Educação Infantil, basta realizar o cadastro e nossa equipe
+                  Se seu filho(a) está na Educação Infantil, basta realizar o cadastro e nossa equipe
                   entrará em contato para agendar um atendimento personalizado na escola.
                 </p>
               </div>
