@@ -115,8 +115,22 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const fetchFiltersData = async () => {
     setFiltersLoading(true);
     try {
-      // Determinar se o usuário é da central: admins ou usuários sem unidade definida
-      const isCentralUser = (profile?.profile === 'admin') || !profile?.unit_id;
+      // Determinar se o usuário é da unidade "Central" definida no banco
+      let isCentralUser = false;
+      if (profile?.unit_id) {
+        const { data: userUnit, error: userUnitError } = await supabase
+          .from('units')
+          .select('id, name')
+          .eq('id', profile.unit_id)
+          .maybeSingle();
+
+        if (userUnitError) {
+          console.warn('Erro ao buscar unidade do usuário para checar central:', userUnitError);
+        }
+
+        const unitName = (userUnit?.name || '').toLowerCase();
+        isCentralUser = unitName === 'central';
+      }
 
       // Construir query de entrevistadores: apenas ativos, roles elegíveis
       let interviewersQuery = supabase
