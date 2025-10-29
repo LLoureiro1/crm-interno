@@ -115,10 +115,25 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const fetchFiltersData = async () => {
     setFiltersLoading(true);
     try {
+      // Determinar se o usuário é da central: admins ou usuários sem unidade definida
+      const isCentralUser = (profile?.profile === 'admin') || !profile?.unit_id;
+
+      // Construir query de entrevistadores: apenas ativos, roles elegíveis
+      let interviewersQuery = supabase
+        .from('profiles')
+        .select('*')
+        .in('profile', ['entrevistador', 'direcao', 'admin'])
+        .eq('ativo', true);
+
+      // Se não for usuário da central, filtrar por mesma unidade
+      if (!isCentralUser && profile?.unit_id) {
+        interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+      }
+
       const [unitsData, seriesData, interviewersData] = await Promise.all([
         supabase.from('units').select('*').order('name'),
         supabase.from('series').select('*').order('name'),
-        supabase.from('profiles').select('*').in('profile', ['entrevistador', 'direcao', 'admin']).order('name')
+        interviewersQuery.order('name')
       ]);
 
       if (unitsData.error) throw unitsData.error;
