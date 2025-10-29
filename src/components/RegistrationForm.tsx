@@ -351,13 +351,28 @@ export const RegistrationForm = () => {
   return (
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Logo do Apogeu */}
+        {/* Logos da unidade */}
         <div className="flex justify-center mb-6">
-          <img 
-            src="/logo_apogeu_nobg.png" 
-            alt="Rede de Ensino Apogeu" 
-            className="h-20 w-auto object-contain"
-          />
+          {unitSlug?.toLowerCase() === 'lima-duarte' ? (
+            <div className="flex items-center gap-6">
+              <img 
+                src="/logo_piaget.png" 
+                alt="APOGEU Piaget" 
+                className="h-20 w-auto object-contain"
+              />
+              <img 
+                src="/logo_apogeu_nobg.png" 
+                alt="Rede de Ensino Apogeu" 
+                className="h-20 w-auto object-contain"
+              />
+            </div>
+          ) : (
+            <img 
+              src="/logo_apogeu_nobg.png" 
+              alt="Rede de Ensino Apogeu" 
+              className="h-20 w-auto object-contain"
+            />
+          )}
         </div>
         
         <Card>
