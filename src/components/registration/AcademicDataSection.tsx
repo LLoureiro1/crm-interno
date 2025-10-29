@@ -44,6 +44,15 @@ export const AcademicDataSection = ({
     formData: formData 
   });
 
+  // Regra do ano letivo vigente: entre agosto e dezembro, próximo ano; caso contrário, ano atual
+  const getCurrentAcademicYear = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    return currentMonth >= 8 ? String(currentYear + 1) : String(currentYear);
+  };
+  const academicYear = getCurrentAcademicYear();
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">Dados Acadêmicos</h3>
@@ -60,7 +69,7 @@ export const AcademicDataSection = ({
 
       <div>
         <Label htmlFor="series" className={fieldErrors.seriesId ? 'text-red-600' : ''}>
-          Série *
+          {`Série que o aluno irá estudar em ${academicYear}`} *
         </Label>
         <Combobox
           options={series.map((serie) => ({
