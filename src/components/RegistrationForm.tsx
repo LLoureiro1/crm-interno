@@ -13,6 +13,7 @@ import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { useRegistrationSources } from '@/hooks/useRegistrationSources';
 import { useTrackingCode } from '@/hooks/useTrackingCode';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
+import { getCurrentDate } from '@/utils/dateUtils';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
@@ -217,6 +218,25 @@ export const RegistrationForm = () => {
     try {
       const selectedClass = availableClasses.find(cls => cls.id === sanitizedFormData.classId);
       
+      // Se a turma possui exame, buscar a próxima data de exame para a unidade
+      let nextExam: { id: string; exam_date: string } | null = null;
+      if (selectedClass?.has_exam) {
+        const { data: examData, error: examError } = await supabase
+          .from('exam_dates')
+          .select('id, exam_date')
+          .eq('unit_id', sanitizedFormData.unitId)
+          .gte('exam_date', getCurrentDate())
+          .order('exam_date', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (!examError && examData) {
+          nextExam = examData as unknown as { id: string; exam_date: string };
+        } else {
+          console.warn('Nenhuma data de exame encontrada ou erro ao buscar:', examError);
+        }
+      }
+      
       const studentData = {
         student_name: sanitizedFormData.studentName,
         responsible_name: sanitizedFormData.responsibleName,
@@ -230,7 +250,10 @@ export const RegistrationForm = () => {
         unit_id: sanitizedFormData.unitId,
         registration_source_id: hasSources ? sanitizedFormData.registrationSourceId : null,
         tracking_code: activeTrackingCode, // Código de rastreamento capturado da URL
-        status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const
+        status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const,
+        // Garantir persistência dos campos de exame no insert
+        exam_date_id: nextExam?.id ?? null,
+        exam_date: nextExam?.exam_date ?? null
       };
 
       const { data: studentResult, error } = await supabase
