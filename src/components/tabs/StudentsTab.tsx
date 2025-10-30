@@ -496,7 +496,7 @@ export const StudentsTab = () => {
           <div className="space-y-4">
             {currentStudents.map((student) => {
               return (
-                <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                <div key={student.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
                     <div className="flex items-center space-x-4">
                       <div>
@@ -526,11 +526,12 @@ export const StudentsTab = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="mt-3 sm:mt-0 flex w-full sm:w-auto flex-col sm:flex-row gap-2 sm:space-x-2 sm:justify-end">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewStudent(student)}
+                      className="w-full sm:w-auto"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Ver Resumo
@@ -541,6 +542,7 @@ export const StudentsTab = () => {
                       onClick={() => handleOpenStudentPage(student.id)}
                       onContextMenu={(e) => handleContextMenu(e, student.id)}
                       title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
+                      className="w-full sm:w-auto"
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Gerenciar Aluno
