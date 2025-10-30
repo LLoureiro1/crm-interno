@@ -7,9 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Clock, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type ExamDate = Tables<'exam_dates'> & {
   units: Tables<'units'>;
@@ -133,23 +138,61 @@ export const ExamDateManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="exam_date">Data da Prova</Label>
-                <Input
-                  id="exam_date"
-                  type="date"
-                  value={formData.exam_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, exam_date: e.target.value }))}
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.exam_date ? (
+                        format(new Date(formData.exam_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                      ) : (
+                        <span>Escolha a data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={formData.exam_date ? new Date(formData.exam_date + 'T00:00:00') : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          setFormData(prev => ({ ...prev, exam_date: `${year}-${month}-${day}` }));
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="exam_time">Horário</Label>
-                <Input
-                  id="exam_time"
-                  type="time"
+                <Select
                   value={formData.exam_time}
-                  onChange={(e) => setFormData(prev => ({ ...prev, exam_time: e.target.value }))}
-                  required
-                />
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, exam_time: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha o horário" />
+                  </SelectTrigger>
+                  <SelectContent side="bottom">
+                    {Array.from({ length: 24 }, (_, hour) =>
+                      [0, 30].map((minute) => {
+                        const timeValue = `${hour.toString().padStart(2, '0')}:${minute
+                          .toString()
+                          .padStart(2, '0')}`;
+                        return (
+                          <SelectItem key={timeValue} value={timeValue}>
+                            {timeValue}
+                          </SelectItem>
+                        );
+                      })
+                    ).flat()}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div>

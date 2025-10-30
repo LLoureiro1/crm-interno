@@ -936,15 +936,36 @@ const StudentProfile = () => {
                       </div>
                       <div>
                         <Label htmlFor="birth_date">Data de Nascimento</Label>
-                        <Input
-                          id="birth_date"
-                          type="date"
-                          value={editingPersonalData.birth_date}
-                          onChange={(e) => setEditingPersonalData(prev => ({
-                            ...prev,
-                            birth_date: e.target.value
-                          }))}
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {editingPersonalData.birth_date ? (
+                                format(new Date(editingPersonalData.birth_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                              ) : (
+                                <span>Escolha a data</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={editingPersonalData.birth_date ? new Date(editingPersonalData.birth_date + 'T00:00:00') : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  setEditingPersonalData(prev => ({ ...prev, birth_date: `${year}-${month}-${day}` }));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label htmlFor="phone">Telefone</Label>
