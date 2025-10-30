@@ -854,11 +854,11 @@ const StudentProfile = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <Button 
               onClick={() => navigate('/')} 
               variant="outline" 
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 w-full sm:w-auto"
             >
               <Home className="h-4 w-4" />
               <span>Tela Inicial</span>
@@ -866,7 +866,7 @@ const StudentProfile = () => {
             <Button 
               onClick={() => navigate('/', { state: { activeTab: 'students' } })} 
               variant="outline" 
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 w-full sm:w-auto"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Voltar para Lista de Inscritos</span>
@@ -1410,7 +1410,7 @@ const StudentProfile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
                     <Label htmlFor="interview-date">Data</Label>
                     <Popover>
@@ -1477,7 +1477,7 @@ const StudentProfile = () => {
                       </SelectContent>
                     </Select>                   
                   </div>
-                  <div>
+                  <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="interviewer">Entrevistador</Label>
                     <Select value={interviewerId} onValueChange={setInterviewerId}>
                       <SelectTrigger>
@@ -1495,7 +1495,7 @@ const StudentProfile = () => {
                 </div>
                 
                 {/* Checkbox para formato da entrevista */}
-                <div className="flex items-center space-x-2 pt-2">
+                <div className="flex items-center space-x-2 pt-2 sm:pt-2 mt-1 sm:mt-0">
                   <Checkbox 
                     id="formato-entrevista"
                     checked={formatoEntrevista === 'a_distancia'}
