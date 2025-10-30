@@ -738,12 +738,6 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                        appointment.interviewer?.name || 
                        'Não informado'}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">Formato:</span>
-                      <Badge variant={appointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
-                        {appointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
-                      </Badge>
-                    </div>
                   </div>
 
                   {appointment.comments && (
@@ -757,6 +751,14 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                       <span className="font-medium">Desconto:</span> {appointment.discount_percentage}%
                     </div>
                   )}
+
+                  {/* Formato em linha separada ao final do card */}
+                  <div className="flex items-center space-x-2 text-sm">
+                    <span className="font-medium">Formato:</span>
+                    <Badge variant={appointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
+                      {appointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>
