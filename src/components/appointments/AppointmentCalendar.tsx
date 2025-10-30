@@ -557,7 +557,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateSelect}
-                className="rounded-md border"
+                className="w-full rounded-md border p-3"
                 initialFocus
                 today={today}
               />
@@ -653,7 +653,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               <div className="space-y-4">
                 {filteredAppointments.map((appointment) => (
                 <div key={appointment.id} className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-gray-500" />
@@ -663,7 +663,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                       </div>
                       {getStatusBadge(appointment.status || '', appointment.attended || false, appointment.students?.status)}
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="mt-2 sm:mt-0 flex w-full sm:w-auto flex-col sm:flex-row gap-2 sm:space-x-2 sm:justify-end">
                       {appointment.status !== 'realizado' && 
                        appointment.status !== 'faltou' && 
                        appointment.students?.status !== 'atendimento_recentemente' && ( 
@@ -672,7 +672,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                             size="sm"
                             onClick={() => handleStatusUpdate(appointment.id, 'faltou')}
                             variant="outline"
-                            className="text-red-600"
+                            className="text-red-600 w-full sm:w-auto"
                             disabled={loading}
                           >
                             Marcar Falta
@@ -680,7 +680,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                           <Button
                             size="sm"
                             onClick={() => handleOpenAttendanceModal(appointment)}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                             disabled={loading || profile?.profile === 'padrao'}
                             title={profile?.profile === 'padrao' ? 'Usuários com perfil "Padrão" não podem realizar atendimentos' : 'Registrar atendimento'}
                           >
@@ -695,7 +695,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                           size="sm"
                           onClick={() => handleCancelAppointment(appointment.id)}
                           variant="outline"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
                           disabled={loading}
                           title="Cancelar entrevista"
                         >
