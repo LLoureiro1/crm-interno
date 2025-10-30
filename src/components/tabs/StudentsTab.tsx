@@ -498,16 +498,16 @@ export const StudentsTab = () => {
               return (
                 <div key={student.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-4">
-                      <div>
+                    <div className="flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-x-4 gap-y-2">
+                      <div className="order-2 sm:order-none">
                         <h3 className="font-medium text-gray-900">{student.student_name}</h3>
                         <p className="text-sm text-gray-600">Código: {student.code}</p>
                       </div>
-                      <div>
+                      <div className="order-2 sm:order-none">
                         <p className="text-sm text-gray-600">{student.classes.series.name}</p>
                         <p className="text-sm text-gray-600">{student.classes.units.name}</p>
                       </div>
-                      <div>
+                      <div className="order-3 sm:order-none">
                         {student.exam_date && (
                           <p className="text-sm text-gray-600 flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
@@ -521,7 +521,7 @@ export const StudentsTab = () => {
                           </p>
                         )}
                       </div>
-                      <div>
+                      <div className="order-1 sm:order-none w-full sm:w-auto">
                         {getStatusBadge(student.status)}
                       </div>
                     </div>
