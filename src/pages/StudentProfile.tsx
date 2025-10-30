@@ -93,6 +93,7 @@ const StudentProfile = () => {
     neighborhood: '',
     origin_school: ''
   });
+  const [birthDateDisplay, setBirthDateDisplay] = useState<string>('');
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
@@ -788,6 +789,17 @@ const StudentProfile = () => {
         neighborhood: student.neighborhood,
         origin_school: student.origin_school
       });
+      // Preencher exibição em dd/MM/aaaa
+      if (student.birth_date) {
+        try {
+          const d = new Date(student.birth_date + 'T00:00:00');
+          setBirthDateDisplay(format(d, 'dd/MM/yyyy', { locale: ptBR }));
+        } catch {
+          setBirthDateDisplay('');
+        }
+      } else {
+        setBirthDateDisplay('');
+      }
       setShowPersonalDataEditor(true);
     }
   };
@@ -805,6 +817,7 @@ const StudentProfile = () => {
       neighborhood: '',
       origin_school: ''
     });
+    setBirthDateDisplay('');
   };
 
   const getStatusBadge = (status: string) => {
@@ -936,36 +949,58 @@ const StudentProfile = () => {
                       </div>
                       <div>
                         <Label htmlFor="birth_date">Data de Nascimento</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingPersonalData.birth_date ? (
-                                format(new Date(editingPersonalData.birth_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
-                              ) : (
-                                <span>Escolha a data</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={editingPersonalData.birth_date ? new Date(editingPersonalData.birth_date + 'T00:00:00') : undefined}
-                              onSelect={(date) => {
-                                if (date) {
-                                  const year = date.getFullYear();
-                                  const month = String(date.getMonth() + 1).padStart(2, '0');
-                                  const day = String(date.getDate()).padStart(2, '0');
-                                  setEditingPersonalData(prev => ({ ...prev, birth_date: `${year}-${month}-${day}` }));
-                                }
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <Input
+                          id="birth_date"
+                          type="text"
+                          placeholder="dd/mm/aaaa"
+                          inputMode="numeric"
+                          maxLength={10}
+                          pattern="^\\d{2}/\\d{2}/\\d{4}$"
+                          title="Digite no formato dd/mm/aaaa"
+                          value={birthDateDisplay}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const digits = raw.replace(/\D/g, '').slice(0, 8);
+                            let formatted = '';
+                            if (digits.length >= 2) {
+                              formatted = digits.slice(0, 2);
+                            } else {
+                              formatted = digits;
+                            }
+                            if (digits.length > 2) {
+                              formatted += '/' + digits.slice(2, 4);
+                            }
+                            if (digits.length > 4) {
+                              formatted += '/' + digits.slice(4, 8);
+                            }
+                            setBirthDateDisplay(formatted);
+
+                            // Atualiza birth_date ISO quando completo e válido
+                            const m = formatted.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                            if (m) {
+                              const dd = m[1];
+                              const mm = m[2];
+                              const yyyy = m[3];
+                              const iso = `${yyyy}-${mm}-${dd}`;
+                              const d = new Date(iso + 'T00:00:00');
+                              if (!isNaN(d.getTime())) {
+                                setEditingPersonalData(prev => ({ ...prev, birth_date: iso }));
+                                e.target.setCustomValidity('');
+                              } else {
+                                e.target.setCustomValidity('Data inválida. Use dd/mm/aaaa');
+                              }
+                            } else {
+                              // Parcial: limpa ISO para evitar envio inválido
+                              setEditingPersonalData(prev => ({ ...prev, birth_date: '' }));
+                            }
+                          }}
+                          onInput={(e) => {
+                            (e.target as HTMLInputElement).setCustomValidity('');
+                          }}
+                          onInvalid={(e) => {
+                            (e.target as HTMLInputElement).setCustomValidity('Por favor, digite a data no formato dd/mm/aaaa');
+                          }}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="phone">Telefone</Label>
