@@ -1314,7 +1314,7 @@ const StudentProfile = () => {
                         )}
                       </div>
                       {currentAppointment && (
-                        <div className="flex items-center space-x-2 ml-4">
+                        <div className="flex items-center space-x-2 ml-4 mt-1 sm:mt-0">
                           <span className="text-sm text-gray-600">Formato:</span>
                           <Badge variant={currentAppointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
                             {currentAppointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
@@ -1417,9 +1417,9 @@ const StudentProfile = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal"
+                          className="w-full justify-start text-left font-normal pl-2 sm:pl-3"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-1 sm:mr-2 h-4 w-4" />
                           {interviewDate ? (
                             format(new Date(interviewDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
                           ) : (
