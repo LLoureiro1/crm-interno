@@ -57,7 +57,7 @@ export const RegistrationForm = () => {
   const [isUnitLocked, setIsUnitLocked] = useState(false);
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
-  const { hasSources } = useRegistrationSources(formData.unitId);
+  const { hasSources, loading: sourcesLoading, error: sourcesError } = useRegistrationSources(formData.unitId);
   const { activeTrackingCode } = useTrackingCode();
 
   // Detectar e pré-selecionar unidade baseado no slug da URL
@@ -199,7 +199,10 @@ export const RegistrationForm = () => {
     // Sanitizar dados do formulário antes da validação
     const sanitizedFormData = sanitizeRegistrationData(formData);
     
-    const errors = validateForm(sanitizedFormData, hasSources);
+    const errors = validateForm(sanitizedFormData, hasSources, {
+      sourcesError: !!sourcesError,
+      sourcesLoading
+    });
     
     // Validação adicional: se há múltiplas turmas, uma deve ser selecionada
     if (showClassSelector && !sanitizedFormData.classId) {
@@ -237,6 +240,8 @@ export const RegistrationForm = () => {
         }
       }
       
+      const allowSourceFallback = hasSources && (!!sourcesError || sourcesLoading);
+
       const studentData = {
         student_name: sanitizedFormData.studentName,
         responsible_name: sanitizedFormData.responsibleName,
@@ -248,7 +253,9 @@ export const RegistrationForm = () => {
         origin_school: '', // Campo removido - sempre vazio
         class_id: sanitizedFormData.classId,
         unit_id: sanitizedFormData.unitId,
-        registration_source_id: hasSources ? sanitizedFormData.registrationSourceId : null,
+        registration_source_id: hasSources && !allowSourceFallback && sanitizedFormData.registrationSourceId
+          ? sanitizedFormData.registrationSourceId
+          : null,
         tracking_code: activeTrackingCode, // Código de rastreamento capturado da URL
         status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const,
         // Garantir persistência dos campos de exame no insert

@@ -7,7 +7,11 @@ const isValidPhone = (phone: string): boolean => {
   return digitsOnly.length === 10 || digitsOnly.length === 11;
 };
 
-export const validateForm = (formData: RegistrationFormData, hasRegistrationSources: boolean = false): ValidationErrors => {
+export const validateForm = (
+  formData: RegistrationFormData,
+  hasRegistrationSources: boolean = false,
+  options?: { sourcesError?: boolean; sourcesLoading?: boolean }
+): ValidationErrors => {
   const errors: ValidationErrors = {};
   
   // Validar campos obrigatórios
@@ -46,8 +50,9 @@ export const validateForm = (formData: RegistrationFormData, hasRegistrationSour
     errors.unitId = 'Unidade é obrigatória';
   }
   
-  // Validar origem da inscrição apenas se há opções disponíveis
-  if (hasRegistrationSources && !formData.registrationSourceId.trim()) {
+  // Validar origem da inscrição somente quando opções carregadas e sem erro
+  const shouldRequireSource = hasRegistrationSources && !options?.sourcesError && !options?.sourcesLoading;
+  if (shouldRequireSource && !formData.registrationSourceId.trim()) {
     errors.registrationSourceId = 'Por favor, selecione como conheceu a Apogeu';
   }
   
