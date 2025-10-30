@@ -1314,7 +1314,7 @@ const StudentProfile = () => {
                         )}
                       </div>
                       {currentAppointment && (
-                        <div className="flex items-center space-x-2 ml-4 mt-1 sm:mt-0">
+                        <div className="col-span-2 sm:col-span-1 flex items-center space-x-2 ml-4 mt-1 sm:mt-0">
                           <span className="text-sm text-gray-600">Formato:</span>
                           <Badge variant={currentAppointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
                             {currentAppointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
