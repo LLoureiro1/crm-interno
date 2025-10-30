@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Phone, Save, X } from 'lucide-react';
+import { Plus, Trash2, Phone, Save, X, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPhone } from '@/utils/registrationFormatters';
@@ -23,6 +23,12 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
   const [editingAdditionalPhones, setEditingAdditionalPhones] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const buildWhatsAppHref = (raw: string): string => {
+    const digits = (raw || '').replace(/\D/g, '');
+    const wa = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
+    return wa ? `https://wa.me/${wa}` : '';
+  };
 
   useEffect(() => {
     fetchStudentAndPhones();
@@ -292,7 +298,18 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
             <div className="flex items-center space-x-3">
               <Phone className="h-4 w-4 text-blue-600" />
               <div>
-                <p className="font-medium">{student.phone}</p>
+                <div className="flex items-center space-x-2">
+                  <p className="font-medium">{student.phone}</p>
+                  <a
+                    href={buildWhatsAppHref(student.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 text-green-600 hover:bg-green-50"
+                    title="Abrir conversa no WhatsApp"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </a>
+                </div>
                 <div className="text-xs text-blue-600 font-medium">
                   Telefone principal
                 </div>
@@ -309,7 +326,18 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
             <div className="flex items-center space-x-3">
               <Phone className="h-4 w-4 text-gray-500" />
               <div>
-                <p className="font-medium">{phone.phone_number}</p>
+                <div className="flex items-center space-x-2">
+                  <p className="font-medium">{phone.phone_number}</p>
+                  <a
+                    href={buildWhatsAppHref(phone.phone_number)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 text-green-600 hover:bg-green-50"
+                    title="Abrir conversa no WhatsApp"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </a>
+                </div>
                 <div className="text-xs text-gray-600">
                   Telefone adicional {index + 1}
                 </div>
