@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Phone, Save, X, MessageCircle } from 'lucide-react';
+import { Plus, Trash2, Phone, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPhone } from '@/utils/registrationFormatters';
@@ -307,7 +307,7 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
                     className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 text-green-600 hover:bg-green-50"
                     title="Abrir conversa no WhatsApp"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <img src="/whatsapp-logo.png" alt="WhatsApp" className="h-4 w-4" />
                   </a>
                 </div>
                 <div className="text-xs text-blue-600 font-medium">
@@ -335,7 +335,7 @@ export const StudentPhoneManager = ({ studentId, disabled = false }: StudentPhon
                     className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 text-green-600 hover:bg-green-50"
                     title="Abrir conversa no WhatsApp"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <img src="/whatsapp-logo.png" alt="WhatsApp" className="h-4 w-4" />
                   </a>
                 </div>
                 <div className="text-xs text-gray-600">
