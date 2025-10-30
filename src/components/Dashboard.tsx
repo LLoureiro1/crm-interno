@@ -10,11 +10,13 @@ import { ConfigTab } from './tabs/ConfigTab';
 import { AdvancedReportsTab } from './tabs/AdvancedReportsTab';
 import { BarChart3, Users, Calendar, Settings, TrendingUp, UserPlus } from 'lucide-react';
 import ErrorBoundary from './ErrorBoundary';
+import { supabase } from '@/integrations/supabase/client';
 
 export const Dashboard = () => {
   const { profile } = useAuth();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('reports');
+  const [inscricaoLink, setInscricaoLink] = useState('/inscricao');
 
   const canAccessAdvancedReports = profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
@@ -27,6 +29,44 @@ export const Dashboard = () => {
       setActiveTab(navigationState.activeTab);
     }
   }, [location.state]);
+
+  // Montar link de "Nova Inscrição" com base na unidade do usuário
+  useEffect(() => {
+    const computeInscricaoLink = async () => {
+      try {
+        if (profile?.unit_id) {
+          const { data: userUnit, error } = await supabase
+            .from('units')
+            .select('id, name, slug')
+            .eq('id', profile.unit_id)
+            .maybeSingle() as any;
+
+          if (error) {
+            console.warn('Erro ao buscar unidade para montar link de inscrição:', error);
+            setInscricaoLink('/inscricao');
+            return;
+          }
+
+          const unitName = (userUnit?.name || '').toLowerCase();
+          const isCentral = unitName === 'central';
+          const slug = userUnit?.slug as string | null;
+
+          if (!isCentral && slug) {
+            setInscricaoLink(`/inscricao/${slug}`);
+          } else {
+            setInscricaoLink('/inscricao');
+          }
+        } else {
+          setInscricaoLink('/inscricao');
+        }
+      } catch (err) {
+        console.warn('Falha ao montar link de inscrição:', err);
+        setInscricaoLink('/inscricao');
+      }
+    };
+
+    computeInscricaoLink();
+  }, [profile?.unit_id]);
 
   return (
     <div className="space-y-6">
@@ -104,7 +144,7 @@ export const Dashboard = () => {
       <div className="mt-8 pt-6 border-t border-gray-200">
         <div className="flex justify-center">
           <a 
-            href="/inscricao"
+            href={inscricaoLink}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer inline-block"
           >
             <UserPlus className="h-5 w-5" />
