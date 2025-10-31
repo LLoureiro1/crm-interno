@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
-import { formatDateForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 import { sanitizeInteractionComment, sanitizeInput } from '@/utils/sanitization';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -1155,7 +1155,7 @@ const StudentProfile = () => {
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />
                     <span className="font-medium">Data da Inscrição:</span>
-                    <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
+                    <p>{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
                   </div>
                   
                   {/* Editor de série e unidade */}

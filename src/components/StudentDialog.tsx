@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, CreditCard, Book, Pen } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
-import { formatDateForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 import { GradeEditor } from '@/components/GradeEditor';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
@@ -275,7 +275,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-3 w-3" />
                     <span className="font-medium">Data da Inscrição:</span>
-                    <p>{formatDateForDisplay(student.created_at.split('T')[0])}</p>
+                    <p>{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
                   </div>
                   {student.exam_date && (
                     <div className="flex items-center space-x-1">
