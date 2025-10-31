@@ -120,12 +120,10 @@ export const ReportsTab = () => {
         }
       });
 
-      // Contar alunos confirmados/nao_confirmado cuja exam_date coincide com a próxima da sua unidade
+      // Contar alunos pela data de exame: exam_date deve coincidir com a próxima da sua unidade
       const count = students.filter((student) => {
-        const isConfirmed =
-          student.status === 'confirmado' || student.status === 'nao_confirmado';
         const unitNextDate = earliestByUnit[student.classes.unit_id];
-        return isConfirmed && !!unitNextDate && student.exam_date === unitNextDate;
+        return !!unitNextDate && student.exam_date === unitNextDate;
       }).length;
 
       return { count, datesByUnit: earliestByUnit };
@@ -233,14 +231,13 @@ export const ReportsTab = () => {
         // ou apenas daquela unidade quando um filtro específico estiver selecionado
         if (Object.keys(nextExamDatesByUnit).length > 0) {
           return studentsData.filter((s) =>
-            (s.status === 'confirmado' || s.status === 'nao_confirmado') &&
             !!nextExamDatesByUnit[s.classes.unit_id] &&
             s.exam_date === nextExamDatesByUnit[s.classes.unit_id]
           );
         }
-        return studentsData.filter(
-          (s) => s.status === 'confirmado' || s.status === 'nao_confirmado'
-        );
+        // Fallback: quando ainda não há mapeamento de próxima prova por unidade,
+        // exibir alunos que possuem alguma data de exame definida
+        return studentsData.filter((s) => !!s.exam_date);
       case 'matriculados':
         return studentsData.filter(s => s.status === 'matriculado');
       default:
