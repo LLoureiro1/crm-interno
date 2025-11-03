@@ -105,12 +105,19 @@ const StudentProfile = () => {
   const [forceOpenAttendance, setForceOpenAttendance] = useState(false);
 
 
+  // Carregar aluno quando o id mudar
   useEffect(() => {
     if (id) {
       fetchStudent();
-      fetchInterviewers();
     }
   }, [id]);
+
+  // Carregar entrevistadores somente após o perfil (unit_id) estar disponível
+  useEffect(() => {
+    if (profile?.unit_id) {
+      fetchInterviewers();
+    }
+  }, [profile?.unit_id]);
 
   useEffect(() => {
     if (student) {
