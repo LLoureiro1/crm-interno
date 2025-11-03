@@ -177,12 +177,12 @@ export const StudentsTab = () => {
 
     if (unitFilter.length > 0) {
       filtered = filtered.filter(student =>
-        unitFilter.includes(student.unit_id!) || unitFilter.includes(student.classes.unit_id!)
+        unitFilter.includes(student.unit_id!) || unitFilter.includes(student.classes?.unit_id!)
       );
     }
 
     if (seriesFilter.length > 0) {
-      filtered = filtered.filter(student => seriesFilter.includes(student.classes.series_id!));
+      filtered = filtered.filter(student => seriesFilter.includes(student.classes?.series_id!));
     }
 
     if (examDateFilter.length > 0) {
@@ -234,8 +234,8 @@ export const StudentsTab = () => {
       'Cidade': student.city,
       'Bairro': student.neighborhood,
       'Escola de Origem': student.origin_school,
-      'Série': student.classes.series.name,
-      'Unidade': student.classes.units.name,
+      'Série': student.classes?.series?.name || '',
+      'Unidade': student.classes?.units?.name || '',
       'Status': student.status,
       'Data da Prova': student.exam_date ? formatDateForDisplay(student.exam_date) : '',
       'Data da Entrevista': student.interview_date ? formatDateForDisplay(student.interview_date) : '',
@@ -428,7 +428,7 @@ export const StudentsTab = () => {
 
             <div className="md:col-span-1">
               <MultiSelect
-                options={units.map(unit => ({ value: unit.id, label: unit.name }))}
+                options={units.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
                 selected={unitFilter}
                 onChange={setUnitFilter}
                 placeholder="Unidade"
@@ -438,7 +438,7 @@ export const StudentsTab = () => {
 
             <div className="md:col-span-1">
               <MultiSelect
-                options={series.map(_series => ({ value: _series.id, label: _series.name }))}
+                options={series.filter(Boolean).map(_series => ({ value: _series.id, label: _series.name || 'Sem nome' }))}
                 selected={seriesFilter}
                 onChange={setSeriesFilter}
                 placeholder="Série"
@@ -504,8 +504,8 @@ export const StudentsTab = () => {
                         <p className="text-sm text-gray-600">Código: {student.code}</p>
                       </div>
                       <div className="order-2 sm:order-none">
-                        <p className="text-sm text-gray-600">{student.classes.series.name}</p>
-                        <p className="text-sm text-gray-600">{student.classes.units.name}</p>
+                        <p className="text-sm text-gray-600">{student.classes?.series?.name || '-'}</p>
+                        <p className="text-sm text-gray-600">{student.classes?.units?.name || '-'}</p>
                       </div>
                       <div className="order-3 sm:order-none">
                         {student.exam_date && (

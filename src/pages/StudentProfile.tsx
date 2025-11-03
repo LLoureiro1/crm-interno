@@ -169,19 +169,49 @@ const StudentProfile = () => {
   };
 
   const fetchInterviewers = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('profile', ['entrevistador', 'direcao', 'admin'])
-      .eq('ativo', true)
-      .order('name');
+    try {
+      // Determinar se o usuário é da unidade "Central"
+      let isCentralUser = false;
+      if (profile?.unit_id) {
+        const { data: userUnit, error: userUnitError } = await supabase
+          .from('units')
+          .select('id, name')
+          .eq('id', profile.unit_id)
+          .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching interviewers:', error);
-      return;
+        if (userUnitError) {
+          console.warn('Erro ao buscar unidade do usuário para checar central:', userUnitError);
+        }
+
+        const unitName = (userUnit?.name || '').toLowerCase();
+        isCentralUser = unitName === 'central';
+      }
+
+      // Construir query de entrevistadores: apenas ativos e perfis elegíveis
+      let interviewersQuery = supabase
+        .from('profiles')
+        .select('*')
+        .in('profile', ['entrevistador', 'direcao', 'admin'])
+        .eq('ativo', true);
+
+      // Se não for usuário da central, filtrar por mesma unidade
+      if (!isCentralUser && profile?.unit_id) {
+        interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+      }
+
+      const { data, error } = await interviewersQuery.order('name');
+
+      if (error) {
+        console.error('Error fetching interviewers:', error);
+        return;
+      }
+
+      // Sanitize in case the backend returns any null items
+      const sanitized = (data || []).filter((p: any) => p && p.id);
+      setInterviewers(sanitized as Profile[]);
+    } catch (err) {
+      console.error('Unexpected error fetching interviewers:', err);
     }
-
-    setInterviewers(data || []);
   };
 
   const fetchInteractions = async () => {
@@ -363,13 +393,14 @@ const StudentProfile = () => {
       if (error) throw error;
 
       // Add interaction
+      const interviewerName = interviewers.find(i => i && i.id === interviewerId)?.name || 'Entrevistador';
       await supabase
         .from('student_interactions')
         .insert({
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewers.find(i => i.id === interviewerId)?.name} (${formatoEntrevista === 'a_distancia' ? 'A distância' : 'Presencial'}). Status automaticamente alterado para "Atendimento Agendado".`,
+          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewerName} (${formatoEntrevista === 'a_distancia' ? 'A distância' : 'Presencial'}). Status automaticamente alterado para "Atendimento Agendado".`,
 
         });
 
@@ -1484,12 +1515,12 @@ const StudentProfile = () => {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent side="bottom">
-                        {interviewers.map(interviewer => (
-                          <SelectItem key={interviewer.id} value={interviewer.id}>
-                            {interviewer.name}
+                        {interviewers.filter(Boolean).map(interviewer => (
+                          <SelectItem key={interviewer?.id as string} value={interviewer?.id as string}>
+                            {interviewer?.name || 'Sem nome'}
                           </SelectItem>
                         ))}
-                              </SelectContent>
+                      </SelectContent>
                     </Select>
                   </div>
                 </div>
