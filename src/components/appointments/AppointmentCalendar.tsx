@@ -84,9 +84,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
     return originalFee * discountMultiplier;
   };
 
+  // Carregar filtros quando o perfil estiver disponível (evita carregar entrevistadores de todas as unidades antes do perfil)
   useEffect(() => {
-    fetchFiltersData();
-  }, []);
+    if (profile?.unit_id) {
+      fetchFiltersData();
+    }
+  }, [profile?.unit_id]);
 
   useEffect(() => {
     console.log('Data selecionada mudou:', selectedDate);
@@ -156,7 +159,9 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       setUnits(unitsData.data || []);
       setSeries(seriesData.data || []);
-      setInterviewers(interviewersData.data || []);
+      // Sanitize entrevistadores para evitar itens nulos e manter apenas válidos
+      const sanitizedInterviewers = (interviewersData.data || []).filter((p: any) => p && p.id);
+      setInterviewers(sanitizedInterviewers);
       
       console.log('Filters loaded:', {
         units: unitsData.data?.length || 0,
