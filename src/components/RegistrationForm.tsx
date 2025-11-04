@@ -417,8 +417,7 @@ export const RegistrationForm = () => {
                   para garantir até 60% de desconto e conhecer de perto tudo o que nossa escola oferece!
                 </p>
                 <p className="mt-3 text-gray-800">
-                  Se seu filho(a) está na Educação Infantil, basta realizar o cadastro e nossa equipe
-                  entrará em contato para agendar um atendimento personalizado na escola.
+                  Se seu filho(a) está na Educação Infantil, basta realizar o cadastro e entraremos em contato para agendar um atendimento personalizado na escola.
                 </p>
               </div>
             )}
