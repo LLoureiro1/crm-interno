@@ -167,6 +167,10 @@ export const EnrollmentImport = () => {
               rowData[fieldName] = row[colIndex] !== undefined ? String(row[colIndex]).trim() : '';
             }
           });
+          // Preserve zeros à esquerda em codigo_crm padronizando para 6 dígitos
+          if (rowData['codigo_crm'] && /^\d{1,6}$/.test(rowData['codigo_crm'])) {
+            rowData['codigo_crm'] = rowData['codigo_crm'].padStart(6, '0');
+          }
           return rowData as EnrollmentImportData;
         }).filter(row => Object.keys(row).length > 0);
 
