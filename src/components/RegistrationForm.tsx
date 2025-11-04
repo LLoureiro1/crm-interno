@@ -409,7 +409,7 @@ export const RegistrationForm = () => {
           <CardContent>           
             {/* Bloco informativo específico para a unidade Lima Duarte - APOGEU Piaget */}
             {unitSlug?.toLowerCase() === 'lima-duarte' && (
-              <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
+              <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-3">
                 <h3 className="text-lg font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
                 <p className="mt-2 text-gray-800">
                   O Bolsão 2026 acontecerá dia 6 de dezembro, às 9h,
