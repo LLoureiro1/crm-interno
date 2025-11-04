@@ -407,6 +407,12 @@ export const RegistrationForm = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Aviso de uso de dados (LGPD) */}
+            <div className="mb-4 rounded-md bg-blue-50 border border-blue-100 p-3">
+              <p className="text-sm text-gray-800">
+                As informações coletadas serão utilizadas exclusivamente para fins de inscrição e comunicação sobre o Processo de Admissão 2026.
+              </p>
+            </div>
             {/* Bloco informativo específico para a unidade Lima Duarte - APOGEU Piaget */}
             {unitSlug?.toLowerCase() === 'lima-duarte' && (
               <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
@@ -468,6 +474,12 @@ export const RegistrationForm = () => {
                   'Realizar Inscrição'
                 )}
               </Button>
+
+              {/* Consentimento abaixo do botão (LGPD) */}
+              <p className="mt-2 text-xs text-gray-700 text-center">
+                Ao enviar este formulário, você concorda com o uso dos seus dados para comunicação sobre o Bolsão 2026, conforme nossa
+                {' '}<a href="/privacidade" className="text-blue-600 hover:text-blue-700 underline">Política de Privacidade</a>.
+              </p>
             </form>
           </CardContent>
         </Card>

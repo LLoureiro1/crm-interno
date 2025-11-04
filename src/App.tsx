@@ -11,9 +11,11 @@ import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Confirmation from './components/registration/Confirmation';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import ErrorBoundary from "./components/ErrorBoundary";
 import { DOMErrorPrevention } from "./components/DOMErrorPrevention";
 import { useTrackingCode } from "./hooks/useTrackingCode";
+import { CookieBanner } from "./components/CookieBanner";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/inscricao/:unitSlug" element={<Registration />} />
                 <Route path="/inscricao" element={<Registration />} />
+                <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/student/:id" element={<StudentProfile />} />
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
@@ -61,6 +64,7 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <CookieBanner />
             </TrackingProvider>
           </BrowserRouter>
         </TooltipProvider>
