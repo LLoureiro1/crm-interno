@@ -382,7 +382,7 @@ export const RegistrationForm = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Logos da unidade */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5">
           {unitSlug?.toLowerCase() === 'lima-duarte' ? (
             <img 
               src="/logo_piaget_apogeu.png" 
@@ -409,8 +409,8 @@ export const RegistrationForm = () => {
           <CardContent>           
             {/* Bloco informativo específico para a unidade Lima Duarte - APOGEU Piaget */}
             {unitSlug?.toLowerCase() === 'lima-duarte' && (
-              <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-3">
-                <h3 className="text-lg font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
+              <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                <h3 className="text-base font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
                 <p className="mt-2 text-gray-800">
                   O Bolsão 2026 acontecerá dia 6 de dezembro, às 9h,
                   para alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
