@@ -326,12 +326,32 @@ export const EnrollmentImport = () => {
   const downloadTemplate = () => {
     const worksheet = XLSX.utils.aoa_to_sheet([
       ['codigo_crm', 'codigo_erp', 'status'],
+      // Exemplo: manter como string; Excel já verá como texto
       ['123456', 'ERP001', 'matriculado'],
     ]);
-    
+
+    // Garantir que o cabeçalho da coluna A esteja como texto
+    if (worksheet['A1']) {
+      worksheet['A1'].t = 's';
+      worksheet['A1'].z = '@';
+    }
+
+    // Pré-formatar a coluna A (codigo_crm) como Texto em várias linhas
+    const MAX_ROWS = 1000; // ajuste conforme necessidade
+    for (let r = 2; r <= MAX_ROWS; r++) {
+      const cellRef = `A${r}`;
+      // Cria célula vazia como texto para que o Excel preserve zeros à esquerda ao colar/digitar
+      worksheet[cellRef] = { t: 's', v: '', z: '@' };
+    }
+
+    // Expandir o range da planilha para incluir as linhas pré-formatadas
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:C2');
+    range.e.r = Math.max(range.e.r, MAX_ROWS);
+    worksheet['!ref'] = XLSX.utils.encode_range(range);
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    
+
     XLSX.writeFile(workbook, 'template_importacao_matriculas.xlsx');
   };
 
