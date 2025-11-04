@@ -382,7 +382,7 @@ export const RegistrationForm = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Logos da unidade */}
-        <div className="flex justify-center mb-3">
+        <div className="flex justify-center mb-2">
           {unitSlug?.toLowerCase() === 'lima-duarte' ? (
             <img 
               src="/logo_piaget_apogeu.png" 
@@ -416,7 +416,7 @@ export const RegistrationForm = () => {
                   para alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
                   para garantir até 60% de desconto e conhecer de perto tudo o que nossa escola oferece!
                 </p>
-                <p className="mt-3 text-gray-800">
+                <p className="mt-2 text-gray-800">
                   Se seu filho(a) está na Educação Infantil, basta realizar o cadastro e entraremos em contato para agendar um atendimento personalizado na escola.
                 </p>
               </div>
