@@ -400,7 +400,7 @@ export const RegistrationForm = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-gray-900">
+            <CardTitle className="text-xl text-center text-gray-900">
               {unitSlug?.toLowerCase() === 'lima-duarte'
                 ? 'Inscrição de Candidatos - Bolsão 2026'
                 : 'Inscrição de Candidatos'}
@@ -410,7 +410,7 @@ export const RegistrationForm = () => {
             {/* Bloco informativo específico para a unidade Lima Duarte - APOGEU Piaget */}
             {unitSlug?.toLowerCase() === 'lima-duarte' && (
               <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
-                <h3 className="text-sm font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
+                <h3 className="text-base font-semibold text-orange-700">Participe do nosso Bolsão!</h3>
                 <p className="mt-2 text-gray-800">
                   O Bolsão 2026 acontecerá dia 6 de dezembro, às 9h,
                   para alunos do 1º ano do Ensino Fundamental ao 3º ano do Ensino Médio. É uma ótima oportunidade
