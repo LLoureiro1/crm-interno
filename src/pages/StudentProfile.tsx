@@ -1464,118 +1464,106 @@ const StudentProfile = () => {
                     <span>Proposta</span>
                   </div>
                   {hasHadInterview && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowProposalModal(true)}
-                      className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Ver Resumo</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowProposalModal(true)}
+                        className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>Ver Resumo</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDiscountEditor(true)}
+                        className="flex items-center space-x-2"
+                        title="Alterar desconto"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Alterar Desconto</span>
+                      </Button>
+                    </div>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {hasHadInterview && (
-                  <div className="border rounded-md p-3 bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <Percent className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-blue-900">Desconto Negociado</span>
-                      </div>
+                {hasHadInterview && showDiscountEditor && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="discount-edit">Percentual (%)</Label>
+                      <Input
+                        id="discount-edit"
+                        value={discountEdit}
+                        onChange={(e) => setDiscountEdit(e.target.value)}
+                        placeholder="0 a 100"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 flex items-end space-x-2">
+                      <Button
+                        onClick={async () => {
+                          const parsed = parseFloat(discountEdit);
+                          if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+                            toast.error('Percentual de desconto deve estar entre 0% e 100%');
+                            return;
+                          }
+
+                          try {
+                            const previous = student?.discount_percentage ?? 0;
+                            const shouldUpdateStatus = student?.status === 'atendimento_ha_mais_de_uma_semana';
+
+                            const { error: studentError } = await supabase
+                              .from('students')
+                              .update({
+                                discount_percentage: parsed,
+                                status: shouldUpdateStatus ? 'atendimento_recentemente' : student?.status,
+                                updated_at: new Date().toISOString()
+                              })
+                              .eq('id', id);
+
+                            if (studentError) throw studentError;
+
+                            const userName = profile?.name || 'Usuário';
+                            const statusNote = shouldUpdateStatus ? ' Status alterado para "Atendimento Recentemente".' : '';
+                            const comment = `Desconto atualizado de ${previous}% para ${parsed}% por ${userName}.${statusNote}`;
+
+                            const { error: interactionError } = await supabase
+                              .from('student_interactions')
+                              .insert({
+                                student_id: id,
+                                user_id: profile?.id || null,
+                                interaction_type: 'atendimento',
+                                comments: comment
+                              });
+
+                            if (interactionError) throw interactionError;
+
+                            toast.success('Desconto alterado com sucesso');
+                            setShowDiscountEditor(false);
+                            fetchStudent();
+                            fetchInteractions();
+                          } catch (error) {
+                            console.error('Erro ao alterar desconto:', error);
+                            toast.error('Erro ao alterar desconto');
+                          }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="h-4 w-4 mr-1" />
+                        Salvar Alteração
+                      </Button>
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => setShowDiscountEditor((prev) => !prev)}
-                        className="text-blue-700 border-blue-300 bg-white hover:bg-blue-50"
-                        title={showDiscountEditor ? 'Fechar edição' : 'Alterar desconto'}
+                        onClick={() => {
+                          setShowDiscountEditor(false);
+                          setDiscountEdit(String(student?.discount_percentage ?? 0));
+                        }}
                       >
-                        {showDiscountEditor ? (
-                          <X className="h-4 w-4 mr-1" />
-                        ) : (
-                          <Edit className="h-4 w-4 mr-1" />
-                        )}
-                        {showDiscountEditor ? 'Cancelar' : 'Alterar Desconto'}
+                        <X className="h-4 w-4 mr-1" />
+                        Cancelar
                       </Button>
                     </div>
-                    {showDiscountEditor && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <Label htmlFor="discount-edit">Percentual (%)</Label>
-                          <Input
-                            id="discount-edit"
-                            value={discountEdit}
-                            onChange={(e) => setDiscountEdit(e.target.value)}
-                            placeholder="0 a 100"
-                          />
-                        </div>
-                        <div className="sm:col-span-2 flex items-end space-x-2">
-                          <Button
-                            onClick={async () => {
-                              const parsed = parseFloat(discountEdit);
-                              if (isNaN(parsed) || parsed < 0 || parsed > 100) {
-                                toast.error('Percentual de desconto deve estar entre 0% e 100%');
-                                return;
-                              }
-
-                              try {
-                                const previous = student?.discount_percentage ?? 0;
-                                const shouldUpdateStatus = student?.status === 'atendimento_ha_mais_de_uma_semana';
-
-                                const { error: studentError } = await supabase
-                                  .from('students')
-                                  .update({
-                                    discount_percentage: parsed,
-                                    status: shouldUpdateStatus ? 'atendimento_recentemente' : student?.status,
-                                    updated_at: new Date().toISOString()
-                                  })
-                                  .eq('id', id);
-
-                                if (studentError) throw studentError;
-
-                                const userName = profile?.name || 'Usuário';
-                                const statusNote = shouldUpdateStatus ? ' Status alterado para "Atendimento Recentemente".' : '';
-                                const comment = `Desconto atualizado de ${previous}% para ${parsed}% por ${userName}.${statusNote}`;
-
-                                const { error: interactionError } = await supabase
-                                  .from('student_interactions')
-                                  .insert({
-                                    student_id: id,
-                                    user_id: profile?.id || null,
-                                    interaction_type: 'atendimento',
-                                    comments: comment
-                                  });
-
-                                if (interactionError) throw interactionError;
-
-                                toast.success('Desconto alterado com sucesso');
-                                setShowDiscountEditor(false);
-                                fetchStudent();
-                                fetchInteractions();
-                              } catch (error) {
-                                console.error('Erro ao alterar desconto:', error);
-                                toast.error('Erro ao alterar desconto');
-                              }
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Save className="h-4 w-4 mr-1" />
-                            Salvar Alteração
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setShowDiscountEditor(false);
-                              setDiscountEdit(String(student?.discount_percentage ?? 0));
-                            }}
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                 {/* Monthly Fee Section */}
@@ -1586,7 +1574,10 @@ const StudentProfile = () => {
                   </div>
                   <MonthlyFeeCalculator
                     originalFee={student.classes.monthly_fee}
-                    discountPercentage={student.discount_percentage}
+                    discountPercentage={(() => {
+                      const d = parseFloat(discountEdit);
+                      return showDiscountEditor && !isNaN(d) ? d : student.discount_percentage;
+                    })()}
                     showAnnualSavings={true}
                     showClassName={true}
                     className={student.classes.name}
