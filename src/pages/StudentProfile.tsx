@@ -1858,43 +1858,48 @@ const StudentProfile = () => {
               </CardContent>
             </Card>
 
-            {/* Contact Attempts */}
+            
+          </div>
+
+          {/* Interactions */}
+          <div className="space-y-4">
+            {/* Contact Attempts (movido para a coluna direita acima de Adicionar Comentário) */}
             <Card>
               <CardHeader>
                 <CardTitle>Contatos</CardTitle>
               </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Canal *</Label>
-                  <Select value={newContactChannel} onValueChange={(v) => setNewContactChannel(v as Enums<'contact_channel'>)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      <SelectItem value="phone">Ligação</SelectItem>
-                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="in_person">Presencial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2 pt-6 md:pt-0">
-                  <Checkbox 
-                    id="contato-sucedido"
-                    checked={newContactSucceeded}
-                    onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
-                  />
-                  <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
-                    Contato bem sucedido
-                  </Label>
-                </div>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Canal *</Label>
+                    <Select value={newContactChannel} onValueChange={(v) => setNewContactChannel(v as Enums<'contact_channel'>)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        <SelectItem value="phone">Ligação</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="in_person">Presencial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2 pt-6 md:pt-0">
+                    <Checkbox 
+                      id="contato-sucedido"
+                      checked={newContactSucceeded}
+                      onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
+                    />
+                    <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
+                      Contato bem sucedido
+                    </Label>
+                  </div>
 
-                <div className="md:col-span-2">
-                  <Label>Comentário</Label>
-                  <Textarea value={newContactComment} onChange={(e) => setNewContactComment(e.target.value)} placeholder="Breve comentário sobre o contato" />
+                  <div className="md:col-span-2">
+                    <Label>Comentário</Label>
+                    <Textarea value={newContactComment} onChange={(e) => setNewContactComment(e.target.value)} placeholder="Breve comentário sobre o contato" />
+                  </div>
                 </div>
-              </div>
 
                 <Button onClick={handleAddContactAttempt} className="w-full bg-orange-500 hover:bg-orange-600">
                   Registrar Contato
@@ -1904,7 +1909,7 @@ const StudentProfile = () => {
                   {contactLoading ? (
                     <div className="text-sm text-gray-500">Carregando contatos...</div>
                   ) : contactAttempts && contactAttempts.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                       {contactAttempts.map((c) => (
                         <div key={c.id} className="border rounded-md p-3">
                           <div className="flex justify-between">
@@ -1928,10 +1933,7 @@ const StudentProfile = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Interactions */}
-          <div className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Adicionar Comentário</CardTitle>
