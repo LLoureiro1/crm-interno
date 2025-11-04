@@ -382,7 +382,7 @@ export const RegistrationForm = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Logos da unidade */}
-        <div className="flex justify-center mb-2">
+        <div className="flex justify-center mb-1">
           {unitSlug?.toLowerCase() === 'lima-duarte' ? (
             <img 
               src="/logo_piaget_apogeu.png" 
