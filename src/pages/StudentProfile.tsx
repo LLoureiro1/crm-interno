@@ -44,6 +44,10 @@ type ClassWithRelations = Tables<'classes'> & {
   series: Tables<'series'>;
 };
 
+type ContactAttempt = Tables<'contact_attempts'> & {
+  profiles: { name: string };
+};
+
 const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
@@ -71,6 +75,14 @@ const StudentProfile = () => {
   const [availableExamDates, setAvailableExamDates] = useState<Tables<'exam_dates'>[]>([]);
   const [selectedExamDateId, setSelectedExamDateId] = useState<string>('');
   const [showExamDateEditor, setShowExamDateEditor] = useState(false);
+
+  // Tentativas de contato
+  const [contactAttempts, setContactAttempts] = useState<ContactAttempt[]>([]);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [newContactChannel, setNewContactChannel] = useState<Enums<'contact_channel'> | ''>('');
+  const [newContactSucceeded, setNewContactSucceeded] = useState(false);
+  const [newContactComment, setNewContactComment] = useState('');
+  // Campos de contato: status relacionado, data e hora agora são automáticos
 
   // Estados para edição de série e unidade
   const [availableUnits, setAvailableUnits] = useState<Tables<'units'>[]>([]);
@@ -127,11 +139,14 @@ const StudentProfile = () => {
       fetchAvailableUnits(); // ADICIONAR
       fetchAvailableSeries(); // ADICIONAR
       fetchCurrentAppointment(); // Buscar appointment atual
+      fetchContactAttempts(); // Buscar tentativas de contato
       
       // Definir valores atuais como selecionados
       setSelectedUnitId(student.classes.unit_id);
       setSelectedSeriesId(student.classes.series_id);
       setSelectedClassId(student.class_id);
+
+      // Campos de contato (data/hora/status) são automáticos
     }
   }, [student]);
 
@@ -258,6 +273,60 @@ const StudentProfile = () => {
 
     if (data) {
       setCurrentAppointment(data);
+    }
+  };
+
+  const fetchContactAttempts = async () => {
+    if (!id) return;
+    setContactLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contact_attempts')
+        .select(`*, profiles(name)`) // attempted_by -> profiles
+        .eq('student_id', id)
+        .order('attempted_at', { ascending: false });
+
+      if (error) throw error;
+      setContactAttempts((data || []) as ContactAttempt[]);
+    } catch (err) {
+      console.error('Erro ao carregar tentativas de contato:', err);
+      toast.error('Erro ao carregar tentativas de contato');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const handleAddContactAttempt = async () => {
+    if (!id || !profile?.id) return;
+
+    // Validações mínimas
+    if (!newContactChannel) {
+      toast.error('Selecione o canal do contato');
+      return;
+    }
+    // Data/hora e status relacionado serão preenchidos automaticamente
+
+    try {
+      const { error } = await supabase
+        .from('contact_attempts')
+        .insert({
+          student_id: id,
+          attempted_by: profile.id,
+          channel: newContactChannel as Enums<'contact_channel'>,
+          succeeded: newContactSucceeded,
+          comment: sanitizeInput(newContactComment),
+          related_status: student.status as Enums<'student_status'>,
+        });
+
+      if (error) throw error;
+      toast.success('Tentativa de contato registrada');
+      setNewContactComment('');
+      setNewContactSucceeded(false);
+      setNewContactChannel('');
+      fetchContactAttempts();
+    } catch (err) {
+      console.error('Erro ao registrar contato:', err);
+      toast.error('Erro ao registrar contato');
     }
   };
 
@@ -1561,10 +1630,10 @@ const StudentProfile = () => {
 
             {/* Actions - Only show Register Attendance if it's interview day */}
             {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Registrar Atendimento</CardTitle>
-                </CardHeader>
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Atendimento</CardTitle>
+              </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <Label htmlFor="discount">Percentual de Desconto (%)</Label>
@@ -1786,6 +1855,77 @@ const StudentProfile = () => {
                 >
                   Atualizar Status
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Contact Attempts */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Contatos</CardTitle>
+              </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Canal *</Label>
+                  <Select value={newContactChannel} onValueChange={(v) => setNewContactChannel(v as Enums<'contact_channel'>)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent side="bottom">
+                      <SelectItem value="phone">Ligação</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="in_person">Presencial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2 pt-6 md:pt-0">
+                  <Checkbox 
+                    id="contato-sucedido"
+                    checked={newContactSucceeded}
+                    onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
+                  />
+                  <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
+                    Contato bem sucedido
+                  </Label>
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label>Comentário</Label>
+                  <Textarea value={newContactComment} onChange={(e) => setNewContactComment(e.target.value)} placeholder="Breve comentário sobre o contato" />
+                </div>
+              </div>
+
+                <Button onClick={handleAddContactAttempt} className="w-full bg-orange-500 hover:bg-orange-600">
+                  Registrar Contato
+                </Button>
+
+                <div className="pt-4">
+                  {contactLoading ? (
+                    <div className="text-sm text-gray-500">Carregando contatos...</div>
+                  ) : contactAttempts && contactAttempts.length > 0 ? (
+                    <div className="space-y-2">
+                      {contactAttempts.map((c) => (
+                        <div key={c.id} className="border rounded-md p-3">
+                          <div className="flex justify-between">
+                            <div className="text-sm text-gray-700">
+                              {new Date(c.attempted_at).toLocaleDateString('pt-BR')} às {new Date(c.attempted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              {' • '} {c.channel === 'phone' ? 'Ligação' : c.channel === 'whatsapp' ? 'WhatsApp' : c.channel === 'email' ? 'Email' : 'Presencial'}
+                              {' • '} {c.profiles?.name || 'Usuário'}
+                              {' • '} {c.succeeded ? 'Sucesso' : 'Sem contato'}
+                              {' • '} {c.related_status}
+                            </div>
+                          </div>
+                          {c.comment && (
+                            <div className="text-sm text-gray-600 mt-1">{c.comment}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Nenhuma tentativa de contato registrada.</div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

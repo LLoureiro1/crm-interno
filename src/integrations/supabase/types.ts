@@ -253,6 +253,57 @@ export type Database = {
           },
         ]
       }
+      contact_attempts: {
+        Row: {
+          id: string
+          student_id: string
+          attempted_by: string
+          attempted_at: string
+          channel: Database["public"]["Enums"]["contact_channel"]
+          succeeded: boolean
+          comment: string | null
+          related_status: Database["public"]["Enums"]["student_status"]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          attempted_by: string
+          attempted_at?: string
+          channel: Database["public"]["Enums"]["contact_channel"]
+          succeeded?: boolean
+          comment?: string | null
+          related_status: Database["public"]["Enums"]["student_status"]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          attempted_by?: string
+          attempted_at?: string
+          channel?: Database["public"]["Enums"]["contact_channel"]
+          succeeded?: boolean
+          comment?: string | null
+          related_status?: Database["public"]["Enums"]["student_status"]
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_attempts_attempted_by_fkey"
+            columns: ["attempted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institutions: {
         Row: {
           created_at: string
@@ -597,6 +648,7 @@ export type Database = {
         | "ausente"
         | "processo_anos_anteriores"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
+      contact_channel: "phone" | "whatsapp" | "email" | "in_person"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -754,6 +806,7 @@ export const Constants = {
         "processo_anos_anteriores",
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
+      contact_channel: ["phone", "whatsapp", "email", "in_person"],
     },
   },
 } as const
