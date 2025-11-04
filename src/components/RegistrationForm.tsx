@@ -382,7 +382,7 @@ export const RegistrationForm = () => {
     <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Logos da unidade */}
-        <div className="flex justify-center mt-1 mb-1">
+        <div className="flex justify-center mb-1">
           {unitSlug?.toLowerCase() === 'lima-duarte' ? (
             <img 
               src="/logo_piaget_apogeu.png" 
@@ -400,7 +400,7 @@ export const RegistrationForm = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl text-center text-gray-900">
+            <CardTitle className="text-lg text-center text-gray-900">
               {unitSlug?.toLowerCase() === 'lima-duarte'
                 ? 'Inscrição de Candidatos - Bolsão 2026'
                 : 'Inscrição de Candidatos'}
