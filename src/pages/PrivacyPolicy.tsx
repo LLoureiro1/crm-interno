@@ -15,6 +15,8 @@ const PrivacyPolicy = () => {
           Os dados coletados no formulário de inscrição (como nome, dados de contato e informações acadêmicas)
           são utilizados exclusivamente para fins de inscrição, atendimento ao candidato e comunicação sobre o
           Processo de Admissão 2026.
+
+          Os dados poderão ser mantidos por tempo indeterminado, enquanto houver interesse legítimo da instituição em manter contato com os inscritos, respeitando sempre o direito de exclusão mediante solicitação.
         </p>
 
         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-2">Compartilhamento</h2>
@@ -32,7 +34,7 @@ const PrivacyPolicy = () => {
         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-2">Direitos dos Titulares</h2>
         <p className="text-gray-700 mb-2">
           Conforme a LGPD, você pode solicitar acesso, correção, atualização ou exclusão de seus dados, bem como
-          revogar consentimento. Para exercer seus direitos, entre em contato pelos canais oficiais da instituição.
+          revogar consentimento. Para exercer seus direitos, entre em contato pelos canais oficiais da instituição como email e telefone.
         </p>
 
         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-2">Cookies</h2>
