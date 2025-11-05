@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,6 +86,49 @@ const StudentProfile = () => {
   const [newContactSucceeded, setNewContactSucceeded] = useState(false);
   const [newContactComment, setNewContactComment] = useState('');
   // Campos de contato: status relacionado, data e hora agora são automáticos
+
+  // Filtro para histórico unificado
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'interactions' | 'contacts'>('all');
+
+  // Helpers e estrutura para histórico unificado
+  const channelLabel = (ch?: Enums<'contact_channel'> | null) =>
+    ch === 'phone' ? 'Ligação' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : ch === 'in_person' ? 'Presencial' : '';
+  const reasonLabel = (r?: Enums<'contact_reason'> | null) =>
+    r === 'agendamento' ? 'Agendamento' : r === 'reagendamento' ? 'Reagendamento' : r === 'confirmacao_prova' ? 'Confirmação de Prova' : r === 'convidar_ausentes' ? 'Convidar Ausentes' : r === 'followup_pos_atendimento' ? 'Follow-up Pós Atendimento' : '';
+
+  type UnifiedItem = {
+    id: string;
+    kind: 'interaction' | 'contact';
+    actor: string;
+    at: string; // ISO date
+    contentHtml?: string;
+    badges: string[];
+  };
+
+  const unifiedHistory = useMemo<UnifiedItem[]>(() => {
+    const fromInteractions: UnifiedItem[] = (interactions || []).map((i) => ({
+      id: i.id,
+      kind: 'interaction',
+      actor: (i as any).profiles?.name || 'Sistema',
+      at: i.created_at,
+      contentHtml: sanitizeInteractionComment(i.comments || ''),
+      badges: [i.interaction_type || ''],
+    }));
+    const fromContacts: UnifiedItem[] = (contactAttempts || []).map((c) => ({
+      id: c.id,
+      kind: 'contact',
+      actor: c.profiles?.name || 'Usuário',
+      at: c.attempted_at,
+      contentHtml: c.comment ? sanitizeInteractionComment(c.comment) : undefined,
+      badges: [channelLabel(c.channel), reasonLabel(c.reason), c.succeeded ? 'Sucesso' : 'Sem contato']
+        .filter(Boolean) as string[],
+    }));
+    let items = [...fromInteractions, ...fromContacts];
+    items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    if (historyFilter === 'interactions') items = items.filter((x) => x.kind === 'interaction');
+    if (historyFilter === 'contacts') items = items.filter((x) => x.kind === 'contact');
+    return items;
+  }, [interactions, contactAttempts, historyFilter]);
 
   // Estados para edição de série e unidade
   const [availableUnits, setAvailableUnits] = useState<Tables<'units'>[]>([]);
@@ -2047,33 +2090,7 @@ const StudentProfile = () => {
                   Registrar Contato
                 </Button>
 
-                <div className="pt-4">
-                  {contactLoading ? (
-                    <div className="text-sm text-gray-500">Carregando contatos...</div>
-                  ) : contactAttempts && contactAttempts.length > 0 ? (
-                    <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                      {contactAttempts.map((c) => (
-                        <div key={c.id} className="border rounded-md p-3">
-                          <div className="flex justify-between">
-                            <div className="text-sm text-gray-700">
-                              {new Date(c.attempted_at).toLocaleDateString('pt-BR')} às {new Date(c.attempted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                              {' • '} {c.channel === 'phone' ? 'Ligação' : c.channel === 'whatsapp' ? 'WhatsApp' : c.channel === 'email' ? 'Email' : 'Presencial'}
-                              {' • '} {c.reason === 'agendamento' ? 'Agendamento' : c.reason === 'reagendamento' ? 'Reagendamento' : c.reason === 'confirmacao_prova' ? 'Confirmação de Prova' : c.reason === 'convidar_ausentes' ? 'Convidar Ausentes' : c.reason === 'followup_pos_atendimento' ? 'Follow-up Pós Atendimento' : ''}
-                              {' • '} {c.profiles?.name || 'Usuário'}
-                              {' • '} {c.succeeded ? 'Sucesso' : 'Sem contato'}
-                              {' • '} {c.related_status}
-                            </div>
-                          </div>
-                          {c.comment && (
-                            <div className="text-sm text-gray-600 mt-1">{c.comment}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">Nenhuma tentativa de contato registrada.</div>
-                  )}
-                </div>
+                <div className="pt-2 text-xs text-gray-500">O histórico de contatos aparece no card “Histórico”.</div>
               </CardContent>
             </Card>
 
@@ -2099,34 +2116,53 @@ const StudentProfile = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Histórico de Interações</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Histórico</CardTitle>
+                  <div className="w-48">
+                    <Select value={historyFilter} onValueChange={(v) => setHistoryFilter(v as 'all' | 'interactions' | 'contacts')}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Filtrar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="interactions">Interações</SelectItem>
+                        <SelectItem value="contacts">Contatos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {interactions.length > 0 ? (
-                    interactions.map((interaction) => (
-                      <div key={interaction.id} className="p-3 bg-gray-50 rounded-lg">
+                  {unifiedHistory.length > 0 ? (
+                    unifiedHistory.map((item) => (
+                      <div key={`${item.kind}-${item.id}`} className="p-3 bg-gray-50 rounded-lg">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-sm font-medium text-gray-900">
-                            {(interaction as any).profiles?.name || 'Sistema'}
+                            {item.actor}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {new Date(interaction.created_at).toLocaleString('pt-BR')}
+                            {new Date(item.at).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <p 
-                          className="text-sm text-gray-700"
-                          dangerouslySetInnerHTML={{ 
-                            __html: sanitizeInteractionComment(interaction.comments || '') 
-                          }}
-                        />
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          {interaction.interaction_type}
-                        </Badge>
+                        {item.contentHtml && (
+                          <p
+                            className="text-sm text-gray-700"
+                            dangerouslySetInnerHTML={{ __html: item.contentHtml }}
+                          />
+                        )}
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {item.kind === 'interaction' ? 'Interação' : 'Contato'}
+                          </Badge>
+                          {item.badges.map((b, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">{b}</Badge>
+                          ))}
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-center">Nenhuma interação registrada</p>
+                    <p className="text-gray-500 text-center">Nenhum registro encontrado</p>
                   )}
                 </div>
               </CardContent>
