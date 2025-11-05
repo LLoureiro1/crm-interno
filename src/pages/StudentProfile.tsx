@@ -82,6 +82,7 @@ const StudentProfile = () => {
   const [contactAttempts, setContactAttempts] = useState<ContactAttempt[]>([]);
   const [contactLoading, setContactLoading] = useState(false);
   const [newContactChannel, setNewContactChannel] = useState<Enums<'contact_channel'> | ''>('');
+  const [newContactReason, setNewContactReason] = useState<Enums<'contact_reason'> | ''>('');
   const [newContactSucceeded, setNewContactSucceeded] = useState(false);
   const [newContactComment, setNewContactComment] = useState('');
   // Campos de contato: status relacionado, data e hora agora são automáticos
@@ -310,6 +311,10 @@ const StudentProfile = () => {
       toast.error('Selecione o canal do contato');
       return;
     }
+    if (!newContactReason) {
+      toast.error('Selecione o motivo do contato');
+      return;
+    }
     // Data/hora e status relacionado serão preenchidos automaticamente
 
     try {
@@ -319,6 +324,7 @@ const StudentProfile = () => {
           student_id: id,
           attempted_by: profile.id,
           channel: newContactChannel as Enums<'contact_channel'>,
+          reason: newContactReason as Enums<'contact_reason'>,
           succeeded: newContactSucceeded,
           comment: sanitizeInput(newContactComment),
           related_status: student.status as Enums<'student_status'>,
@@ -329,6 +335,7 @@ const StudentProfile = () => {
       setNewContactComment('');
       setNewContactSucceeded(false);
       setNewContactChannel('');
+      setNewContactReason('');
       fetchContactAttempts();
     } catch (err) {
       console.error('Erro ao registrar contato:', err);
@@ -2004,6 +2011,21 @@ const StudentProfile = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Motivo de Contato *</Label>
+                    <Select value={newContactReason} onValueChange={(v) => setNewContactReason(v as Enums<'contact_reason'>)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        <SelectItem value="agendamento">Agendamento</SelectItem>
+                        <SelectItem value="reagendamento">Reagendamento</SelectItem>
+                        <SelectItem value="confirmacao_prova">Confirmação de Prova</SelectItem>
+                        <SelectItem value="convidar_ausentes">Convidar Ausentes</SelectItem>
+                        <SelectItem value="followup_pos_atendimento">Follow-up Pós Atendimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex items-center space-x-2 pt-6 md:pt-0">
                     <Checkbox 
                       id="contato-sucedido"
@@ -2036,6 +2058,7 @@ const StudentProfile = () => {
                             <div className="text-sm text-gray-700">
                               {new Date(c.attempted_at).toLocaleDateString('pt-BR')} às {new Date(c.attempted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               {' • '} {c.channel === 'phone' ? 'Ligação' : c.channel === 'whatsapp' ? 'WhatsApp' : c.channel === 'email' ? 'Email' : 'Presencial'}
+                              {' • '} {c.reason === 'agendamento' ? 'Agendamento' : c.reason === 'reagendamento' ? 'Reagendamento' : c.reason === 'confirmacao_prova' ? 'Confirmação de Prova' : c.reason === 'convidar_ausentes' ? 'Convidar Ausentes' : c.reason === 'followup_pos_atendimento' ? 'Follow-up Pós Atendimento' : ''}
                               {' • '} {c.profiles?.name || 'Usuário'}
                               {' • '} {c.succeeded ? 'Sucesso' : 'Sem contato'}
                               {' • '} {c.related_status}

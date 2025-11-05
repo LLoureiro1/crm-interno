@@ -260,6 +260,7 @@ export type Database = {
           attempted_by: string
           attempted_at: string
           channel: Database["public"]["Enums"]["contact_channel"]
+          reason: Database["public"]["Enums"]["contact_reason"]
           succeeded: boolean
           comment: string | null
           related_status: Database["public"]["Enums"]["student_status"]
@@ -271,6 +272,7 @@ export type Database = {
           attempted_by: string
           attempted_at?: string
           channel: Database["public"]["Enums"]["contact_channel"]
+          reason: Database["public"]["Enums"]["contact_reason"]
           succeeded?: boolean
           comment?: string | null
           related_status: Database["public"]["Enums"]["student_status"]
@@ -282,6 +284,7 @@ export type Database = {
           attempted_by?: string
           attempted_at?: string
           channel?: Database["public"]["Enums"]["contact_channel"]
+          reason?: Database["public"]["Enums"]["contact_reason"]
           succeeded?: boolean
           comment?: string | null
           related_status?: Database["public"]["Enums"]["student_status"]
@@ -649,6 +652,12 @@ export type Database = {
         | "processo_anos_anteriores"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
       contact_channel: "phone" | "whatsapp" | "email" | "in_person"
+      contact_reason:
+        | "agendamento"
+        | "reagendamento"
+        | "confirmacao_prova"
+        | "convidar_ausentes"
+        | "followup_pos_atendimento"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -807,6 +816,13 @@ export const Constants = {
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
       contact_channel: ["phone", "whatsapp", "email", "in_person"],
+      contact_reason: [
+        "agendamento",
+        "reagendamento",
+        "confirmacao_prova",
+        "convidar_ausentes",
+        "followup_pos_atendimento",
+      ],
     },
   },
 } as const
