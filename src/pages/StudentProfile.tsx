@@ -1511,21 +1511,42 @@ const StudentProfile = () => {
 
                           try {
                             const previous = student?.discount_percentage ?? 0;
-                            const shouldUpdateStatus = student?.status === 'atendimento_ha_mais_de_uma_semana';
+                            const todayStr = getCurrentDate();
+                            const now = new Date();
+                            const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                            const userName = profile?.name || 'Usuário';
 
+                            // 1) Inserir novo atendimento realizado para hoje, vinculado ao usuário
+                            const { error: insertAppointmentError } = await supabase
+                              .from('appointments')
+                              .insert({
+                                student_id: id,
+                                interviewer_id: profile?.id || null,
+                                appointment_date: todayStr,
+                                appointment_time: nowTime,
+                                formato_entrevista: currentAppointment?.formato_entrevista ?? 'presencial',
+                                status: 'realizado',
+                                attended: true,
+                                comments: `Atendimento registrado ao editar desconto de ${previous}% para ${parsed}% por ${userName}.`
+                              });
+
+                            if (insertAppointmentError) throw insertAppointmentError;
+
+                            // 2) Atualizar aluno: desconto, status recente e interview_date hoje (estratégia A)
                             const { error: studentError } = await supabase
                               .from('students')
                               .update({
                                 discount_percentage: parsed,
-                                status: shouldUpdateStatus ? 'atendimento_recentemente' : student?.status,
+                                status: 'atendimento_recentemente',
+                                interview_date: todayStr,
                                 updated_at: new Date().toISOString()
                               })
                               .eq('id', id);
 
                             if (studentError) throw studentError;
 
-                            const userName = profile?.name || 'Usuário';
-                            const statusNote = shouldUpdateStatus ? ' Status alterado para "Atendimento Recentemente".' : '';
+                            // 3) Registrar interação de atendimento
+                            const statusNote = ' Status alterado para "Atendimento Recentemente".';
                             const comment = `Desconto atualizado de ${previous}% para ${parsed}% por ${userName}.${statusNote}`;
 
                             const { error: interactionError } = await supabase
@@ -1539,7 +1560,7 @@ const StudentProfile = () => {
 
                             if (interactionError) throw interactionError;
 
-                            toast.success('Desconto alterado com sucesso');
+                            toast.success('Desconto e atendimento registrados com sucesso');
                             setShowDiscountEditor(false);
                             fetchStudent();
                             fetchInteractions();
