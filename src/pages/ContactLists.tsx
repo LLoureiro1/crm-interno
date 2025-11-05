@@ -499,7 +499,7 @@ const ContactLists = () => {
                 <div className="mt-1 flex flex-wrap gap-2">
                   {lastEntries.map(e => (
                     <Badge key={e.id} variant={e.left_at ? 'secondary' : 'default'}>
-                      {e.students?.student_name || e.student_id} — {new Date(e.entered_at).toLocaleString()}
+                      {e.students?.student_name || e.student_id} — {new Date(e.entered_at).toLocaleString('pt-BR')}
                     </Badge>
                   ))}
                 </div>
@@ -521,8 +521,8 @@ const ContactLists = () => {
                           <TableCell className="font-medium">{item.students?.student_name || item.student_id}</TableCell>
                           <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
                           <TableCell className="text-sm">{item.profiles?.name || item.assigned_user_id || '-'}</TableCell>
-                          <TableCell className="text-sm">{new Date(item.entered_at).toLocaleString()}</TableCell>
-                          <TableCell className="text-sm">{item.left_at ? new Date(item.left_at).toLocaleString() : '-'}</TableCell>
+                          <TableCell className="text-sm">{new Date(item.entered_at).toLocaleString('pt-BR')}</TableCell>
+                          <TableCell className="text-sm">{item.left_at ? new Date(item.left_at).toLocaleString('pt-BR') : '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
