@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportsTab } from './tabs/ReportsTab';
-import { StudentsTab } from './tabs/StudentsTab';
+import { StudentsMainTab } from './tabs/StudentsMainTab';
 import { AppointmentsTab } from './tabs/AppointmentsTab';
 import { ConfigTab } from './tabs/ConfigTab';
 import { AdvancedReportsTab } from './tabs/AdvancedReportsTab';
@@ -121,7 +121,7 @@ export const Dashboard = () => {
 
         <TabsContent value="students" className="space-y-4">
           <ErrorBoundary>
-            <StudentsTab />
+            <StudentsMainTab />
           </ErrorBoundary>
         </TabsContent>
 

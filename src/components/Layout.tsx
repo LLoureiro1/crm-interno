@@ -41,6 +41,14 @@ export const Layout = ({ children }: LayoutProps) => {
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-gray-600 hover:text-gray-900"
+                asChild
+              >
+                <a href="/meus-designados">Meus Designados</a>
+              </Button>
             </div>
           </div>
         </div>
