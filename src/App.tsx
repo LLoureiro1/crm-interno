@@ -8,7 +8,6 @@ import ContactLists from "./pages/ContactLists";
 import Index from "./pages/Index";
 import Registration from "./pages/Registration";
 import StudentProfile from "./pages/StudentProfile";
-import AssignedContacts from "./pages/AssignedContacts";
 import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -64,7 +63,6 @@ const App = () => (
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/confirmacao" element={<Confirmation />} />
                 <Route path="/contact-lists" element={<ContactLists />} />
-                <Route path="/meus-designados" element={<AssignedContacts />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

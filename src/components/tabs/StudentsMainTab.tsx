@@ -25,11 +25,7 @@ export const StudentsMainTab = () => {
         </div>
 
         <TabsContent value="list" className="space-y-4">
-          <Card>
-            <div className="p-1">
-              <StudentsTab />
-            </div>
-          </Card>
+          <StudentsTab />
         </TabsContent>
         <TabsContent value="assigned" className="space-y-4">
           <AssignedContactsTab />
