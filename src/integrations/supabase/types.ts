@@ -769,6 +769,11 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      ,
+      distribute_contact_list_items: {
+        Args: { p_list_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       dropout_reason:

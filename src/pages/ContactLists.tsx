@@ -58,7 +58,8 @@ const ContactLists = () => {
   const [selectedList, setSelectedList] = useState<ContactList | null>(null);
   const [listItems, setListItems] = useState<ContactListItem[]>([]);
   const [assignees, setAssignees] = useState<ContactListAssignee[]>([]);
-  const [profilesOptions, setProfilesOptions] = useState<Tables<'profiles'>[]>([]);
+  type ProfileWithUnit = Tables<'profiles'> & { units?: Tables<'units'> | null };
+  const [profilesOptions, setProfilesOptions] = useState<ProfileWithUnit[]>([]);
 
   const [formName, setFormName] = useState('');
   const [formStatus, setFormStatus] = useState<Enums<'student_status'>[]>([]);
@@ -119,10 +120,11 @@ const ContactLists = () => {
   const fetchAssignableProfiles = async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, name, profile, unit_id, ativo, units(name)')
       .in('profile', ['entrevistador', 'direcao', 'admin'])
+      .eq('ativo', true)
       .order('name');
-    setProfilesOptions(data || []);
+    setProfilesOptions((data || []) as ProfileWithUnit[]);
   };
 
   const fetchLists = async () => {
@@ -217,6 +219,41 @@ const ContactLists = () => {
     }
   };
 
+  const handleDeleteList = async (listId: string) => {
+    const confirmed = window.confirm('Tem certeza que deseja excluir esta lista? Esta ação não pode ser desfeita.');
+    if (!confirmed) return;
+    try {
+      const { error: eItems } = await supabase
+        .from('contact_list_items')
+        .delete()
+        .eq('list_id', listId);
+      if (eItems) throw eItems;
+
+      const { error: eAssignees } = await supabase
+        .from('contact_list_assignees')
+        .delete()
+        .eq('list_id', listId);
+      if (eAssignees) throw eAssignees;
+
+      const { error: eList } = await supabase
+        .from('contact_lists')
+        .delete()
+        .eq('id', listId);
+      if (eList) throw eList;
+
+      toast.success('Lista excluída');
+      await fetchLists();
+      if (selectedList?.id === listId) {
+        setSelectedList(null);
+        setListItems([]);
+        setAssignees([]);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir lista:', err);
+      toast.error('Erro ao excluir lista');
+    }
+  };
+
   const handleAddAssignee = async (userId: string) => {
     if (!selectedList) return;
     const exists = assignees.some(a => a.user_id === userId);
@@ -237,7 +274,13 @@ const ContactLists = () => {
       return;
     }
     toast.success('Designado adicionado');
+    try {
+      await supabase.rpc('distribute_contact_list_items', { p_list_id: selectedList.id });
+    } catch (e) {
+      console.warn('Distribuição via RPC falhou (gatilho deve cobrir):', e);
+    }
     fetchAssignees(selectedList.id);
+    fetchListItems(selectedList.id);
   };
 
   const handleRemoveAssignee = async (userId: string) => {
@@ -399,6 +442,7 @@ const ContactLists = () => {
                   </TableCell>
                   <TableCell>
                     <Button variant="outline" onClick={() => setSelectedList(l)}>Abrir</Button>
+                    <Button variant="destructive" className="ml-2" onClick={() => handleDeleteList(l.id)}>Excluir</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -423,6 +467,7 @@ const ContactLists = () => {
                       <div key={a.user_id} className="flex items-center justify-between border rounded p-2">
                         <div>
                           <div className="font-medium">{p?.name || a.user_id}</div>
+                          <div className="text-xs text-gray-500">{p?.units?.name || p?.profile}</div>
                           <div className="text-xs text-gray-500">Peso: {a.weight}</div>
                         </div>
                         <Button variant="destructive" onClick={() => handleRemoveAssignee(a.user_id)}>Remover</Button>
@@ -437,7 +482,7 @@ const ContactLists = () => {
                     <SelectTrigger><SelectValue placeholder="Selecionar usuário" /></SelectTrigger>
                     <SelectContent>
                       {profilesOptions.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name} — {p.profile}</SelectItem>
+                        <SelectItem key={p.id} value={p.id}>{p.name} — {p.units?.name || p.profile}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
