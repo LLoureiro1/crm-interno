@@ -120,7 +120,7 @@ const StudentProfile = () => {
       actor: c.profiles?.name || 'Usuário',
       at: c.attempted_at,
       contentHtml: c.comment ? sanitizeInteractionComment(c.comment) : undefined,
-      badges: [channelLabel(c.channel), reasonLabel(c.reason), c.succeeded ? 'Sucesso' : 'Sem contato']
+      badges: [channelLabel(c.channel), reasonLabel(c.reason), c.succeeded ? 'Sucesso' : 'Insucesso']
         .filter(Boolean) as string[],
     }));
     let items = [...fromInteractions, ...fromContacts];
