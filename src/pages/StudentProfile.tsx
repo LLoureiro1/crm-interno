@@ -1524,9 +1524,10 @@ const StudentProfile = () => {
                                 interviewer_id: profile?.id || null,
                                 appointment_date: todayStr,
                                 appointment_time: nowTime,
-                                formato_entrevista: currentAppointment?.formato_entrevista ?? 'presencial',
+                                formato_entrevista: 'a_distancia',
                                 status: 'realizado',
                                 attended: true,
+                                discount_percentage: parsed,
                                 comments: `Atendimento registrado ao editar desconto de ${previous}% para ${parsed}% por ${userName}.`
                               });
 
