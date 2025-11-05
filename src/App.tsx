@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ContactLists from "./pages/ContactLists";
 import Index from "./pages/Index";
 import Registration from "./pages/Registration";
 import StudentProfile from "./pages/StudentProfile";
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/confirmacao" element={<Confirmation />} />
+                <Route path="/contact-lists" element={<ContactLists />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

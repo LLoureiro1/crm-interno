@@ -612,6 +612,153 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+      },
+      contact_lists: {
+        Row: {
+          id: string
+          name: string
+          status_in: Database["public"]["Enums"]["student_status"][] | null
+          unit_ids: string[] | null
+          series_ids: string[] | null
+          class_ids: string[] | null
+          academic_years: string[] | null
+          exam_date_filters: string[] | null
+          is_active: boolean
+          distribution_mode: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          status_in?: Database["public"]["Enums"]["student_status"][] | null
+          unit_ids?: string[] | null
+          series_ids?: string[] | null
+          class_ids?: string[] | null
+          academic_years?: string[] | null
+          exam_date_filters?: string[] | null
+          is_active?: boolean
+          distribution_mode?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          status_in?: Database["public"]["Enums"]["student_status"][] | null
+          unit_ids?: string[] | null
+          series_ids?: string[] | null
+          class_ids?: string[] | null
+          academic_years?: string[] | null
+          exam_date_filters?: string[] | null
+          is_active?: boolean
+          distribution_mode?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
+      contact_list_assignees: {
+        Row: {
+          id: string
+          list_id: string
+          user_id: string
+          weight: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          user_id: string
+          weight?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          user_id?: string
+          weight?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_list_assignees_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_list_assignees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
+      contact_list_items: {
+        Row: {
+          id: string
+          list_id: string
+          student_id: string
+          assigned_user_id: string | null
+          entered_at: string
+          left_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          student_id: string
+          assigned_user_id?: string | null
+          entered_at?: string
+          left_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          student_id?: string
+          assigned_user_id?: string | null
+          entered_at?: string
+          left_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_list_items_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_list_items_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

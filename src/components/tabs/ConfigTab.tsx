@@ -1,5 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ContactLists from '@/pages/ContactLists';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserManagement } from '@/components/management/UserManagement';
@@ -14,6 +16,7 @@ import { RegistrationSourceManagement } from '@/components/management/Registrati
 
 export const ConfigTab = () => {
   const isMounted = useRef<boolean>(true);
+  const navigate = useNavigate();
   
   // Tratamento defensivo para operações do DOM
   useEffect(() => {
@@ -48,7 +51,7 @@ export const ConfigTab = () => {
       
       <Tabs defaultValue="users" className="space-y-4">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-9">
+          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-10">
             <TabsTrigger value="users" className="min-w-max px-3 py-2 text-sm">Usuários</TabsTrigger>
             <TabsTrigger value="units" className="min-w-max px-3 py-2 text-sm">Unidades</TabsTrigger>
             <TabsTrigger value="classes" className="min-w-max px-3 py-2 text-sm">Turmas</TabsTrigger>
@@ -58,6 +61,7 @@ export const ConfigTab = () => {
             <TabsTrigger value="sources" className="min-w-max px-3 py-2 text-sm">Origens</TabsTrigger>
             <TabsTrigger value="import" className="min-w-max px-3 py-2 text-sm">Importação</TabsTrigger>
             <TabsTrigger value="enrollment" className="min-w-max px-3 py-2 text-sm">Matrículas</TabsTrigger>
+            <TabsTrigger value="contact-lists" className="min-w-max px-3 py-2 text-sm">Listas de Contato</TabsTrigger>
           </TabsList>
         </div>
 
@@ -175,6 +179,10 @@ export const ConfigTab = () => {
               <EnrollmentImport />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="contact-lists">
+          <ContactLists />
         </TabsContent>
       </Tabs>
     </div>
