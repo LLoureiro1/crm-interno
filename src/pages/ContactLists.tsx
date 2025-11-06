@@ -518,8 +518,7 @@ const ContactLists = () => {
                       <div key={a.user_id} className="flex items-center justify-between border rounded p-2">
                         <div>
                           <div className="font-medium">{p?.name || a.user_id}</div>
-                          <div className="text-xs text-gray-500">{p?.units?.name || p?.profile}</div>
-                          <div className="text-xs text-gray-500">Peso: {a.weight}</div>
+                          <div className="text-xs text-gray-500">{p?.units?.name || p?.profile}</div>                          
                         </div>
                         <Button variant="destructive" onClick={() => handleRemoveAssignee(a.user_id)}>Remover</Button>
                       </div>
