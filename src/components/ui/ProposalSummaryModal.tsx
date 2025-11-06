@@ -128,7 +128,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
           </Button>
         </div>
 
-        <div className="proposal-print-area bg-white" ref={contentRef}>
+        <div className="proposal-print-area bg-white p-6 md:p-8" ref={contentRef}>
           <DialogHeader className="pb-3">
             <DialogTitle className="text-xl font-bold text-center">
               📋 Resumo da Proposta
@@ -214,7 +214,9 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                     {student.material_payment_type === 'a_vista' && <FileText className="h-3 w-3 text-purple-600" />}
                     {student.material_payment_type === 'parcelado_cartao' && <CreditCard className="h-3 w-3 text-purple-600" />}
                     {student.material_payment_type === 'parcelado_boleto' && <FileText className="h-3 w-3 text-purple-600" />}
-                    <span className="font-medium">{getPaymentTypeName()}</span>
+                    {getPaymentTypeName() !== '-' && (
+                      <span className="font-medium">{getPaymentTypeName()}</span>
+                    )}
                   </div>
                 </div>
 
