@@ -51,12 +51,14 @@ export const ConfigTab = () => {
       
       <Tabs defaultValue="users" className="space-y-4">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-10">
+          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-5">
             <TabsTrigger value="users" className="min-w-max px-3 py-2 text-sm">Usuários</TabsTrigger>
             <TabsTrigger value="units" className="min-w-max px-3 py-2 text-sm">Unidades</TabsTrigger>
             <TabsTrigger value="classes" className="min-w-max px-3 py-2 text-sm">Turmas</TabsTrigger>
             <TabsTrigger value="exam-dates" className="min-w-max px-3 py-2 text-sm">Datas de Provas</TabsTrigger>
             <TabsTrigger value="availability" className="min-w-max px-3 py-2 text-sm">Disponibilidade</TabsTrigger>
+          </TabsList> 
+          <TabsList className="inline-flex h-auto min-w-full bg-white p-1 gap-1 md:grid md:grid-cols-5">
             <TabsTrigger value="grades" className="min-w-max px-3 py-2 text-sm">Notas</TabsTrigger>
             <TabsTrigger value="sources" className="min-w-max px-3 py-2 text-sm">Origens</TabsTrigger>
             <TabsTrigger value="import" className="min-w-max px-3 py-2 text-sm">Importação</TabsTrigger>
