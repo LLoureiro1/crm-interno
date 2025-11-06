@@ -60,6 +60,7 @@ const ContactLists = () => {
   const [assignees, setAssignees] = useState<ContactListAssignee[]>([]);
   type ProfileWithUnit = Tables<'profiles'> & { units?: Tables<'units'> | null };
   const [profilesOptions, setProfilesOptions] = useState<ProfileWithUnit[]>([]);
+  const [activeCounts, setActiveCounts] = useState<Record<string, number>>({});
 
   const [formName, setFormName] = useState('');
   const [formStatus, setFormStatus] = useState<Enums<'student_status'>[]>([]);
@@ -79,6 +80,24 @@ const ContactLists = () => {
     fetchLists();
     fetchFiltersData();
     fetchAssignableProfiles();
+
+    // Atualizar contadores de ativos em tempo real
+    const channel = supabase
+      .channel('contact_list_items_global')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'contact_list_items'
+      }, () => {
+        if (lists.length) {
+          fetchActiveCountsForLists(lists.map(l => l.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin]);
 
   useEffect(() => {
@@ -137,7 +156,35 @@ const ContactLists = () => {
       toast.error('Erro ao carregar listas');
       return;
     }
-    setLists((data || []) as ContactList[]);
+    const loaded = (data || []) as ContactList[];
+    setLists(loaded);
+    if (loaded.length) {
+      fetchActiveCountsForLists(loaded.map(l => l.id));
+    } else {
+      setActiveCounts({});
+    }
+  };
+
+  const fetchActiveCountsForLists = async (listIds: string[]) => {
+    if (!listIds.length) {
+      setActiveCounts({});
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('contact_list_items')
+        .select('list_id')
+        .in('list_id', listIds)
+        .is('left_at', null);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((row: { list_id: string }) => {
+        counts[row.list_id] = (counts[row.list_id] || 0) + 1;
+      });
+      setActiveCounts(counts);
+    } catch (err) {
+      console.warn('Falha ao carregar contagem de ativos por lista', err);
+    }
   };
 
   const fetchListItems = async (listId: string) => {
@@ -422,6 +469,7 @@ const ContactLists = () => {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Ativa</TableHead>
+                <TableHead>Nº de Alunos</TableHead>
                 <TableHead>Filtros</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
@@ -431,6 +479,9 @@ const ContactLists = () => {
                 <TableRow key={l.id}>
                   <TableCell className="font-medium">{l.name}</TableCell>
                   <TableCell>{l.is_active ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{activeCounts[l.id] ?? 0}</Badge>
+                  </TableCell>
                   <TableCell className="text-sm">
                     {l.status_in?.length ? <Badge variant="outline">{l.status_in.join(', ')}</Badge> : <Badge variant="secondary">Todos status</Badge>}
                     {' '}
