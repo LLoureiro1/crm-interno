@@ -121,7 +121,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 pr-12">
           <Button variant="outline" onClick={handleSaveImage} className="gap-2">
             <Download className="h-4 w-4" />
             <span>Salvar Proposta</span>
@@ -168,14 +168,14 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                 <span className="text-gray-600">Parcela Integral:</span>
                 <span className="text-gray-500 line-through text-xs">R$ {student.classes.monthly_fee.toFixed(2)}</span>
               </div>
-              {student.discount_percentage && student.discount_percentage > 0 && (
+              {student.discount_percentage > 0 && (
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Desconto:</span>
                   <Badge className="bg-green-600 text-xs px-2 py-0">{student.discount_percentage}%</Badge>
                 </div>
               )}
               <div className="flex justify-between items-center pt-1 border-t border-green-200">
-                <span className="font-semibold text-gray-800 text-xs">Final:</span>
+                <span className="font-semibold text-gray-800 text-xs">Parcela Mensalidade Final:</span>
                 <div className="flex items-baseline space-x-2">
                   <span className="text-base font-semibold text-green-700">{parcelasCount}x</span>
                   <span className="text-lg font-bold text-green-700">R$ {finalMonthlyFee.toFixed(2)}</span>
@@ -220,7 +220,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                   </div>
                 </div>
 
-                {student.discount_material && student.discount_material > 0 && (
+                {student.discount_material > 0 && (
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-gray-600">Desconto:</span>
                     <Badge className="bg-purple-600 text-xs px-2 py-0">{student.discount_material}%</Badge>
@@ -234,7 +234,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                 </div>
 
                 {/* Parcelamento */}
-                {student.material_installments && student.material_installments > 1 && student.material_parcela && (
+                {(student.material_installments ?? 0) > 1 && !!student.material_parcela && (
                   <div className="bg-purple-100 p-1.5 rounded">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1">
