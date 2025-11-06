@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, DollarSign, Percent, CreditCard, FileText, Package, Calendar, Printer } from 'lucide-react';
+import { GraduationCap, DollarSign, Percent, CreditCard, FileText, Package, Calendar, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
+import { toPng } from 'html-to-image';
 
 interface ProposalSummaryModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
 }) => {
   // Data do Atendimento
   const [attendanceDate, setAttendanceDate] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchAttendanceDate = async () => {
@@ -97,21 +99,36 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
   const annuityDiscounted = student.discount_percentage ? annuityOriginal * (1 - (student.discount_percentage / 100)) : annuityOriginal;
   const annualSavings = annuityOriginal - annuityDiscounted;
 
-  const handlePrint = () => {
-    window.print();
+  const handleSaveImage = async () => {
+    try {
+      const node = contentRef.current;
+      if (!node) return;
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      const safeName = (student?.student_name || 'Proposta').replace(/\s+/g, '_');
+      link.download = `Proposta_${safeName}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao salvar proposta como imagem:', err);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
-        <div className="flex justify-end mb-4 no-print">
-          <Button variant="outline" onClick={handlePrint} className="gap-2">
-            <Printer className="h-4 w-4" />
-            <span>Imprimir Proposta</span>
+        <div className="flex justify-end mb-4">
+          <Button variant="outline" onClick={handleSaveImage} className="gap-2">
+            <Download className="h-4 w-4" />
+            <span>Salvar Proposta</span>
           </Button>
         </div>
 
-        <div className="proposal-print-area">
+        <div className="proposal-print-area bg-white" ref={contentRef}>
           <DialogHeader className="pb-3">
             <DialogTitle className="text-xl font-bold text-center">
               📋 Resumo da Proposta
