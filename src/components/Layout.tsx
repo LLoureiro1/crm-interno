@@ -40,8 +40,7 @@ export const Layout = ({ children }: LayoutProps) => {
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
-              </Button>
-              {/* Botão para Meus Designados removido; acesso via aba Inscritos */}
+              </Button>              
             </div>
           </div>
         </div>

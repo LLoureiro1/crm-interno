@@ -181,7 +181,7 @@ export const AssignedContactsTab = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Meus Alunos Designados</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Minhas Listas</h2>
           <p className="text-gray-600">Veja suas listas e alunos atribuídos a você.</p>
         </div>
       </div>

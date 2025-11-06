@@ -19,7 +19,7 @@ export const StudentsMainTab = () => {
             </TabsTrigger>
             <TabsTrigger value="assigned" className="flex items-center space-x-2 min-w-max px-3 py-2 text-sm">
               <UserCheck className="h-4 w-4" />
-              <span>Meus Designados</span>
+              <span>Minhas Listas</span>
             </TabsTrigger>
           </TabsList>
         </div>
