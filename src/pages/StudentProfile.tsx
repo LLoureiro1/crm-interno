@@ -474,7 +474,18 @@ const StudentProfile = () => {
     }
 
     try {
-      const updateData: any = { class_id: selectedClassId };
+      const selectedClass = availableClasses.find(c => c.id === selectedClassId);
+      if (!selectedClass) {
+        toast.error('Turma selecionada inválida');
+        return;
+      }
+
+      // Atualiza a turma e também a unidade do aluno conforme a turma selecionada
+      const updateData: any = { 
+        class_id: selectedClassId,
+        unit_id: selectedClass.unit_id,
+      };
+
       const { error } = await supabase
         .from('students')
         .update(updateData)
@@ -483,14 +494,13 @@ const StudentProfile = () => {
       if (error) throw error;
 
       // Adicionar interação
-      const selectedClass = availableClasses.find(c => c.id === selectedClassId);
       await supabase
         .from('student_interactions')
         .insert({
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_turma',
-          comments: `Turma alterada para ${selectedClass?.name}` + 
+          comments: `Turma alterada para ${selectedClass.name}` + 
             (selectedClass && 'series' in selectedClass && (selectedClass as any).series 
               ? ` - ${(selectedClass as any).series.name}` : '') + 
             (selectedClass && 'units' in selectedClass && (selectedClass as any).units 
