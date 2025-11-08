@@ -1518,13 +1518,13 @@ const StudentProfile = () => {
             {/* Financial Data */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="flex items-center space-x-2">
                     <Pen className="h-4 w-4" />
                     <span>Proposta</span>
                   </div>
                   {hasHadInterview && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0 sm:justify-end">
                       <Button
                         variant="outline"
                         size="sm"

@@ -120,8 +120,8 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
-        <div className="flex justify-end mb-4 pr-12">
+      <DialogContent className="sm:max-w-3xl w-[96vw] max-w-[96vw] max-h-[85vh] overflow-y-auto">
+        <div className="flex justify-end mb-4 px-2 sm:px-0 sm:pr-12">
           <Button variant="outline" onClick={handleSaveImage} className="gap-2">
             <Download className="h-4 w-4" />
             <span>Salvar Proposta</span>
