@@ -37,7 +37,7 @@ type Student = Tables<'students'> & {
   };
 };
 
-type Profile = Tables<'profiles'>;
+  type Profile = Tables<'profiles'>;
 
 type ClassWithRelations = Tables<'classes'> & {
   units: Tables<'units'>;
@@ -48,7 +48,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   profiles: { name: string };
 };
 
-const StudentProfile = () => {
+  const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -89,6 +89,78 @@ const StudentProfile = () => {
 
   // Filtro para histórico unificado
   const [historyFilter, setHistoryFilter] = useState<'all' | 'interactions' | 'contacts'>('all');
+
+  // Relações por telefone
+  const [relatedByPhone, setRelatedByPhone] = useState<{ id: string; student_name: string }[]>([]);
+  const [loadingRelatedByPhone, setLoadingRelatedByPhone] = useState(false);
+
+  useEffect(() => {
+    const fetchRelatedByPhone = async () => {
+      if (!student?.id) return;
+      try {
+        setLoadingRelatedByPhone(true);
+        const phoneSet = new Set<string>();
+        if (student.phone) phoneSet.add(student.phone);
+
+        // Buscar telefones adicionais do aluno
+        const { data: extraPhones, error: extraErr } = await supabase
+          .from('student_phones')
+          .select('phone_number')
+          .eq('student_id', student.id);
+        if (extraErr) throw extraErr;
+        (extraPhones || []).forEach((p: { phone_number: string }) => {
+          if (p?.phone_number) phoneSet.add(p.phone_number);
+        });
+
+        const phones = Array.from(phoneSet).filter(Boolean);
+        if (phones.length === 0) {
+          setRelatedByPhone([]);
+          return;
+        }
+
+        // 1) Alunos cujo telefone principal coincide
+        const { data: primaryMatches, error: primaryErr } = await supabase
+          .from('students')
+          .select('id, student_name, phone')
+          .in('phone', phones)
+          .neq('id', student.id);
+        if (primaryErr) throw primaryErr;
+
+        // 2) Alunos com algum telefone adicional coincidente
+        const { data: additionalMatches, error: addErr } = await supabase
+          .from('student_phones')
+          .select('student_id, phone_number')
+          .in('phone_number', phones);
+        if (addErr) throw addErr;
+
+        const relatedIds = new Set<string>();
+        (primaryMatches || []).forEach((s: { id: string }) => relatedIds.add(s.id));
+        (additionalMatches || []).forEach((sp: { student_id: string }) => {
+          if (sp.student_id !== student.id) relatedIds.add(sp.student_id);
+        });
+
+        if (relatedIds.size === 0) {
+          setRelatedByPhone([]);
+          return;
+        }
+
+        const { data: relatedStudents, error: relErr } = await supabase
+          .from('students')
+          .select('id, student_name')
+          .in('id', Array.from(relatedIds));
+        if (relErr) throw relErr;
+
+        setRelatedByPhone(relatedStudents || []);
+      } catch (error) {
+        console.error('Erro ao buscar relações por telefone:', error);
+        setRelatedByPhone([]);
+      } finally {
+        setLoadingRelatedByPhone(false);
+      }
+    };
+
+    fetchRelatedByPhone();
+  }, [student?.id, student?.phone]);
 
   // Helpers e estrutura para histórico unificado
   const channelLabel = (ch?: Enums<'contact_channel'> | null) =>
@@ -2177,6 +2249,24 @@ const StudentProfile = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Relações por telefone (discreto, ao final da ficha) */}
+            {relatedByPhone.length > 0 && (
+              <div className="p-2 bg-gray-50 rounded border border-gray-200 text-xs">
+                <p className="text-gray-600">Este cadastro possui relação por telefone com:</p>
+                <div className="mt-1 space-y-1">
+                  {relatedByPhone.map((s) => (
+                    <a
+                      key={s.id}
+                      href={`/student/${s.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {s.student_name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
