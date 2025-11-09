@@ -2259,7 +2259,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     <a
                       key={s.id}
                       href={`/student/${s.id}`}
-                      className="text-blue-600 hover:underline"
+                      className="block text-blue-600 hover:underline"
                     >
                       {s.student_name}
                     </a>
