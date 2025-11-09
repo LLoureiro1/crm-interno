@@ -2253,7 +2253,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
             {/* Relações por telefone (discreto, ao final da ficha) */}
             {relatedByPhone.length > 0 && (
               <div className="p-2 bg-gray-50 rounded border border-gray-200 text-xs">
-                <p className="text-gray-600">Este cadastro possui relação por telefone com:</p>
+                <p className="text-gray-600">Este cadastro possui um número de telefone em comum com:</p>
                 <div className="mt-1 space-y-1">
                   {relatedByPhone.map((s) => (
                     <a
