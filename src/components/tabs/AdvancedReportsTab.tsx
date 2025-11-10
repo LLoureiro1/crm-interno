@@ -62,6 +62,15 @@ export const AdvancedReportsTab = () => {
     const [contactsByReason, setContactsByReason] = useState<Array<{ reason: string; total: number; succeeded: number }>>([]);
     const [avgContactsPerEnrolled, setAvgContactsPerEnrolled] = useState(0);
 
+    // Estados para presença em provas (datas passadas)
+    const [examAttendanceStats, setExamAttendanceStats] = useState<Array<{
+        exam_date: string;
+        unit_name: string;
+        registered: number;
+        attended: number;
+        attendance_rate: number;
+    }>>([]);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -94,6 +103,88 @@ export const AdvancedReportsTab = () => {
         
         setClasses(data || []);
         setFilteredClasses(data || []);
+    };
+
+    // Função: presença em provas por data (apenas datas passadas)
+    const fetchExamAttendanceStats = async () => {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+
+            // Buscar datas de prova passadas (filtrando por unidade se aplicável)
+            let examDatesQuery = (supabase as any)
+                .from('exam_dates')
+                .select(`id, exam_date, units(name), unit_id`)
+                .lt('exam_date', today)
+                .order('exam_date', { ascending: true });
+
+            if (selectedUnitId !== 'all') {
+                examDatesQuery = examDatesQuery.eq('unit_id', selectedUnitId);
+            }
+
+            const { data: examDates, error: examDatesError } = await examDatesQuery;
+            if (examDatesError) {
+                console.error('Erro ao buscar datas de prova:', examDatesError);
+                setExamAttendanceStats([]);
+                return;
+            }
+
+            const pastExamDates = (examDates || []) as Array<{ id: string; exam_date: string; units: { name: string } }>;            
+            if (pastExamDates.length === 0) {
+                setExamAttendanceStats([]);
+                return;
+            }
+
+            // Buscar alunos filtrados por ano letivo/unidade/turma e com exam_date definido
+            let studentsQuery = supabase
+                .from('students')
+                .select('id, exam_date, math_grade, portuguese_grade, status');
+
+            studentsQuery = applyFilters(studentsQuery)
+                .not('exam_date', 'is', null)
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+            const { data: studentsData, error: studentsError } = await studentsQuery;
+            if (studentsError) {
+                console.error('Erro ao buscar alunos para presença em provas:', studentsError);
+                setExamAttendanceStats([]);
+                return;
+            }
+
+            const students = (studentsData || []) as Array<{ id: string; exam_date: string | null; math_grade: number | null; portuguese_grade: number | null }>;
+
+            // Agregar por data de prova
+            const byDateMap = new Map<string, { registered: number; attended: number }>();
+            students.forEach(s => {
+                const date = s.exam_date;
+                if (!date) return;
+                if (!byDateMap.has(date)) byDateMap.set(date, { registered: 0, attended: 0 });
+                const agg = byDateMap.get(date)!;
+                agg.registered += 1;
+                const attended = s.math_grade !== null && s.portuguese_grade !== null; // Heurística de presença: ambas as notas lançadas
+                if (attended) agg.attended += 1;
+            });
+
+            // Montar resultado apenas para datas passadas existentes
+            const stats = pastExamDates.map(ed => {
+                const agg = byDateMap.get(ed.exam_date) || { registered: 0, attended: 0 };
+                const rate = agg.registered > 0 ? (agg.attended / agg.registered) * 100 : 0;
+                return {
+                    exam_date: ed.exam_date,
+                    unit_name: ed.units?.name || 'Unidade',
+                    registered: agg.registered,
+                    attended: agg.attended,
+                    attendance_rate: rate,
+                };
+            })
+            // Mostrar apenas datas com pelo menos um inscrito ou algum comparecimento
+            .filter(item => item.registered > 0 || item.attended > 0)
+            .sort((a, b) => a.exam_date.localeCompare(b.exam_date));
+
+            setExamAttendanceStats(stats);
+        } catch (error) {
+            console.error('Erro ao calcular presença em provas:', error);
+            setExamAttendanceStats([]);
+        }
     };
 
     // Filtrar turmas baseado na unidade selecionada
@@ -723,6 +814,7 @@ export const AdvancedReportsTab = () => {
         fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
         fetchContactAttemptStats(); // Tentativas por canal/motivo
         fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
+        fetchExamAttendanceStats(); // Presença em provas (datas passadas)
     };
 
     // Effect inicial para buscar dados básicos
@@ -880,6 +972,47 @@ export const AdvancedReportsTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Presença em Provas (Datas Passadas) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Presença em Provas (Datas Passadas)</CardTitle>
+          <CardDescription>Inscritos vs comparecimentos por data de exame</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {examAttendanceStats.length > 0 ? (
+            <div className="space-y-3">
+              {examAttendanceStats.map(item => (
+                <div key={`${item.exam_date}-${item.unit_name}`} className="border rounded-lg p-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium">
+                        {new Date(item.exam_date + 'T00:00:00').toLocaleDateString('pt-BR')} • {item.unit_name}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {item.registered} inscritos • {item.attended} comparecimentos
+                      </div>
+                    </div>
+                    <div className={`text-lg font-semibold ${
+                      item.attendance_rate >= 70 ? 'text-green-600' : item.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {item.attendance_rate.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ width: `${item.registered > 0 ? (item.attended / item.registered) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">Nenhuma presença registrada para datas passadas</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
