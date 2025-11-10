@@ -71,6 +71,11 @@ export const AdvancedReportsTab = () => {
         attendance_rate: number;
     }>>([]);
 
+    // Estados para novas métricas solicitadas
+    const [averageEnrollmentTimeDays, setAverageEnrollmentTimeDays] = useState(0);
+    const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
+    const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -217,6 +222,185 @@ export const AdvancedReportsTab = () => {
             query = query.eq('class_id', selectedClassId);
         }
         return query;
+    };
+
+    // Função: tempo médio entre cadastro e matrícula (em dias)
+    const fetchAverageTimeToEnrollment = async () => {
+        try {
+            // Buscar alunos matriculados com datas de criação/atualização
+            let studentsQuery = supabase
+                .from('students')
+                .select('id, created_at, updated_at')
+                .eq('status', 'matriculado');
+
+            studentsQuery = applyFilters(studentsQuery);
+
+            const { data: studentsData, error: studentsError } = await studentsQuery;
+            if (studentsError) {
+                console.error('Erro ao buscar alunos para tempo de matrícula:', studentsError);
+                setAverageEnrollmentTimeDays(0);
+                return;
+            }
+
+            const students = (studentsData || []) as Array<{ id: string; created_at: string | null; updated_at: string | null }>;
+            if (students.length === 0) {
+                setAverageEnrollmentTimeDays(0);
+                return;
+            }
+
+            const studentIds = students.map(s => s.id);
+            // Buscar interações de matrícula (se existirem) para obter data precisa
+            const { data: interactionsData, error: interactionsError } = await supabase
+                .from('student_interactions')
+                .select('student_id, created_at')
+                .eq('interaction_type', 'matricula')
+                .in('student_id', studentIds);
+
+            if (interactionsError) {
+                console.error('Erro ao buscar interações de matrícula:', interactionsError);
+            }
+
+            // Mapa do primeiro registro de matrícula por aluno
+            const firstEnrollmentMap = new Map<string, string>();
+            (interactionsData || []).forEach((it: any) => {
+                const prev = firstEnrollmentMap.get(it.student_id);
+                if (!prev || new Date(it.created_at) < new Date(prev)) {
+                    firstEnrollmentMap.set(it.student_id, it.created_at);
+                }
+            });
+
+            // Calcular diferença em dias: (data_matricula - created_at)
+            let totalDays = 0;
+            let count = 0;
+            students.forEach(s => {
+                const createdAt = s.created_at ? new Date(s.created_at) : null;
+                // Preferir data da interação de matrícula; fallback para updated_at
+                const enrollmentAtStr = firstEnrollmentMap.get(s.id) || s.updated_at || null;
+                const enrollmentAt = enrollmentAtStr ? new Date(enrollmentAtStr) : null;
+                if (createdAt && enrollmentAt && enrollmentAt >= createdAt) {
+                    const diffMs = enrollmentAt.getTime() - createdAt.getTime();
+                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                    totalDays += diffDays;
+                    count += 1;
+                }
+            });
+
+            const avgDays = count > 0 ? totalDays / count : 0;
+            setAverageEnrollmentTimeDays(avgDays);
+        } catch (error) {
+            console.error('Erro ao calcular tempo médio entre cadastro e matrícula:', error);
+            setAverageEnrollmentTimeDays(0);
+        }
+    };
+
+    // Função: motivos de desistência (contagem e porcentagem)
+    const fetchDropoutReasonsStats = async () => {
+        try {
+            let query = supabase
+                .from('students')
+                .select('id, dropout_reason')
+                .eq('status', 'desistente');
+
+            query = applyFilters(query);
+
+            const { data, error } = await query;
+            if (error) {
+                console.error('Erro ao buscar desistentes:', error);
+                setDropoutReasonStats([]);
+                return;
+            }
+
+            const desistentes = (data || []) as Array<{ id: string; dropout_reason: string | null }>;
+            if (desistentes.length === 0) {
+                setDropoutReasonStats([]);
+                return;
+            }
+
+            const total = desistentes.length;
+            const counts = new Map<string, number>();
+            desistentes.forEach(d => {
+                const reason = d.dropout_reason || 'outro';
+                counts.set(reason, (counts.get(reason) || 0) + 1);
+            });
+
+            const labelMap: Record<string, string> = {
+                impossibilidade_contato: 'Impossibilidade de contato',
+                mudanca_de_endereco: 'Mudança de endereço',
+                matriculou_outra_escola: 'Matriculou-se em outra escola',
+                motivos_financeiros: 'Motivos financeiros',
+                falta_vaga: 'Falta de vaga',
+                outro: 'Outro',
+            };
+
+            const stats = Array.from(counts.entries())
+                .map(([reason, count]) => ({
+                    reason: labelMap[reason] || reason,
+                    count,
+                    percentage: total > 0 ? (count / total) * 100 : 0,
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            setDropoutReasonStats(stats);
+        } catch (error) {
+            console.error('Erro ao calcular motivos de desistência:', error);
+            setDropoutReasonStats([]);
+        }
+    };
+
+    // Função: número de contatos feitos por atendente
+    const fetchContactsPerAttendant = async () => {
+        try {
+            // IDs de alunos filtrados (excluindo estados indesejados)
+            let studentsQuery = supabase
+                .from('students')
+                .select('id, status');
+
+            studentsQuery = applyFilters(studentsQuery)
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+            const { data: studentsData, error: studentsError } = await studentsQuery;
+            if (studentsError) {
+                console.error('Erro ao buscar alunos para contatos por atendente:', studentsError);
+                setContactsByAttendant([]);
+                return;
+            }
+
+            const studentIds = (studentsData || []).map((s: any) => s.id);
+            if (studentIds.length === 0) {
+                setContactsByAttendant([]);
+                return;
+            }
+
+            // Buscar tentativas de contato dos alunos filtrados, agrupadas por atendente
+            const { data: attempts, error: attemptsError } = await supabase
+                .from('contact_attempts')
+                .select(`attempted_by, student_id, profiles!contact_attempts_attempted_by_fkey (name)`)
+                .in('student_id', studentIds);
+
+            if (attemptsError) {
+                console.error('Erro ao buscar tentativas de contato por atendente:', attemptsError);
+                setContactsByAttendant([]);
+                return;
+            }
+
+            const byAttendant = new Map<string, { name: string; total: number }>();
+            (attempts || []).forEach((a: any) => {
+                const id = a.attempted_by || 'desconhecido';
+                const name = a.profiles?.name || 'Atendente desconhecido';
+                if (!byAttendant.has(id)) byAttendant.set(id, { name, total: 0 });
+                const agg = byAttendant.get(id)!;
+                agg.total += 1;
+            });
+
+            const stats = Array.from(byAttendant.values())
+                .map(a => ({ attendant_name: a.name, total: a.total }))
+                .sort((a, b) => b.total - a.total);
+
+            setContactsByAttendant(stats);
+        } catch (error) {
+            console.error('Erro ao calcular contatos por atendente:', error);
+            setContactsByAttendant([]);
+        }
     };
 
     const fetchConversionRate = async () => {
@@ -815,6 +999,9 @@ export const AdvancedReportsTab = () => {
         fetchContactAttemptStats(); // Tentativas por canal/motivo
         fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
         fetchExamAttendanceStats(); // Presença em provas (datas passadas)
+        fetchAverageTimeToEnrollment(); // Tempo médio entre cadastro e matrícula
+        fetchDropoutReasonsStats(); // Motivos de desistência
+        fetchContactsPerAttendant(); // Contatos por atendente
     };
 
     // Effect inicial para buscar dados básicos
@@ -1014,6 +1201,18 @@ export const AdvancedReportsTab = () => {
         </CardContent>
       </Card>
 
+      {/* Tempo médio entre cadastro e matrícula */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tempo Médio até Matrícula</CardTitle>
+          <CardDescription>Dias entre cadastro e matrícula</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{averageEnrollmentTimeDays.toFixed(1)} dias</div>
+          <p className="text-sm text-muted-foreground">Baseado em interações de matrícula e última atualização</p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Conversão por Entrevistador</CardTitle>
@@ -1044,6 +1243,58 @@ export const AdvancedReportsTab = () => {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Motivos de Desistência */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Motivos de Desistência</CardTitle>
+          <CardDescription>Distribuição dos motivos registrados</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {dropoutReasonStats.length > 0 ? (
+            <div className="space-y-3">
+              {dropoutReasonStats.map((item) => (
+                <div key={item.reason} className="border rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{item.reason}</span>
+                    <span className="text-sm text-gray-600">{item.count} ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ width: `${item.percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">Nenhum caso de desistência encontrado</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Contatos por Atendente */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contatos por Atendente</CardTitle>
+          <CardDescription>Número de tentativas registradas por atendente</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {contactsByAttendant.length > 0 ? (
+            <div className="space-y-3">
+              {contactsByAttendant.map((att) => (
+                <div key={att.attendant_name} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                  <span className="font-medium">{att.attendant_name}</span>
+                  <span className="text-sm text-gray-700">{att.total} contatos</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">Nenhuma tentativa encontrada</p>
+          )}
         </CardContent>
       </Card>
 
