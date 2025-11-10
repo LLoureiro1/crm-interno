@@ -57,6 +57,11 @@ export const AdvancedReportsTab = () => {
         conversion_rate: number;
     }>>([]);
 
+    // Estados para relatório de tentativas de contato
+    const [contactsByChannel, setContactsByChannel] = useState<Array<{ channel: string; total: number; succeeded: number }>>([]);
+    const [contactsByReason, setContactsByReason] = useState<Array<{ reason: string; total: number; succeeded: number }>>([]);
+    const [avgContactsPerEnrolled, setAvgContactsPerEnrolled] = useState(0);
+
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
         const { data, error } = await supabase
@@ -578,6 +583,135 @@ export const AdvancedReportsTab = () => {
         }
     };
 
+    // Função: estatísticas de tentativas de contato por canal e motivo
+    const fetchContactAttemptStats = async () => {
+        try {
+            // IDs de alunos filtrados (excluindo estados indesejados)
+            let studentsQuery = supabase
+                .from('students')
+                .select('id, status');
+
+            studentsQuery = applyFilters(studentsQuery)
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+            const { data: studentsData, error: studentsError } = await studentsQuery;
+            if (studentsError) {
+                console.error('Erro ao buscar alunos para tentativas:', studentsError);
+                setContactsByChannel([]);
+                setContactsByReason([]);
+                return;
+            }
+
+            const studentIds = (studentsData || []).map((s: any) => s.id);
+            if (studentIds.length === 0) {
+                setContactsByChannel([]);
+                setContactsByReason([]);
+                return;
+            }
+
+            // Buscar tentativas de contato para os alunos filtrados
+            const { data: attempts, error: attemptsError } = await supabase
+                .from('contact_attempts')
+                .select('student_id, channel, reason, succeeded')
+                .in('student_id', studentIds);
+
+            if (attemptsError) {
+                console.error('Erro ao buscar tentativas de contato:', attemptsError);
+                setContactsByChannel([]);
+                setContactsByReason([]);
+                return;
+            }
+
+            // Agregação por canal e motivo
+            const byChannelMap = new Map<string, { total: number; succeeded: number }>();
+            const byReasonMap = new Map<string, { total: number; succeeded: number }>();
+
+            (attempts || []).forEach((a: any) => {
+                const ch = String(a.channel);
+                const rsn = a.reason ? String(a.reason) : 'sem_motivo';
+                const succ = a.succeeded ? 1 : 0;
+
+                if (!byChannelMap.has(ch)) byChannelMap.set(ch, { total: 0, succeeded: 0 });
+                const chAgg = byChannelMap.get(ch)!;
+                chAgg.total += 1;
+                chAgg.succeeded += succ;
+
+                if (!byReasonMap.has(rsn)) byReasonMap.set(rsn, { total: 0, succeeded: 0 });
+                const rsnAgg = byReasonMap.get(rsn)!;
+                rsnAgg.total += 1;
+                rsnAgg.succeeded += succ;
+            });
+
+            const contactsByChannel = Array.from(byChannelMap.entries())
+                .map(([channel, agg]) => ({ channel, ...agg }))
+                .sort((a, b) => b.total - a.total);
+
+            const contactsByReason = Array.from(byReasonMap.entries())
+                .map(([reason, agg]) => ({ reason, ...agg }))
+                .sort((a, b) => b.total - a.total);
+
+            setContactsByChannel(contactsByChannel);
+            setContactsByReason(contactsByReason);
+        } catch (error) {
+            console.error('Erro ao calcular estatísticas de tentativas de contato:', error);
+            setContactsByChannel([]);
+            setContactsByReason([]);
+        }
+    };
+
+    // Função: média de tentativas por aluno matriculado
+    const fetchAverageContactsPerEnrolled = async () => {
+        try {
+            // IDs de alunos matriculados (filtrados)
+            let enrolledQuery = supabase
+                .from('students')
+                .select('id')
+                .eq('status', 'matriculado');
+
+            enrolledQuery = applyFilters(enrolledQuery);
+
+            const { data: enrolledIdsData, error: enrolledError } = await enrolledQuery;
+            if (enrolledError) {
+                console.error('Erro ao buscar alunos matriculados:', enrolledError);
+                setAvgContactsPerEnrolled(0);
+                return;
+            }
+
+            const enrolledIds = (enrolledIdsData || []).map((s: any) => s.id);
+            if (enrolledIds.length === 0) {
+                setAvgContactsPerEnrolled(0);
+                return;
+            }
+
+            // Buscar tentativas para esses alunos
+            const { data: attempts, error: attemptsError } = await supabase
+                .from('contact_attempts')
+                .select('student_id')
+                .in('student_id', enrolledIds);
+
+            if (attemptsError) {
+                console.error('Erro ao buscar tentativas para matriculados:', attemptsError);
+                setAvgContactsPerEnrolled(0);
+                return;
+            }
+
+            const counts = new Map<string, number>();
+            enrolledIds.forEach((id: string) => counts.set(id, 0));
+            (attempts || []).forEach((a: any) => {
+                const prev = counts.get(a.student_id) || 0;
+                counts.set(a.student_id, prev + 1);
+            });
+
+            const totalAttempts = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
+            const avg = totalAttempts / enrolledIds.length;
+
+            setAvgContactsPerEnrolled(avg);
+        } catch (error) {
+            console.error('Erro ao calcular média de contatos por matriculado:', error);
+            setAvgContactsPerEnrolled(0);
+        }
+    };
+
     // Função para buscar todos os dados
     const fetchAllData = () => {
         fetchConversionRate();
@@ -587,6 +721,8 @@ export const AdvancedReportsTab = () => {
         fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
         fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
         fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
+        fetchContactAttemptStats(); // Tentativas por canal/motivo
+        fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
     };
 
     // Effect inicial para buscar dados básicos
@@ -777,6 +913,82 @@ export const AdvancedReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Relatório de Contatos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Média de Contatos por Matrícula</CardTitle>
+            <CardDescription>Tentativas médias por aluno matriculado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{avgContactsPerEnrolled.toFixed(1)}</div>
+            <p className="text-sm text-muted-foreground">Inclui alunos com 0 tentativas</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contatos por Canal</CardTitle>
+            <CardDescription>Tentativas e sucesso por canal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {contactsByChannel.length > 0 ? (
+              <div className="space-y-3">
+                {contactsByChannel.map((item) => (
+                  <div key={item.channel} className="border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium capitalize">{item.channel}</span>
+                      <span className="text-sm text-gray-600">
+                        {item.succeeded}/{item.total} com sucesso
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${item.total > 0 ? (item.succeeded / item.total) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Nenhuma tentativa encontrada</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contatos por Motivo</CardTitle>
+            <CardDescription>Tentativas e sucesso por motivo</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {contactsByReason.length > 0 ? (
+              <div className="space-y-3">
+                {contactsByReason.map((item) => (
+                  <div key={item.reason} className="border rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium capitalize">{item.reason}</span>
+                      <span className="text-sm text-gray-600">
+                        {item.succeeded}/{item.total} com sucesso
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${item.total > 0 ? (item.succeeded / item.total) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Nenhuma tentativa encontrada</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Relatório de Origens de Inscrição */}
       <Card>
