@@ -1,0 +1,24 @@
+{
+  "name": "Laurel Escolar",
+  "short_name": "Laurel",
+  "description": "CRM escolar progressivo com suporte offline",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/logo_apogeu_nobg.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo_apogeu_nobg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
