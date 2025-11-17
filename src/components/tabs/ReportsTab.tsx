@@ -180,31 +180,21 @@ export const ReportsTab = () => {
       setNextExamDatesByUnit(datesByUnit);
       const matriculados = students.filter(s => s.status === 'matriculado').length;
 
-      // Fetch today's appointments
+      // Agendamentos hoje, alinhados ao filtro de unidade/série e ano letivo atual
       const { data: appointments } = await supabase
         .from('appointments')
         .select('*')
         .eq('appointment_date', today);
-      
-      const agendamentosHoje = appointments?.length || 0;
 
-      // Fetch students for today's appointments
-      if (appointments) {
-        const studentIds = appointments.map(app => app.student_id);
-        const { data: studentsWithAppointments } = await supabase
-          .from('students')
-          .select(`
-            *,
-            classes!inner(
-              name,
-              units!inner(name)
-            )
-          `)
-          .in('id', studentIds);
-        if (studentsWithAppointments) {
-          setTodayAppointmentsStudents(studentsWithAppointments as Student[]);
-        }
-      }
+      const filteredAppointments = (appointments || []).filter(app =>
+        students.some(s => s.id === app.student_id)
+      );
+      const agendamentosHoje = filteredAppointments.length;
+
+      const studentsWithAppointmentsToday = students.filter(s =>
+        filteredAppointments.some(app => app.student_id === s.id)
+      );
+      setTodayAppointmentsStudents(studentsWithAppointmentsToday as Student[]);
 
       // Count by status
       const statusCounts: { [key: string]: number } = {};
