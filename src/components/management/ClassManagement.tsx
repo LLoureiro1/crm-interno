@@ -273,7 +273,7 @@ export const ClassManagement = () => {
                     {editingClass ? 'Editar Turma' : 'Nova Turma'}
                   </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="flex flex-col space-y-3 md:grid md:grid-cols-2 md:gap-4">
                   <div>
                     <Label htmlFor="name">Nome *</Label>
                     <Input
@@ -370,7 +370,7 @@ export const ClassManagement = () => {
                       placeholder="Será calculado automaticamente"
                     />
                   </div>
-                  <div className="col-span-2 flex items-center space-x-2">
+                  <div className="md:col-span-2 flex items-center space-x-2">
                     <Checkbox
                       id="has_exam"
                       checked={formData.has_exam}
@@ -378,7 +378,7 @@ export const ClassManagement = () => {
                     />
                     <Label htmlFor="has_exam">Possui prova de seleção</Label>
                   </div>
-                  <div className="col-span-2 flex justify-end space-x-2">
+                  <div className="md:col-span-2 flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       Cancelar
                     </Button>
