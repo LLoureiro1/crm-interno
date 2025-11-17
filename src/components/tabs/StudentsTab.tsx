@@ -150,6 +150,12 @@ export const StudentsTab = () => {
   const filterStudents = () => {
     let filtered = students;
 
+    // Excluir "Cadastro Inválido" por padrão, a menos que esteja explicitamente selecionado
+    const includeInvalid = statusFilter.includes('cadastro_invalido');
+    if (!includeInvalid) {
+      filtered = filtered.filter(student => student.status !== 'cadastro_invalido');
+    }
+
     if (searchTerm) {
       const termLower = searchTerm.toLowerCase();
       const digits = searchTerm.replace(/\D/g, '');
