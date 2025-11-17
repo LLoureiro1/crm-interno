@@ -217,7 +217,7 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                 
                 {/* Forma de Pagamento */}
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-gray-600">Pagamento:</span>
+                  <span className="text-gray-600">{student.material_payment_type ? 'Pagamento:' : 'Desconto:'}</span>
                   <div className="flex items-center space-x-1">
                     {student.material_payment_type ? (
                       <>
