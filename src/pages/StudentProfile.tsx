@@ -1315,7 +1315,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="font-medium">Nome do Aluno:</span>
                       <p>{student.student_name}</p>
@@ -2029,15 +2029,21 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent side="bottom">
-                      <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                      <SelectItem value="confirmado">Confirmado</SelectItem>
+                      {student.classes?.has_exam && (
+                        <>
+                          <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
+                          <SelectItem value="confirmado">Confirmado</SelectItem>
+                        </>
+                      )}
                       <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
-                      <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
+                      {!hasHadInterview && (
+                        <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
+                      )}
                       <SelectItem value="desistente">Desistente</SelectItem>
                       {canUpdateToMatriculado && (
                         <SelectItem value="matriculado">Matriculado</SelectItem>
                       )}
-                              </SelectContent>
+                    </SelectContent>
                   </Select>
                 </div>
 
