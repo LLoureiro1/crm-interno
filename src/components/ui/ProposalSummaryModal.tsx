@@ -206,16 +206,28 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                     R$ {student.classes.material_didatico_anual.toFixed(2)}
                   </span>
                 </div>
+                {!student.material_payment_type && (
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-600">Mensal (12x):</span>
+                    <span className="font-medium text-xs">
+                      R$ {(student.classes.material_didatico_anual / 12).toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 
                 {/* Forma de Pagamento */}
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Pagamento:</span>
                   <div className="flex items-center space-x-1">
-                    {student.material_payment_type === 'a_vista' && <FileText className="h-3 w-3 text-purple-600" />}
-                    {student.material_payment_type === 'parcelado_cartao' && <CreditCard className="h-3 w-3 text-purple-600" />}
-                    {student.material_payment_type === 'parcelado_boleto' && <FileText className="h-3 w-3 text-purple-600" />}
-                    {getPaymentTypeName() !== '-' && (
-                      <span className="font-medium">{getPaymentTypeName()}</span>
+                    {student.material_payment_type ? (
+                      <>
+                        {student.material_payment_type === 'a_vista' && <FileText className="h-3 w-3 text-purple-600" />}
+                        {student.material_payment_type === 'parcelado_cartao' && <CreditCard className="h-3 w-3 text-purple-600" />}
+                        {student.material_payment_type === 'parcelado_boleto' && <FileText className="h-3 w-3 text-purple-600" />}
+                        <span className="font-medium">{getPaymentTypeName()}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-800">10% à vista • 5% no cartão • 0% no boleto</span>
                     )}
                   </div>
                 </div>
@@ -232,6 +244,19 @@ export const ProposalSummaryModal: React.FC<ProposalSummaryModalProps> = ({
                   <span className="font-semibold text-gray-800 text-xs">Total:</span>
                   <span className="text-lg font-bold text-purple-700">R$ {finalMaterialAnual.toFixed(2)}</span>
                 </div>
+                {!student.material_payment_type && (
+                  <div className="bg-purple-100 p-1.5 rounded mt-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3 text-purple-700" />
+                        <span className="text-xs font-medium text-purple-900">Parcela (12x):</span>
+                      </div>
+                      <div className="flex items-baseline space-x-2">
+                        <span className="text-sm font-bold text-purple-700">R$ {(student.classes.material_didatico_anual / 12).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Parcelamento */}
                 {(student.material_installments ?? 0) > 1 && !!student.material_parcela && (
