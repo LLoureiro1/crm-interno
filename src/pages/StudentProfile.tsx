@@ -1315,7 +1315,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="flex flex-col space-y-2 sm:grid sm:grid-cols-2 sm:gap-3 text-sm">
                     <div>
                       <span className="font-medium">Nome do Aluno:</span>
                       <p>{student.student_name}</p>
@@ -1328,7 +1328,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <span className="font-medium">Data de Nascimento:</span>
                       <p>{formatDateForDisplay(student.birth_date)}</p>
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <StudentPhoneManager 
                         studentId={student.id}
                         disabled={!canEditPersonalData}
