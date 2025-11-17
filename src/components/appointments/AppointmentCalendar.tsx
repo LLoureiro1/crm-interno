@@ -888,6 +888,15 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     </span>
                   </div>
 
+                  {!materialPaymentType && (
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs text-gray-600">Parcela (12x):</span>
+                      <span className="font-semibold text-xs text-purple-700">
+                        R$ {(((currentAppointment?.students?.classes?.material_didatico_anual || 0) / 12)).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
                   <MaterialPaymentSelector
                     paymentType={materialPaymentType}
                     onPaymentTypeChange={setMaterialPaymentType}
