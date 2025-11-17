@@ -750,25 +750,18 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       return;
     }
 
-    if (!materialPaymentType) {
-      toast.error('Selecione a forma de pagamento dos recursos didáticos');
-      return;
-    }
-
     const discount = parseFloat(discountPercentage);
     if (isNaN(discount) || discount < 0 || discount > 100) {
       toast.error('Percentual de desconto deve estar entre 0% e 100%');
       return;
     }
 
-    // Calcular desconto do material baseado no tipo de pagamento
-    const materialDiscount = materialPaymentType === 'a_vista' ? 10 : 
-                            materialPaymentType === 'parcelado_cartao' ? 5 : 0;
-
-    // Calcular valor da parcela do material
+    const materialDiscountSelected = materialPaymentType === 'a_vista' ? 10 : 
+                                    materialPaymentType === 'parcelado_cartao' ? 5 : 0;
     const materialAnual = student?.classes.material_didatico_anual || 0;
-    const materialComDesconto = materialAnual * (1 - (materialDiscount / 100));
-    const materialParcela = materialComDesconto / materialInstallments;
+    const effectiveDiscount = materialPaymentType ? materialDiscountSelected : 0;
+    const materialComDesconto = materialAnual * (1 - (effectiveDiscount / 100));
+    const materialParcela = materialPaymentType ? (materialComDesconto / Math.max(1, materialInstallments)) : null;
 
     try {
       // 1. Buscar e atualizar appointment se existir
@@ -806,9 +799,9 @@ type ContactAttempt = Tables<'contact_attempts'> & {
         .from('students')
         .update({
           discount_percentage: discount,
-          discount_material: materialDiscount,
-          material_payment_type: materialPaymentType,
-          material_installments: materialInstallments,
+          discount_material: effectiveDiscount,
+          material_payment_type: materialPaymentType || null,
+          material_installments: materialPaymentType ? materialInstallments : null,
           material_parcela: materialParcela,
           status: 'atendimento_recentemente'
         })
@@ -819,7 +812,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       // 3. Add interaction
       const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' : 
                               materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
-                              `Boleto ${materialInstallments}x`;
+                              materialPaymentType === 'parcelado_boleto' ? `Boleto ${materialInstallments}x` : 
+                              'Sem forma de pagamento definida';
 
       const annuityOriginal = student?.classes?.annuity ?? (
         (student?.classes?.monthly_fee || 0) * (student?.classes?.parcelas || 12)
@@ -834,7 +828,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'atendimento',
-          comments: `Atendimento realizado. Mensalidade negociada: ${discount}% de desconto em ${tuitionInstallments}x. Material: ${paymentTypeText} (${materialDiscount}% desconto). ${comments.trim()}`
+          comments: `Atendimento realizado. Mensalidade negociada: ${discount}% de desconto em ${tuitionInstallments}x. Material: ${paymentTypeText} (${effectiveDiscount}% desconto). ${comments.trim()}`
         });
 
       if (interactionError) throw interactionError;
@@ -1961,7 +1955,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </div>
                   )}
 
-                  {/* Seleção de Pagamento dos Recursos Didáticos */}
                   <div className="pt-4 border-t">
                     <MaterialPaymentSelector
                       paymentType={materialPaymentType as MaterialPaymentType}
@@ -1971,18 +1964,36 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     />
                   </div>
 
-                  {/* Preview do cálculo de recursos didáticos em tempo real */}
-                  {materialPaymentType && student?.classes && (
+                  {student?.classes && (
                     <div className="pt-2">
-                      <MaterialDidaticoCalculator
-                        materialAnual={student.classes.material_didatico_anual || 0}
-                        materialMensal={student.classes.material_didatico_mes || 0}
-                        discountMaterial={materialPaymentType === 'a_vista' ? 10 : 
-                                         materialPaymentType === 'parcelado_cartao' ? 5 : 0}
-                        hasHadInterview={true}
-                        paymentType={materialPaymentType}
-                        installments={materialInstallments}
-                      />
+                      {materialPaymentType ? (
+                        <MaterialDidaticoCalculator
+                          materialAnual={student.classes.material_didatico_anual || 0}
+                          materialMensal={student.classes.material_didatico_mes || 0}
+                          discountMaterial={materialPaymentType === 'a_vista' ? 10 : materialPaymentType === 'parcelado_cartao' ? 5 : 0}
+                          hasHadInterview={true}
+                          paymentType={materialPaymentType}
+                          installments={materialInstallments}
+                        />
+                      ) : (
+                        <div className="bg-purple-50 p-4 rounded-lg border">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <GraduationCap className="h-4 w-4 text-purple-600" />
+                            <span className="font-medium text-purple-900">Recursos Didáticos</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Anual:</span>
+                              <p className="font-semibold text-lg">R$ {(student.classes.material_didatico_anual || 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Parcela (12x):</span>
+                              <p className="font-semibold text-lg text-purple-700">R$ {(((student.classes.material_didatico_anual || 0) / 12)).toFixed(2)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-600">Desconto aplicado: 0%</div>
+                        </div>
+                      )}
                     </div>
                   )}
 
