@@ -154,27 +154,18 @@ export const ReportsTab = () => {
     const { data: allStudents } = await query;
 
     if (allStudents) {
-      // Filtrar apenas alunos do ano letivo atual
       const currentAcademicYear = getCurrentAcademicYear();
-      console.log('🔍 Debug Relatórios:');
-      console.log('📅 Data atual:', new Date().toLocaleDateString());
-      console.log('📚 Ano letivo calculado:', currentAcademicYear);
-      console.log('👥 Total de alunos carregados:', allStudents.length);
-      console.log('📊 Anos letivos disponíveis:', [...new Set(allStudents.map(s => s.ano_letivo))]);
-      
       const students = allStudents.filter(s => String(s.ano_letivo) === currentAcademicYear);
-      console.log('✅ Alunos filtrados para ano letivo atual:', students.length);
-      
+      const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
       setStudentsData(students as Student[]);
       
       const today = getCurrentDate();
       
-      const totalInscricoes = students.filter(s => 
-        s.status !== 'cadastro_invalido' && 
+      const totalInscricoes = studentsValid.filter(s => 
         s.status !== 'processo_anos_anteriores'
       ).length;
       const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
-        students,
+        studentsValid,
         selectedUnit !== 'all' ? selectedUnit : undefined
       );
       setNextExamDatesByUnit(datesByUnit);
@@ -215,19 +206,20 @@ export const ReportsTab = () => {
   const getFilteredStudents = (filterType: string) => {
     switch (filterType) {
       case 'total':
-        return studentsData;
+        return studentsData.filter(s => s.status !== 'cadastro_invalido');
       case 'proxima_prova':
         // Alinhar com a próxima prova por unidade (quando "Todas as unidades"),
         // ou apenas daquela unidade quando um filtro específico estiver selecionado
         if (Object.keys(nextExamDatesByUnit).length > 0) {
           return studentsData.filter((s) =>
             !!nextExamDatesByUnit[s.classes.unit_id] &&
-            s.exam_date === nextExamDatesByUnit[s.classes.unit_id]
+            s.exam_date === nextExamDatesByUnit[s.classes.unit_id] &&
+            s.status !== 'cadastro_invalido'
           );
         }
         // Fallback: quando ainda não há mapeamento de próxima prova por unidade,
         // exibir alunos que possuem alguma data de exame definida
-        return studentsData.filter((s) => !!s.exam_date);
+        return studentsData.filter((s) => !!s.exam_date && s.status !== 'cadastro_invalido');
       case 'matriculados':
         return studentsData.filter(s => s.status === 'matriculado');
       default:
