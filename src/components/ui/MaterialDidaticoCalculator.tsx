@@ -42,7 +42,7 @@ export const MaterialDidaticoCalculator: React.FC<MaterialDidaticoCalculatorProp
   // Usar valor da parcela salvo ou calcular se não houver
   const installmentValue = savedInstallmentValue 
     ? savedInstallmentValue 
-    : (installments && installments >= 1 ? finalMaterialAnual / installments : null);
+    : (installments && installments >= 1 && finalMaterialAnual > 0 ? finalMaterialAnual / installments : null);
 
   // Obter nome amigável do tipo de pagamento
   const getPaymentTypeName = () => {
