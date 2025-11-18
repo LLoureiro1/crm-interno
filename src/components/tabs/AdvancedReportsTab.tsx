@@ -1020,7 +1020,7 @@ export const AdvancedReportsTab = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Relatórios Avançados</h2>
-        <p className="text-gray-600">Análises detalhadas para direção e administradores</p>
+        <p className="text-gray-600">Análises detalhadas a nível gerencial</p>
       </div>
 
       {/* Filtros */}
