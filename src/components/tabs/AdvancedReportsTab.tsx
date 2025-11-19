@@ -13,6 +13,7 @@ import { toPng } from 'html-to-image';
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const COLORS = ['#2563eb', '#16a34a', '#9333ea', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#a855f7', '#f97316', '#e11d48'];
+  const total = data.reduce((sum, d) => sum + (Number(d[valueKey]) || 0), 0);
 
   const handleDownload = async () => {
     if (!chartRef.current) return;
@@ -42,7 +43,16 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
               ))}
             </Pie>
             <Tooltip formatter={(value: any, name: any) => [value, name]} />
-            <Legend layout="vertical" align="right" verticalAlign="middle" />
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              formatter={(value: any, entry: any) => {
+                const v = Number(entry?.payload?.[valueKey] ?? entry?.payload?.value ?? 0);
+                const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+                return `${value} (${pct}%)`;
+              }}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
