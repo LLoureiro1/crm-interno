@@ -146,11 +146,12 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
         const { data: relatedStudents, error: relErr } = await supabase
           .from('students')
-          .select('id, student_name')
-          .in('id', Array.from(relatedIds));
+          .select('id, student_name, status')
+          .in('id', Array.from(relatedIds))
+          .neq('status', 'cadastro_invalido');
         if (relErr) throw relErr;
 
-        setRelatedByPhone(relatedStudents || []);
+        setRelatedByPhone((relatedStudents || []).map((s: any) => ({ id: s.id, student_name: s.student_name })));
       } catch (error) {
         console.error('Erro ao buscar relações por telefone:', error);
         setRelatedByPhone([]);
