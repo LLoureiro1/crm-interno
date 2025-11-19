@@ -1,11 +1,54 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
+import { toPng } from 'html-to-image';
+
+const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const COLORS = ['#2563eb', '#16a34a', '#9333ea', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#a855f7', '#f97316', '#e11d48'];
+
+  const handleDownload = async () => {
+    if (!chartRef.current) return;
+    try {
+      const dataUrl = await toPng(chartRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `${title.replace(/\s+/g, '_')}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao exportar gráfico:', err);
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-semibold text-gray-900 text-sm">{title}</h4>
+        <Button variant="outline" size="sm" onClick={handleDownload}>Baixar imagem</Button>
+      </div>
+      <div ref={chartRef} className="w-full h-64">
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie data={data} dataKey={valueKey} nameKey={labelKey} outerRadius={100} labelLine={false}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value: any, name: any) => [value, name]} />
+            <Legend layout="vertical" align="right" verticalAlign="middle" />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
 
 export const AdvancedReportsTab = () => {
     const [conversionRate, setConversionRate] = useState(0);
@@ -33,6 +76,8 @@ export const AdvancedReportsTab = () => {
     const [units, setUnits] = useState<Tables<'units'>[]>([]);
     const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
     const [filteredClasses, setFilteredClasses] = useState<Tables<'classes'>[]>([]);
+    const [registrationSourcesPie, setRegistrationSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
+    const [trackingSourcesPie, setTrackingSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
 
     // Estados para estatísticas de entrevistas
     const [scheduledInterviews, setScheduledInterviews] = useState(0);
@@ -791,6 +836,20 @@ export const AdvancedReportsTab = () => {
 
             setRegistrationSources(sourceStats);
 
+            let totalValidQuery = supabase
+                .from('students')
+                .select('id', { count: 'exact', head: true })
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+            totalValidQuery = applyFilters(totalValidQuery);
+            const { count: totalValidCount } = await totalValidQuery;
+            const nonAccounted = (totalValidCount || 0) - totalStudents;
+            setRegistrationSourcesPie({
+                data: [
+                    ...sourceStats.map(s => ({ name: s.source_label, value: s.total_students })),
+                    ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
+                ]
+            });
+
         } catch (error) {
             console.error('Erro ao calcular estatísticas de origens:', error);
             setRegistrationSources([]);
@@ -803,7 +862,8 @@ export const AdvancedReportsTab = () => {
             // Buscar todos os estudantes com tracking_code
             let query = supabase
                 .from('students')
-                .select('tracking_code, status');
+                .select('tracking_code, status')
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
             // Aplicar filtros
             query = applyFilters(query);
@@ -823,7 +883,7 @@ export const AdvancedReportsTab = () => {
 
             studentsWithTracking.forEach((student: any) => {
                 const trackingCode = student.tracking_code;
-                const isEnrolled = student.status === 'enrolled';
+                const isEnrolled = student.status === 'matriculado';
 
                 if (!trackingMap.has(trackingCode)) {
                     trackingMap.set(trackingCode, {
@@ -851,6 +911,20 @@ export const AdvancedReportsTab = () => {
                 .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
 
             setTrackingSources(trackingStats);
+
+            let totalValidQuery = supabase
+                .from('students')
+                .select('id', { count: 'exact', head: true })
+                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+            totalValidQuery = applyFilters(totalValidQuery);
+            const { count: totalValidCount } = await totalValidQuery;
+            const nonAccounted = (totalValidCount || 0) - totalStudents;
+            setTrackingSourcesPie({
+                data: [
+                    ...trackingStats.map(s => ({ name: s.tracking_code, value: s.total_students })),
+                    ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
+                ]
+            });
 
         } catch (error) {
             console.error('Erro ao calcular estatísticas de tracking:', error);
@@ -1383,7 +1457,12 @@ export const AdvancedReportsTab = () => {
         <CardContent>
           <div className="space-y-4">
             {registrationSources.length > 0 ? (
-              <>
+              <Tabs defaultValue="lista" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="lista">Lista</TabsTrigger>
+                  <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
+                </TabsList>
+                <TabsContent value="lista">
                 {/* Resumo geral */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -1443,7 +1522,16 @@ export const AdvancedReportsTab = () => {
                     </div>
                   ))}
                 </div>
-              </>
+                </TabsContent>
+                <TabsContent value="pizza">
+                  <PieSection
+                    title="Distribuição de Origens"
+                    data={registrationSourcesPie.data}
+                    labelKey="name"
+                    valueKey="value"
+                  />
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <div className="text-lg font-medium mb-2">Nenhum dado de origem disponível</div>
@@ -1467,7 +1555,12 @@ export const AdvancedReportsTab = () => {
         <CardContent>
           <div className="space-y-4">
             {trackingSources.length > 0 ? (
-              <>
+              <Tabs defaultValue="lista" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="lista">Lista</TabsTrigger>
+                  <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
+                </TabsList>
+                <TabsContent value="lista">
                 {/* Resumo geral */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -1528,7 +1621,16 @@ export const AdvancedReportsTab = () => {
                     </div>
                   ))}
                 </div>
-              </>
+                </TabsContent>
+                <TabsContent value="pizza">
+                  <PieSection
+                    title="Distribuição por Promotores"
+                    data={trackingSourcesPie.data}
+                    labelKey="name"
+                    valueKey="value"
+                  />
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <div className="text-lg font-medium mb-2">Nenhum código de tracking encontrado</div>
