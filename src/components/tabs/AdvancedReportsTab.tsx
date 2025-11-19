@@ -1557,9 +1557,9 @@ export const AdvancedReportsTab = () => {
       {/* Relatório de Tracking Codes */}
       <Card>
         <CardHeader>
-          <CardTitle>Relatório de Promotores de Inscrições</CardTitle>
+          <CardTitle>Relatório de Fontes de Inscrições</CardTitle>
           <CardDescription>
-            Análise de cadastros e matrículas por código de promotor
+            Análise de cadastros e matrículas por código de fonte
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1634,7 +1634,7 @@ export const AdvancedReportsTab = () => {
                 </TabsContent>
                 <TabsContent value="pizza">
                   <PieSection
-                    title="Distribuição por Promotores"
+                    title="Distribuição por Fontes"
                     data={trackingSourcesPie.data}
                     labelKey="name"
                     valueKey="value"
