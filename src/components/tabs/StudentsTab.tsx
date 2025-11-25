@@ -44,6 +44,8 @@ export const StudentsTab = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3'>('all');
+  const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,7 +76,7 @@ export const StudentsTab = () => {
   useEffect(() => {
     filterStudents();
     setCurrentPage(1); // Reset para primeira página quando filtros mudarem
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder]);
+  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter, contactCounts]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -97,7 +99,33 @@ export const StudentsTab = () => {
       return;
     }
   
-    setStudents((data as Student[]) || []);
+    const list = (data as Student[]) || [];
+    setStudents(list);
+    try {
+      const ids = list.map(s => s.id).filter(Boolean);
+      if (ids.length === 0) {
+        setContactCounts({});
+      } else {
+        const { data: attempts, error: attemptsError } = await supabase
+          .from('contact_attempts')
+          .select('student_id')
+          .in('student_id', ids);
+        if (attemptsError) {
+          console.error('Erro ao buscar tentativas de contato:', attemptsError);
+          setContactCounts({});
+        } else {
+          const counts: Record<string, number> = {};
+          (attempts || []).forEach((a: any) => {
+            const id = a.student_id;
+            counts[id] = (counts[id] || 0) + 1;
+          });
+          setContactCounts(counts);
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao calcular contagem de tentativas:', e);
+      setContactCounts({});
+    }
   };
 
   const fetchUnits = async () => {
@@ -218,6 +246,12 @@ export const StudentsTab = () => {
     // Filtro por ano letivo (filtro supremo)
     if (academicYearFilter.length > 0) {
       filtered = filtered.filter(student => academicYearFilter.includes(student.ano_letivo!));
+    }
+
+    // Filtro por número de tentativas de contato
+    if (contactAttemptsFilter !== 'all') {
+      const target = parseInt(contactAttemptsFilter, 10);
+      filtered = filtered.filter(student => (contactCounts[student.id] || 0) === target);
     }
 
     filtered = filtered.slice().sort((a, b) => {
@@ -480,6 +514,23 @@ export const StudentsTab = () => {
                 <SelectContent>
                   <SelectItem value="desc">Inscrições mais recentes primeiro</SelectItem>
                   <SelectItem value="asc">Inscrições mais antigas primeiro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tentativas de contato */}
+            <div className="md:col-span-1">
+              <Select value={contactAttemptsFilter} onValueChange={(v) => setContactAttemptsFilter(v as 'all' | '0' | '1' | '2' | '3')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Tentativas de contato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tentativas de contato</SelectItem>
+                  <SelectItem value="0">0 contatos</SelectItem>
+                  <SelectItem value="1">1 contato</SelectItem>
+                  <SelectItem value="2">2 contatos</SelectItem>
+                  <SelectItem value="3">3 contatos</SelectItem>
+                  <SelectItem value="4">4 contatos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
