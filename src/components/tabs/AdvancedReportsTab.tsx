@@ -34,27 +34,56 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
         <h4 className="font-semibold text-gray-900 text-sm">{title}</h4>
         <Button variant="outline" size="sm" onClick={handleDownload}>Baixar imagem</Button>
       </div>
-      <div ref={chartRef} className="w-full h-64">
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie data={data} dataKey={valueKey} nameKey={labelKey} outerRadius={100} labelLine={false}>
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value: any, name: any) => [value, name]} />
-            <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              formatter={(value: any, entry: any) => {
-                const v = Number(entry?.payload?.[valueKey] ?? entry?.payload?.value ?? 0);
-                const pct = total > 0 ? Math.round((v / total) * 100) : 0;
-                return `${value} (${pct}%)`;
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div ref={chartRef} className="w-full">
+        <div className="hidden md:block w-full h-64">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie data={data} dataKey={valueKey} nameKey={labelKey} outerRadius={100} labelLine={false}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: any, name: any) => [value, name]} />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                formatter={(value: any, entry: any) => {
+                  const v = Number(entry?.payload?.[valueKey] ?? entry?.payload?.value ?? 0);
+                  const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+                  return `${value} (${pct}%)`;
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="block md:hidden w-full h-56">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie data={data} dataKey={valueKey} nameKey={labelKey} outerRadius={80} labelLine={false}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-m-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: any, name: any) => [value, name]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="md:hidden mt-2 space-y-1">
+          {data.map((entry, index) => {
+            const v = Number(entry?.[valueKey] ?? 0);
+            const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+            return (
+              <div key={`legend-m-${index}`} className="flex items-center justify-between text-xs">
+                <span className="flex items-center">
+                  <span style={{ backgroundColor: COLORS[index % COLORS.length] }} className="inline-block w-2.5 h-2.5 rounded-sm mr-2"></span>
+                  {String(entry[labelKey])} ({pct}%)
+                </span>
+                <span className="text-gray-600">{v}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
