@@ -44,7 +44,7 @@ export const StudentsTab = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3'>('all');
+  const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>('all');
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
 
   // Estados para paginação
@@ -250,8 +250,12 @@ export const StudentsTab = () => {
 
     // Filtro por número de tentativas de contato
     if (contactAttemptsFilter !== 'all') {
-      const target = parseInt(contactAttemptsFilter, 10);
-      filtered = filtered.filter(student => (contactCounts[student.id] || 0) === target);
+      if (contactAttemptsFilter === 'ge_5') {
+        filtered = filtered.filter(student => (contactCounts[student.id] || 0) >= 5);
+      } else {
+        const target = parseInt(contactAttemptsFilter, 10);
+        filtered = filtered.filter(student => (contactCounts[student.id] || 0) === target);
+      }
     }
 
     filtered = filtered.slice().sort((a, b) => {
@@ -520,7 +524,7 @@ export const StudentsTab = () => {
 
             {/* Tentativas de contato */}
             <div className="md:col-span-1">
-              <Select value={contactAttemptsFilter} onValueChange={(v) => setContactAttemptsFilter(v as 'all' | '0' | '1' | '2' | '3')}>
+              <Select value={contactAttemptsFilter} onValueChange={(v) => setContactAttemptsFilter(v as 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Tentativas de contato" />
                 </SelectTrigger>
@@ -531,6 +535,7 @@ export const StudentsTab = () => {
                   <SelectItem value="2">2 contatos</SelectItem>
                   <SelectItem value="3">3 contatos</SelectItem>
                   <SelectItem value="4">4 contatos</SelectItem>
+                  <SelectItem value="ge_5">≥ 5 contatos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
