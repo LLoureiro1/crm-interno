@@ -2176,7 +2176,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
                     />
                     <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
-                      Contato bem sucedido
+                      Contato realizado com sucesso
                     </Label>
                   </div>
 
