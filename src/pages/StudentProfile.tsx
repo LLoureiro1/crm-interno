@@ -597,6 +597,31 @@ type ContactAttempt = Tables<'contact_attempts'> & {
     }
 
     try {
+      // Verificar choque de horário para o mesmo entrevistador
+      const { data: existingAppointments, error: conflictCheckError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('interviewer_id', interviewerId)
+        .eq('appointment_date', interviewDate)
+        .eq('appointment_time', interviewTime)
+        .limit(1);
+
+      if (conflictCheckError) {
+        console.error('Erro ao verificar conflitos de horário:', conflictCheckError);
+        toast.error('Não foi possível verificar conflitos de horário');
+        return;
+      }
+
+      if (existingAppointments && existingAppointments.length > 0) {
+        const proceed = confirm(
+          `Já existe uma marcação para este entrevistador em ${formatDateForDisplay(interviewDate)} às ${interviewTime}. Deseja manter o agendamento mesmo assim?`
+        );
+        if (!proceed) {
+          toast.info('Agendamento não realizado');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('students')
         .update({ 
