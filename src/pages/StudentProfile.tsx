@@ -64,6 +64,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const [dropoutComment, setDropoutComment] = useState<string>('');
   const [customDropoutReason, setCustomDropoutReason] = useState<string>('');
   const [invalidReason, setInvalidReason] = useState<string>('');
+  const [erpCode, setErpCode] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -226,7 +227,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   });
   const [birthDateDisplay, setBirthDateDisplay] = useState<string>('');
 
-  const canUpdateToMatriculado = profile?.profile === 'admin';
+  const canUpdateToMatriculado = true;
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
   const canEditPersonalData = !!profile; // todos os perfis autenticados podem editar
   
@@ -890,6 +891,11 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       return;
     }
 
+    if (newStatus === 'matriculado' && !erpCode.trim()) {
+      toast.error('Informe o Código do ERP (Sophia)');
+      return;
+    }
+
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
@@ -908,6 +914,9 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       if (newStatus === 'cadastro_invalido') {
         updateData.invalid_reason = invalidReason;
       }
+      if (newStatus === 'matriculado') {
+        updateData.codigo_erp = erpCode.trim();
+      }
 
       const { error } = await supabase
         .from('students')
@@ -923,7 +932,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : ''}`
+          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : newStatus === 'matriculado' ? ` (Código ERP: ${erpCode.trim()})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -934,6 +943,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       setCustomDropoutReason('');
       setDropoutComment('');
       setInvalidReason('');
+      setErpCode('');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
@@ -2140,6 +2150,18 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
                               </SelectContent>
                     </Select>
+                  </div>
+                )}
+
+                {newStatus === 'matriculado' && (
+                  <div>
+                    <Label htmlFor="erp-code">Código do ERP (Sophia) *</Label>
+                    <Input
+                      id="erp-code"
+                      value={erpCode}
+                      onChange={(e) => setErpCode(e.target.value)}
+                      placeholder="Informe o código do ERP"
+                    />
                   </div>
                 )}
 
