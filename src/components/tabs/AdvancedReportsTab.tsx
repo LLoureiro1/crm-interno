@@ -1246,7 +1246,7 @@ export const AdvancedReportsTab = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{scheduledInterviews}</div>
-            <p className="text-sm text-muted-foreground">Campo interview_date preenchido</p>
+            <p className="text-sm text-muted-foreground">Data de entrevista preenchida</p>
           </CardContent>
         </Card>
 
