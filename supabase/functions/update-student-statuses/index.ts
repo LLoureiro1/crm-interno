@@ -46,8 +46,7 @@ serve(async (req) => {
       .lt('exam_date', todayStr)
       .is('portuguese_grade', null)
       .is('math_grade', null)
-      .not('status', 'eq', 'ausente')
-      .not('status', 'eq', 'matriculado')
+      .in('status', ['nao_confirmado', 'confirmado'])
 
     if (fetchAbsentError) {
       console.error('Error fetching students for absent status:', fetchAbsentError)
@@ -93,7 +92,7 @@ serve(async (req) => {
         }
 
         // Add interaction records for absent students
-        const absentInteractions = studentsToMarkAbsent.map(student => ({
+        const absentInteractions = studentsToMarkAbsent.map((student: any) => ({
           student_id: student.id,
           interaction_type: 'mudanca_status',
           comments: `Status automaticamente alterado para "Ausente" - exame agendado para ${new Date(student.exam_date).toLocaleDateString('pt-BR')} e nenhuma nota foi registrada.`
@@ -152,7 +151,7 @@ serve(async (req) => {
         }
 
         // Se não há appointment ou nenhum tem status "realizado", marcar como faltou
-        const hasRealizedAppointment = appointments?.some(apt => apt.status === 'realizado')
+        const hasRealizedAppointment = appointments?.some((apt: any) => apt.status === 'realizado')
         
         if (!hasRealizedAppointment) {
           studentsToUpdate.push(student)
@@ -173,7 +172,7 @@ serve(async (req) => {
         }
 
         // Add interaction records for missed interview students
-        const missedInterviewInteractions = studentsToUpdate.map(student => ({
+        const missedInterviewInteractions = studentsToUpdate.map((student: any) => ({
           student_id: student.id,
           interaction_type: 'mudanca_status',
           comments: `Status automaticamente alterado para "Faltou ao Atendimento" - entrevista agendada para ${new Date(student.interview_date).toLocaleDateString('pt-BR')} não foi registrada como realizada.`
@@ -220,7 +219,7 @@ serve(async (req) => {
       }
 
       // Add interaction records for week-old students
-      const weekOldInteractions = studentsForWeekOld.map(student => ({
+      const weekOldInteractions = studentsForWeekOld.map((student: any) => ({
         student_id: student.id,
         interaction_type: 'mudanca_status',
         comments: `Status automaticamente alterado para "Atendimento há mais de uma semana" - entrevista realizada em ${new Date(student.interview_date).toLocaleDateString('pt-BR')} há mais de 7 dias.`
