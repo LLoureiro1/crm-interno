@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -84,7 +84,7 @@ serve(async (req) => {
         const { error: updateAbsentError } = await supabaseClient
           .from('students')
           .update({ status: 'ausente' })
-          .in('id', studentsToMarkAbsent.map(s => s.id))
+          .in('id', studentsToMarkAbsent.map((s: any) => s.id))
 
         if (updateAbsentError) {
           console.error('Error updating students to absent:', updateAbsentError)
@@ -164,7 +164,7 @@ serve(async (req) => {
         const { error: updateMissedError } = await supabaseClient
           .from('students')
           .update({ status: 'faltou_ao_atendimento' })
-          .in('id', studentsToUpdate.map(s => s.id))
+          .in('id', studentsToUpdate.map((s: any) => s.id))
 
         if (updateMissedError) {
           console.error('Error updating students to missed interview:', updateMissedError)
@@ -211,7 +211,7 @@ serve(async (req) => {
       const { error: updateWeekOldError } = await supabaseClient
         .from('students')
         .update({ status: 'atendimento_ha_mais_de_uma_semana' })
-        .in('id', studentsForWeekOld.map(s => s.id))
+        .in('id', studentsForWeekOld.map((s: any) => s.id))
 
       if (updateWeekOldError) {
         console.error('Error updating students to week-old:', updateWeekOldError)
@@ -261,7 +261,7 @@ serve(async (req) => {
       },
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in update-student-statuses function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
