@@ -2216,14 +2216,14 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center space-x-2 pt-6 md:pt-0">
+                  <div className="flex items-center space-x-1 pt-4 md:pt-0">
                     <Checkbox 
                       id="contato-sucedido"
                       checked={newContactSucceeded}
                       onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
                     />
                     <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
-                      Contato realizado com sucesso
+                      Conseguimos alcançar o responsável
                     </Label>
                   </div>
 
