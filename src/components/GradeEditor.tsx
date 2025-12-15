@@ -21,58 +21,31 @@ interface GradeEditorProps {
 export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: GradeEditorProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [portugueseGrade, setPortugueseGrade] = useState<string>(student.portuguese_grade?.toString() || '');
-  const [mathGrade, setMathGrade] = useState<string>(student.math_grade?.toString() || '');
+  const [finalGrade, setFinalGrade] = useState<string>(student.final_grade?.toString() || '');
 
   const validateGrade = (value: string): boolean => {
     if (value === '') return true; // Permitir campo vazio
     const num = parseFloat(value);
-    return !isNaN(num) && num >= 0 && num <= 15;
+    return !isNaN(num) && num >= 0 && num <= 30;
   };
 
   const handleSave = async () => {
     // Validações
-    if (!validateGrade(portugueseGrade)) {
-      toast.error('Nota de Português deve estar entre 0 e 15');
-      return;
-    }
-    
-    if (!validateGrade(mathGrade)) {
-      toast.error('Nota de Matemática deve estar entre 0 e 15');
-      return;
-    }
-
-    // Verificar se ambas as notas foram inseridas
-    const hasPortugueseGrade = portugueseGrade !== '';
-    const hasMathGrade = mathGrade !== '';
-    const hasBothGrades = hasPortugueseGrade && hasMathGrade;
-    const hasOnlyOneGrade = (hasPortugueseGrade && !hasMathGrade) || (!hasPortugueseGrade && hasMathGrade);
-
-    // Não permitir salvar se apenas uma nota foi inserida
-    if (hasOnlyOneGrade) {
-      toast.error('É necessário inserir ambas as notas (Português e Matemática) para salvar');
-      return;
-    }
-
-    // Não permitir limpar notas se já existem notas preenchidas
-    const hasExistingGrades = student.portuguese_grade !== null || student.math_grade !== null;
-    const tryingToClearBothGrades = !hasPortugueseGrade && !hasMathGrade;
-    
-    if (hasExistingGrades && tryingToClearBothGrades) {
-      toast.error('Não é possível limpar as notas já preenchidas');
+    if (!validateGrade(finalGrade)) {
+      toast.error('Nota deve estar entre 0 e 30');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Verificar se o status deve ser alterado (só acontece se ambas as notas foram inseridas)
+      // Verificar se o status deve ser alterado (só acontece se a nota foi inserida)
       const statusesToUpdate = ['nao_confirmado', 'confirmado', 'ausente'];
-      const shouldUpdateStatus = statusesToUpdate.includes(student.status) && hasBothGrades;
+      const hasGrade = finalGrade !== '';
+      const shouldUpdateStatus = statusesToUpdate.includes(student.status) && hasGrade;
 
       const updateData: any = {
-        portuguese_grade: portugueseGrade === '' ? null : parseFloat(portugueseGrade),
-        math_grade: mathGrade === '' ? null : parseFloat(mathGrade)
+        final_grade: finalGrade === '' ? null : parseFloat(finalGrade)
       };
 
       // Se deve atualizar o status, adicionar à atualização
@@ -88,10 +61,10 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
       if (error) throw error;
 
       // Adicionar interação
-      let interactionComment = `Notas atualizadas - Português: ${updateData.portuguese_grade || 'Não informado'}, Matemática: ${updateData.math_grade || 'Não informado'}`;
+      let interactionComment = `Nota unificada atualizada: ${updateData.final_grade || 'Não informado'}`;
       
       if (shouldUpdateStatus) {
-        interactionComment += ` | Status alterado automaticamente de '${student.status}' para 'nenhum_agendamento' devido à inserção de ambas as notas`;
+        interactionComment += ` | Status alterado automaticamente de '${student.status}' para 'nenhum_agendamento' devido à inserção da nota`;
       }
 
       await supabase
@@ -104,8 +77,8 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
         });
 
       const successMessage = shouldUpdateStatus 
-        ? 'Ambas as notas inseridas com sucesso. Status alterado automaticamente para "nenhum_agendamento".'
-        : 'Notas atualizadas com sucesso';
+        ? 'Nota inserida com sucesso. Status alterado automaticamente para "nenhum_agendamento".'
+        : 'Nota atualizada com sucesso';
       
       toast.success(successMessage);
       setIsEditing(false);
@@ -116,28 +89,26 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
       }
     } catch (error) {
       console.error('Error updating grades:', error);
-      toast.error('Erro ao atualizar notas');
+      toast.error('Erro ao atualizar nota');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setPortugueseGrade(student.portuguese_grade?.toString() || '');
-    setMathGrade(student.math_grade?.toString() || '');
+    setFinalGrade(student.final_grade?.toString() || '');
     setIsEditing(false);
   };
 
   const handleStartEdit = () => {
-    setPortugueseGrade(student.portuguese_grade?.toString() || '');
-    setMathGrade(student.math_grade?.toString() || '');
+    setFinalGrade(student.final_grade?.toString() || '');
     setIsEditing(true);
   };
 
   const content = (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Notas</h3>
+        <h3 className="text-lg font-semibold">Nota Unificada</h3>
         {!isEditing && (
           <Button
             variant="outline"
@@ -151,48 +122,25 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="portuguese-grade">Nota Português</Label>
-          {isEditing ? (
-            <Input
-              id="portuguese-grade"
-              type="number"
-              min="0"
-              max="15"
-              step="1"
-              value={portugueseGrade}
-              onChange={(e) => setPortugueseGrade(e.target.value)}
-              placeholder="Insira a nota de Português"
-              className={!validateGrade(portugueseGrade) ? 'border-red-500' : ''}
-            />
-          ) : (
-            <p className="text-sm text-gray-600 mt-1">
-              {student.portuguese_grade !== null ? student.portuguese_grade.toFixed(1) : 'Não informado'}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <Label htmlFor="math-grade">Nota Matemática</Label>
-          {isEditing ? (
-            <Input
-              id="math-grade"
-              type="number"
-              min="0"
-              max="15"
-              step="1"
-              value={mathGrade}
-              onChange={(e) => setMathGrade(e.target.value)}
-              placeholder="Insira a nota de Matemática"
-              className={!validateGrade(mathGrade) ? 'border-red-500' : ''}
-            />
-          ) : (
-            <p className="text-sm text-gray-600 mt-1">
-              {student.math_grade !== null ? student.math_grade.toFixed(1) : 'Não informado'}
-            </p>
-          )}
-        </div>
+      <div>
+        <Label htmlFor="final-grade">Nota (0-30)</Label>
+        {isEditing ? (
+          <Input
+            id="final-grade"
+            type="number"
+            min="0"
+            max="30"
+            step="0.5"
+            value={finalGrade}
+            onChange={(e) => setFinalGrade(e.target.value)}
+            placeholder="Insira a nota unificada"
+            className={!validateGrade(finalGrade) ? 'border-red-500' : ''}
+          />
+        ) : (
+          <p className="text-sm text-gray-600 mt-1">
+            {student.final_grade !== null ? student.final_grade?.toFixed(1) : 'Não informado'}
+          </p>
+        )}
       </div>
 
       {isEditing && (

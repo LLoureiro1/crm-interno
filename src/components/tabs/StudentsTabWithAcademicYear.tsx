@@ -188,8 +188,7 @@ export const StudentsTabWithAcademicYear = () => {
       'Série': student.classes.series.name,
       'Unidade': student.classes.units.name,
       'Data da Prova': student.exam_date || '',
-      'Nota Português': student.portuguese_grade || '',
-      'Nota Matemática': student.math_grade || '',
+      'Nota Unificada': student.final_grade || '',
       'Data de Entrevista': student.interview_date || '',
       'Data de Criação': formatDateForDisplay(student.created_at)
     }));

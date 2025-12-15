@@ -226,7 +226,7 @@ export const AdvancedReportsTab = () => {
             // Buscar alunos filtrados por ano letivo/unidade/turma e com exam_date definido
             let studentsQuery = supabase
                 .from('students')
-                .select('id, exam_date, math_grade, portuguese_grade, status');
+                .select('id, exam_date, final_grade, status');
 
             studentsQuery = applyFilters(studentsQuery)
                 .not('exam_date', 'is', null)
@@ -239,7 +239,7 @@ export const AdvancedReportsTab = () => {
                 return;
             }
 
-            const students = (studentsData || []) as Array<{ id: string; exam_date: string | null; math_grade: number | null; portuguese_grade: number | null }>;
+            const students = (studentsData || []) as Array<{ id: string; exam_date: string | null; final_grade: number | null }>;
 
             // Agregar por data de prova
             const byDateMap = new Map<string, { registered: number; attended: number }>();
@@ -249,7 +249,7 @@ export const AdvancedReportsTab = () => {
                 if (!byDateMap.has(date)) byDateMap.set(date, { registered: 0, attended: 0 });
                 const agg = byDateMap.get(date)!;
                 agg.registered += 1;
-                const attended = s.math_grade !== null && s.portuguese_grade !== null; // Heurística de presença: ambas as notas lançadas
+                const attended = s.final_grade !== null; // Heurística de presença: nota unificada lançada
                 if (attended) agg.attended += 1;
             });
 

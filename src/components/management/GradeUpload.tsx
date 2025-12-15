@@ -14,13 +14,12 @@ import { getCurrentDate } from '@/utils/dateUtils';
 
 interface StudentGrade {
   code: string;
-  math_grade?: number;
-  portuguese_grade?: number;
+  final_grade?: number;
 }
 
 export const GradeUpload = () => {
   const downloadTemplate = () => {
-    const headers = ["Código", "Nota Português", "Nota Matemática"];
+    const headers = ["Código", "Nota Unificada"];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     
     // Formatar a coluna "Código" (coluna A) como texto
@@ -34,8 +33,7 @@ export const GradeUpload = () => {
     // Definir largura das colunas
     ws['!cols'] = [
       { wch: 15 }, // Código
-      { wch: 15 }, // Nota Português
-      { wch: 15 }  // Nota Matemática
+      { wch: 15 }, // Nota Unificada
     ];
     
     const wb = XLSX.utils.book_new();
@@ -62,8 +60,7 @@ export const GradeUpload = () => {
 
       const parsedData: StudentGrade[] = jsonData.map((row: any) => ({
         code: String(row['Código'] || row['codigo'] || row['Code'] || '').trim(), // Converter para string e remover espaços
-        math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
-        portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
+        final_grade: (row['Nota Unificada'] !== undefined && row['Nota Unificada'] !== null && !isNaN(parseFloat(row['Nota Unificada']))) ? parseFloat(row['Nota Unificada']) : null
       }));
 
       setPreview(parsedData.slice(0, 5)); // Mostrar apenas os primeiros 5 para preview
@@ -85,8 +82,7 @@ export const GradeUpload = () => {
 
       const studentsToUpdate: StudentGrade[] = jsonData.map((row: any) => ({
         code: String(row['Código'] || row['codigo'] || row['Code'] || '').trim(), // Converter para string e remover espaços
-        math_grade: (row['Nota Matemática'] !== undefined && row['Nota Matemática'] !== null && !isNaN(parseFloat(row['Nota Matemática']))) ? parseFloat(row['Nota Matemática']) : null,
-        portuguese_grade: (row['Nota Português'] !== undefined && row['Nota Português'] !== null && !isNaN(parseFloat(row['Nota Português']))) ? parseFloat(row['Nota Português']) : null
+        final_grade: (row['Nota Unificada'] !== undefined && row['Nota Unificada'] !== null && !isNaN(parseFloat(row['Nota Unificada']))) ? parseFloat(row['Nota Unificada']) : null
       }));
 
       let successCount = 0;
@@ -119,8 +115,7 @@ export const GradeUpload = () => {
 
           // Preparar dados para atualização
           const updateData: any = {
-            math_grade: student.math_grade || null,
-            portuguese_grade: student.portuguese_grade || null
+            final_grade: student.final_grade || null
           };
 
           // Se deve atualizar o status, adicionar à atualização
@@ -149,7 +144,7 @@ export const GradeUpload = () => {
                 .insert({
                   student_id: currentStudent.id,
                   interaction_type: 'mudanca_status',
-                  comments: `Status automaticamente alterado para "Nenhum Agendamento" após upload de notas. Status anterior: ${currentStudent.status}`
+                  comments: `Status automaticamente alterado para "Nenhum Agendamento" após upload de nota unificada. Status anterior: ${currentStudent.status}`
                 });
 
               if (interactionError) {
@@ -207,8 +202,7 @@ export const GradeUpload = () => {
               A planilha deve conter as colunas:
               <ul className="list-disc list-inside mt-2">
                 <li><strong>Código</strong>: Código único do aluno</li>
-                <li><strong>Português</strong>: Nota de português </li>
-                <li><strong>Matemática</strong>: Nota de matemática </li>
+                <li><strong>Nota Unificada</strong>: Nota única (0-30)</li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -256,7 +250,7 @@ export const GradeUpload = () => {
               <div className="border rounded p-4 bg-gray-50">
                 {preview.map((student, index) => (
                   <div key={index} className="text-sm">
-                    Código: {student.code} | Português: {student.portuguese_grade || 'N/A'} | Matemática: {student.math_grade || 'N/A'}
+                    Código: {student.code} | Nota Unificada: {student.final_grade || 'N/A'}
                   </div>
                 ))}
                 {preview.length === 5 && <div className="text-sm text-gray-500 mt-2">... e mais</div>}

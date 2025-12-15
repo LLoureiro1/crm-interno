@@ -450,6 +450,7 @@ export type Database = {
           material_parcela: number | null
           material_payment_type: string | null
           math_grade: number | null
+          final_grade: number | null
           neighborhood: string
           origin_school: string
           phone: string
@@ -480,6 +481,7 @@ export type Database = {
           material_parcela?: number | null
           material_payment_type?: string | null
           math_grade?: number | null
+          final_grade?: number | null
           neighborhood: string
           origin_school: string
           phone: string
@@ -510,6 +512,7 @@ export type Database = {
           material_parcela?: number | null
           material_payment_type?: string | null
           math_grade?: number | null
+          final_grade?: number | null
           neighborhood?: string
           origin_school?: string
           phone?: string

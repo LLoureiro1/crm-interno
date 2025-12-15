@@ -38,14 +38,12 @@ serve(async (req: Request) => {
         id, 
         student_name, 
         exam_date, 
-        portuguese_grade, 
-        math_grade,
+        final_grade,
         classes!inner(has_exam)
       `)
       .eq('classes.has_exam', true)
       .lt('exam_date', todayStr)
-      .is('portuguese_grade', null)
-      .is('math_grade', null)
+      .is('final_grade', null)
       .in('status', ['nao_confirmado', 'confirmado'])
 
     if (fetchAbsentError) {
