@@ -21,7 +21,9 @@ interface GradeEditorProps {
 export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: GradeEditorProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [finalGrade, setFinalGrade] = useState<string>(student.final_grade?.toString() || '');
+  const [finalGrade, setFinalGrade] = useState<string>(
+    student.final_grade !== null ? Number(student.final_grade).toString() : ''
+  );
 
   const validateGrade = (value: string): boolean => {
     if (value === '') return true; // Permitir campo vazio
@@ -138,7 +140,7 @@ export const GradeEditor = ({ student, onUpdate, variant = 'inline', onClose }: 
           />
         ) : (
           <p className="text-sm text-gray-600 mt-1">
-            {student.final_grade !== null ? student.final_grade?.toFixed(1) : 'Não informado'}
+            {student.final_grade !== null ? student.final_grade?.toString() : 'Não informado'}
           </p>
         )}
       </div>
