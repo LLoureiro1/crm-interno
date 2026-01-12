@@ -128,7 +128,7 @@ export const InterviewerAvailability = () => {
       {showAddForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Nova Disponibilidade</CardTitle>
+            <CardTitle>Adicionar Disponibilidade</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
