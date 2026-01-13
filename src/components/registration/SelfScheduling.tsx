@@ -181,10 +181,13 @@ export const SelfScheduling = ({
 
       if (appError) throw appError;
 
-      // 3. Update Student Status
+      // 3. Update Student Status and Interview Date
       const { error: studentError } = await supabase
         .from('students')
-        .update({ status: 'atendimento_agendado' })
+        .update({ 
+          status: 'atendimento_agendado',
+          interview_date: dateStr // Saving the interview date
+        })
         .eq('id', studentId);
 
       if (studentError) console.error('Error updating student status:', studentError);
