@@ -6,6 +6,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getCurrentDate } from '@/utils/dateUtils';
+import { SelfScheduling } from './SelfScheduling';
 
 const Confirmation: React.FC = () => {
   const location = useLocation();
@@ -14,41 +15,59 @@ const Confirmation: React.FC = () => {
 
   const classId = state?.classId;
   const hasExam = state?.hasExam;
+  const studentId = state?.studentId;
+  const unitIdState = state?.unitId;
+
   const [examDetails, setExamDetails] = useState<Tables<'exam_dates'> & { units: Tables<'units'> } | null>(null);
   const [unit, setUnit] = useState<Tables<'units'> | null>(null);
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState<{
+    date: string;
+    time: string;
+    unitName?: string;
+    unitAddress?: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchExamDetails = async () => {
-      if (!classId) return;
+      console.log('Confirmation useEffect:', { classId, unitIdState, hasExam });
+      
+      // Se não tivermos nem turma nem unidade, não há o que buscar
+      if (!classId && !unitIdState) return;
 
-      // Buscar unidade a partir da turma
-      const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select('unit_id')
-        .eq('id', classId)
-        .single();
+      let currentUnitId = unitIdState;
 
-      if (classError) {
-        console.error('Error fetching class details:', classError);
-        return;
+      // 1. Se não temos unitId mas temos classId, buscar unidade a partir da turma
+      if (!currentUnitId && classId) {
+        const { data: classData, error: classError } = await supabase
+          .from('classes')
+          .select('unit_id')
+          .eq('id', classId)
+          .maybeSingle();
+
+        if (classError) {
+          console.error('Error fetching class details:', classError);
+        } else if (classData) {
+          currentUnitId = classData.unit_id;
+        }
       }
 
-      if (!classData?.unit_id) return;
+      // Se ainda não temos unitId, abortar
+      if (!currentUnitId) return;
 
       if (hasExam) {
         // Se houver exame, buscar o próximo exame e já obter os dados da unidade
         const { data: examData, error: examError } = await supabase
           .from('exam_dates')
           .select('*, units(*)')
-          .eq('unit_id', classData.unit_id)
+          .eq('unit_id', currentUnitId)
           .gte('exam_date', getCurrentDate())
           .order('exam_date', { ascending: true })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (examError) {
           console.error('Error fetching exam details:', examError);
-        } else {
+        } else if (examData) {
           setExamDetails(examData);
           // Guardar a unidade também, se disponível
           const unitsFromExam = (examData as unknown as { units?: Tables<'units'> }).units;
@@ -56,24 +75,24 @@ const Confirmation: React.FC = () => {
         }
       }
 
-      // Independente de haver exame, garantir que temos os dados da unidade
+      // Independente de haver exame, garantir que temos os dados da unidade para exibir endereço/telefone
       if (!unit) {
         const { data: unitData, error: unitError } = await supabase
           .from('units')
           .select('*')
-          .eq('id', classData.unit_id)
-          .single();
+          .eq('id', currentUnitId)
+          .maybeSingle();
 
         if (unitError) {
           console.error('Error fetching unit details:', unitError);
-        } else {
+        } else if (unitData) {
           setUnit(unitData);
         }
       }
     };
 
     fetchExamDetails();
-  }, [hasExam, classId]);
+  }, [hasExam, classId, unitIdState, unit]);
 
   const handleGoHome = () => {
     navigate('/');
@@ -87,9 +106,18 @@ const Confirmation: React.FC = () => {
     : '';
   const whatsappHref = waPhone ? `https://wa.me/${waPhone}` : 'https://wa.me/553284193583';
 
+  const fallbackContent = (
+    <div className="mt-4 p-4 border rounded-md bg-green-50 dark:bg-green-900 text-left">
+      <h3 className="text-lg font-semibold mb-2">Fique de olho no telefone!</h3>
+      <p>Em breve, entraremos em contato com você para agendar um momento especial de acolhimento da sua família na unidade.</p>
+      <br></br>
+      <p>Será uma conversa leve e próxima, onde poderemos conhecer um pouco mais sobre quem irá estudar conosco, entender sua história e apresentar tudo o que o APOGEU pode oferecer.</p>
+    </div>
+  );
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Card className="w-full max-w-md mx-auto">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 py-8">
+      <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="text-center text-2xl font-bold">🎉 Parabéns! Sua inscrição foi realizada com sucesso!</CardTitle>
         </CardHeader>
@@ -104,6 +132,7 @@ const Confirmation: React.FC = () => {
               <>Estamos muito felizes em ter você conosco!</>
             )}
           </p>
+          
           {hasExam ? (
             examDetails && (
               <div className="mt-4 p-4 border rounded-md bg-blue-50 dark:bg-blue-900 text-left">
@@ -115,13 +144,51 @@ const Confirmation: React.FC = () => {
               </div>
             )
           ) : (
-            <div className="mt-4 p-4 border rounded-md bg-green-50 dark:bg-green-900 text-left">
-              <h3 className="text-lg font-semibold mb-2">Fique de olho no telefone!</h3>
-              <p>Em breve, entraremos em contato com você para agendar um momento especial de acolhimento da sua família na unidade.</p>
-              <br></br>
-              <p>Será uma conversa leve e próxima, onde poderemos conhecer um pouco mais sobre quem irá estudar conosco, entender sua história e apresentar tudo o que o APOGEU pode oferecer.</p>
+            appointmentConfirmed ? (
+              <div className="mt-4 p-4 border rounded-md bg-green-50 dark:bg-green-900 text-left">
+                <h3 className="text-lg font-semibold mb-2 text-green-800">Agendamento Confirmado!</h3>
+                <p className="mb-2">Esperamos você e sua família para um bate-papo especial.</p>
+                <div className="bg-white p-3 rounded border border-green-200">
+                  <p><strong>Data:</strong> {new Date(appointmentConfirmed.date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                  <p><strong>Horário:</strong> {appointmentConfirmed.time}</p>
+                  <p><strong>Unidade:</strong> {appointmentConfirmed.unitName || unit?.name}</p>
+                  <p><strong>Endereço:</strong> {appointmentConfirmed.unitAddress || unit?.address}</p>
+                </div>
+                <p className="mt-3 text-sm text-green-700">Enviamos também um e-mail com estes detalhes.</p>
+              </div>
+            ) : (
+              studentId && (classId || unitIdState) && unit && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-left mb-2">Agende seu horário de atendimento</h3>
+                  <p className="text-sm text-gray-600 text-left mb-4">Escolha o melhor dia e horário para vir conhecer nossa escola.</p>
+                  <SelfScheduling 
+                    unitId={unit.id}
+                    classId={classId || ''}
+                    studentId={studentId}
+                    unitName={unit.name}
+                    unitAddress={unit.address}
+                    onSuccess={setAppointmentConfirmed}
+                    fallback={fallbackContent}
+                  />
+                </div>
+              )
+            )
+          )}
+          
+          {/* Fallback para quando tem exame mas não achou detalhes (ex: sem datas futuras) */}
+          {hasExam && !examDetails && (
+            <div className="mt-4 p-4 border rounded-md bg-yellow-50 dark:bg-yellow-900 text-left">
+               <h3 className="text-lg font-semibold mb-2 text-yellow-800 dark:text-yellow-200">Aguardando Agendamento de Prova</h3>
+               <p className="text-yellow-700 dark:text-yellow-300">
+                 Sua turma requer uma prova de seleção, mas não encontramos datas disponíveis no momento.
+                 Nossa equipe entrará em contato em breve para agendar sua avaliação.
+               </p>
             </div>
           )}
+
+          {/* Show fallback if data is missing or if logic falls through (though SelfScheduling handles fallback) */}
+          {!hasExam && !appointmentConfirmed && (!studentId || !classId || !unit) && fallbackContent}
+
           <Button onClick={() => navigate('/inscricao')} className="mt-6">
             Inscrever Outro Aluno
           </Button>

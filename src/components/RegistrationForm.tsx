@@ -231,7 +231,7 @@ export const RegistrationForm = () => {
           .gte('exam_date', getCurrentDate())
           .order('exam_date', { ascending: true })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!examError && examData) {
           nextExam = examData as unknown as { id: string; exam_date: string };
@@ -302,6 +302,8 @@ export const RegistrationForm = () => {
       navigate('/confirmacao', {
         state: {
           classId: formData.classId,
+          unitId: formData.unitId,
+          studentId: studentResult.id,
           hasExam: selectedClass?.has_exam
         }
       });
