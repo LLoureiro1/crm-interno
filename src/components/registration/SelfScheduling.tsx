@@ -38,10 +38,73 @@ export const SelfScheduling = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSlot, setSelectedSlot] = useState<{ time: string, interviewers: string[] } | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     fetchAvailabilities();
   }, [unitId, classId]);
+
+  useEffect(() => {
+    const fetchBookedSlotsForDate = async () => {
+      if (!selectedDate) {
+        setBookedSlots({});
+        return;
+      }
+
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const dayAvails = availabilities.filter(a => a.date === dateStr);
+
+      const interviewerIds = Array.from(
+        new Set(
+          dayAvails
+            .map(a => a.interviewer_id)
+            .filter((id): id is string => !!id)
+        )
+      );
+
+      if (interviewerIds.length === 0) {
+        setBookedSlots({});
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('interviewer_id, appointment_time')
+          .eq('appointment_date', dateStr)
+          .in('interviewer_id', interviewerIds);
+
+        if (error) {
+          console.error('Erro ao buscar agendamentos existentes:', error);
+          setBookedSlots({});
+          return;
+        }
+
+        const map: Record<string, string[]> = {};
+
+        console.log('🗓️ Agendamentos encontrados para a data:', data?.length);
+
+        (data || []).forEach((appt: any) => {
+          if (!appt.interviewer_id || !appt.appointment_time) return;
+          
+          // Normalizar horário para HH:mm (banco pode retornar HH:mm:ss)
+          const time = appt.appointment_time.substring(0, 5);
+          
+          const existing = map[time] || [];
+          existing.push(appt.interviewer_id);
+          map[time] = existing;
+          console.log(`🔒 Bloqueado: ${time} - Entrevistador: ${appt.interviewer_id}`);
+        });
+
+        setBookedSlots(map);
+      } catch (error) {
+        console.error('Erro ao carregar agendamentos existentes:', error);
+        setBookedSlots({});
+      }
+    };
+
+    fetchBookedSlotsForDate();
+  }, [selectedDate, availabilities]);
 
   const fetchAvailabilities = async () => {
     setLoading(true);
@@ -140,10 +203,22 @@ export const SelfScheduling = ({
       });
     });
 
-    // Sort times
-    return Array.from(slotsMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([time, interviewers]) => ({ time, interviewers }));
+    const slotsWithAvailability = Array.from(slotsMap.entries())
+      .map(([time, interviewerIds]) => {
+        const bookedForTime = bookedSlots[time] || [];
+        const availableInterviewers = interviewerIds.filter(
+          id => !bookedForTime.includes(id)
+        );
+        
+        if (bookedForTime.length > 0) {
+            console.log(`🕒 Horário ${time}: Total Entrevistadores: ${interviewerIds.length}, Bloqueados: ${bookedForTime.length}, Disponíveis: ${availableInterviewers.length}`);
+        }
+
+        return { time, interviewers: availableInterviewers };
+      })
+      .filter(slot => slot.interviewers.length > 0);
+
+    return slotsWithAvailability.sort((a, b) => a.time.localeCompare(b.time));
   };
 
   // Get dates that have availability
