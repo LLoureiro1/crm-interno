@@ -190,3 +190,49 @@ BEGIN
     USING (ativo = true); -- Only show active profiles
   END IF;
 END$$;
+
+-- ============================================
+-- STUDENTS POLICIES (for self-scheduling status update)
+-- ============================================
+
+-- Allow anonymous users to update status and interview_date when they have a valid appointment
+-- This is needed for the self-scheduling feature
+-- Note: The application code should only update status and interview_date fields
+DO $$
+BEGIN
+  -- Ensure RLS is enabled
+  ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+
+  -- Create policy for anonymous users to update when appointment exists
+  -- This allows updating the student record after creating an appointment via self-scheduling
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'students'
+      AND policyname = 'Allow anonymous update when appointment exists'
+  ) THEN
+    CREATE POLICY "Allow anonymous update when appointment exists"
+    ON public.students
+    FOR UPDATE
+    TO anon
+    USING (
+      -- Only allow if there's a valid appointment for this student created recently (last 5 minutes)
+      -- This prevents abuse while allowing legitimate self-scheduling updates
+      EXISTS (
+        SELECT 1 FROM public.appointments
+        WHERE appointments.student_id = students.id
+        AND appointments.status = 'scheduled'
+        AND appointments.created_at > NOW() - INTERVAL '5 minutes'
+      )
+    )
+    WITH CHECK (
+      -- Same check for the new values
+      EXISTS (
+        SELECT 1 FROM public.appointments
+        WHERE appointments.student_id = students.id
+        AND appointments.status = 'scheduled'
+        AND appointments.created_at > NOW() - INTERVAL '5 minutes'
+      )
+    );
+  END IF;
+END$$;

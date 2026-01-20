@@ -318,7 +318,11 @@ export const SelfScheduling = ({
         })
         .eq('id', studentId);
 
-      if (studentError) console.error('Error updating student status:', studentError);
+      if (studentError) {
+        console.error('Error updating student status:', studentError);
+        // Não falhar o agendamento se o update do status falhar, mas logar o erro
+        toast.warning('Agendamento criado, mas houve um problema ao atualizar o status. Entre em contato conosco.');
+      }
 
       toast.success('Agendamento realizado com sucesso!');
       
@@ -388,7 +392,10 @@ export const SelfScheduling = ({
             modifiersStyles={{
                 available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' }
             }}
-            className="rounded-md border shadow-sm bg-white"
+            classNames={{
+              day_selected: "bg-orange-500 text-white hover:bg-orange-600 hover:text-white focus:bg-orange-500 focus:text-white font-bold"
+            }}
+            className="rounded-md border shadow-sm bg-white w-full max-w-sm md:max-w-none"
           />
         </CardContent>
       </Card>
@@ -431,7 +438,7 @@ export const SelfScheduling = ({
       </Card>
 
       {selectedSlot && (
-        <div className="md:col-span-2 flex justify-end mt-4">
+        <div className="md:col-span-2 flex justify-end">
           <Button 
             onClick={handleBooking} 
             disabled={bookingLoading}
