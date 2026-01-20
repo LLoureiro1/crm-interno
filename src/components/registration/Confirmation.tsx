@@ -160,7 +160,6 @@ const Confirmation: React.FC = () => {
               studentId && (classId || unitIdState) && unit && (
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold text-left mb-2">Agende seu horário de atendimento</h3>
-                  <p className="text-sm text-gray-600 text-left mb-4">Escolha o melhor dia e horário para vir conhecer nossa escola.</p>
                   <SelfScheduling 
                     unitId={unit.id}
                     classId={classId || ''}

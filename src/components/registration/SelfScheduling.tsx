@@ -299,7 +299,9 @@ export const SelfScheduling = ({
   const slots = selectedDate ? getSlotsForDate(selectedDate) : [];
 
   return (
-    <div className="grid md:grid-cols-2 gap-6 mt-6">
+    <>
+      <p className="text-sm text-gray-600 text-left mb-4">Escolha o melhor dia e horário para vir conhecer nossa escola.</p>
+      <div className="grid md:grid-cols-2 gap-6 mt-6">
       <Card className="border-none shadow-none md:border md:shadow-sm">
         <CardHeader className="px-0 md:px-6">
           <CardTitle className="text-lg">Escolha uma data</CardTitle>
@@ -386,5 +388,6 @@ export const SelfScheduling = ({
         </div>
       )}
     </div>
+    </>
   );
 };
