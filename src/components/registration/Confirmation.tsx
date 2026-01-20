@@ -153,8 +153,7 @@ const Confirmation: React.FC = () => {
                   <p><strong>Horário:</strong> {appointmentConfirmed.time}</p>
                   <p><strong>Unidade:</strong> {appointmentConfirmed.unitName || unit?.name}</p>
                   <p><strong>Endereço:</strong> {appointmentConfirmed.unitAddress || unit?.address}</p>
-                </div>
-                <p className="mt-3 text-sm text-green-700">Enviamos também um e-mail com estes detalhes.</p>
+                </div>                
               </div>
             ) : (
               studentId && (classId || unitIdState) && unit && (
