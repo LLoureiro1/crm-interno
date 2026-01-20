@@ -374,7 +374,7 @@ export const SelfScheduling = ({
         <CardHeader className="px-0 md:px-6">
           <CardTitle className="text-lg">Escolha uma data</CardTitle>
         </CardHeader>
-        <CardContent className="p-0 md:p-6 flex justify-center">
+        <CardContent className="p-0 md:p-2 flex justify-center">
           <Calendar
             mode="single"
             selected={selectedDate}
