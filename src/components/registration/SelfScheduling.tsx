@@ -39,10 +39,48 @@ export const SelfScheduling = ({
   const [selectedSlot, setSelectedSlot] = useState<{ time: string, interviewers: string[] } | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
+  const [hasExistingAppointment, setHasExistingAppointment] = useState(false);
+  const [checkingAppointment, setCheckingAppointment] = useState(true);
 
   useEffect(() => {
-    fetchAvailabilities();
-  }, [unitId, classId]);
+    checkExistingAppointment();
+  }, [studentId]);
+
+  useEffect(() => {
+    if (!hasExistingAppointment) {
+      fetchAvailabilities();
+    }
+  }, [unitId, classId, hasExistingAppointment]);
+
+  const checkExistingAppointment = async () => {
+    setCheckingAppointment(true);
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('id, appointment_date, appointment_time, status')
+        .eq('student_id', studentId)
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar agendamento existente:', error);
+        setHasExistingAppointment(false);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setHasExistingAppointment(true);
+        // Se já tem agendamento, não precisa carregar disponibilidades
+        setLoading(false);
+      } else {
+        setHasExistingAppointment(false);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar agendamento existente:', error);
+      setHasExistingAppointment(false);
+    } finally {
+      setCheckingAppointment(false);
+    }
+  };
 
   useEffect(() => {
     const fetchBookedSlotsForDate = async () => {
@@ -240,7 +278,22 @@ export const SelfScheduling = ({
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-      // 2. Create Appointment
+      // 2. Verificar novamente se já existe agendamento (prevenir race condition)
+      const { data: existingCheck, error: checkError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('student_id', studentId)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (existingCheck && existingCheck.length > 0) {
+        toast.error('Você já possui um agendamento. Não é possível criar outro.');
+        setHasExistingAppointment(true);
+        return;
+      }
+
+      // 3. Create Appointment
       const { data: appointment, error: appError } = await supabase
         .from('appointments')
         .insert({
@@ -256,7 +309,7 @@ export const SelfScheduling = ({
 
       if (appError) throw appError;
 
-      // 3. Update Student Status and Interview Date
+      // 4. Update Student Status and Interview Date
       const { error: studentError } = await supabase
         .from('students')
         .update({ 
@@ -284,10 +337,21 @@ export const SelfScheduling = ({
     }
   };
 
-  if (loading) {
+  if (checkingAppointment || loading) {
     return (
       <div className="flex justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  if (hasExistingAppointment) {
+    return (
+      <div className="mt-4 p-4 border rounded-md bg-yellow-50 dark:bg-yellow-900 text-left">
+        <h3 className="text-lg font-semibold mb-2 text-yellow-800 dark:text-yellow-200">Agendamento já realizado</h3>
+        <p className="text-yellow-700 dark:text-yellow-300">
+          Você já possui um agendamento de entrevista. Entre em contato conosco se precisar alterar ou cancelar.
+        </p>
       </div>
     );
   }
