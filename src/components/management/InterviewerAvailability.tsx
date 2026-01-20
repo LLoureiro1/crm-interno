@@ -148,7 +148,15 @@ export const InterviewerAvailability = () => {
       .eq('ativo', true)
       .neq('profile', 'padrao');
 
-    if (data) setInterviewers(data);
+    if (data) {
+      // Ordenar entrevistadores alfabeticamente por nome
+      const sorted = [...data].sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || '';
+        const nameB = b.name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB, 'pt-BR');
+      });
+      setInterviewers(sorted);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {

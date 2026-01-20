@@ -32,8 +32,13 @@ if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname
   })
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    toast('Aplicativo atualizado', {
-      description: 'Versão mais recente instalada.',
+    const isSmartphone = /Android.*Mobile|iPhone|Windows Phone|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (!isSmartphone) return
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return
+      toast('Aplicativo atualizado', {
+        description: 'Versão mais recente instalada.',
+      })
     })
   })
 }
