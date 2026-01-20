@@ -29,6 +29,7 @@ export const InterviewerAvailability = () => {
   const [availabilities, setAvailabilities] = useState<InterviewerAvailability[]>([]);
   const [interviewers, setInterviewers] = useState<Tables<'profiles'>[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -47,9 +48,70 @@ export const InterviewerAvailability = () => {
     fetchClasses();
   }, []);
 
+  useEffect(() => {
+    if (formData.interviewerId && units.length > 0) {
+      filterAvailableUnitsByInterviewer(formData.interviewerId, units);
+    } else if (!formData.interviewerId) {
+      // Se não há entrevistador selecionado, limpar unidades disponíveis
+      setAvailableUnits([]);
+      setFormData(prev => ({ ...prev, unitId: '', classIds: [] }));
+    }
+  }, [formData.interviewerId, units]);
+
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
-    if (data) setUnits(data);
+    if (data) {
+      setUnits(data);
+    }
+  };
+
+  const filterAvailableUnitsByInterviewer = async (interviewerId: string, allUnits: Unit[]) => {
+    // Buscar o perfil do entrevistador selecionado
+    const { data: interviewerProfile } = await supabase
+      .from('profiles')
+      .select('unit_id')
+      .eq('id', interviewerId)
+      .single();
+
+    if (!interviewerProfile?.unit_id) {
+      // Se o entrevistador não tem unidade vinculada, mostrar todas
+      setAvailableUnits(allUnits);
+      return;
+    }
+
+    // Buscar a unidade do entrevistador para verificar o slug
+    const { data: interviewerUnit } = await supabase
+      .from('units')
+      .select('slug')
+      .eq('id', interviewerProfile.unit_id)
+      .single();
+
+    const interviewerUnitSlug = (interviewerUnit as any)?.slug as string | undefined;
+
+    if (interviewerUnitSlug === 'central') {
+      // Se é central, pode ver todas as unidades
+      setAvailableUnits(allUnits);
+      // Limpar seleção de unidade e turmas ao mudar para central (múltiplas opções)
+      setFormData(prev => {
+        const currentUnitId = prev.unitId;
+        // Se a unidade atual não está mais disponível ou não há seleção, limpar
+        if (!currentUnitId || !allUnits.some(u => u.id === currentUnitId)) {
+          return { ...prev, unitId: '', classIds: [] };
+        }
+        return prev;
+      });
+    } else {
+      // Caso contrário, só pode ver a unidade do entrevistador
+      const filtered = allUnits.filter(u => u.id === interviewerProfile.unit_id);
+      setAvailableUnits(filtered);
+      // Auto-selecionar a unidade se só houver uma opção
+      if (filtered.length === 1) {
+        setFormData(prev => ({ ...prev, unitId: filtered[0].id, classIds: [] }));
+      } else {
+        // Limpar seleção se não houver unidades disponíveis
+        setFormData(prev => ({ ...prev, unitId: '', classIds: [] }));
+      }
+    }
   };
 
   const fetchClasses = async () => {
@@ -82,7 +144,9 @@ export const InterviewerAvailability = () => {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .in('profile', ['entrevistador', 'direcao', 'admin']);
+      .in('profile', ['entrevistador', 'direcao', 'admin'])
+      .eq('ativo', true)
+      .neq('profile', 'padrao');
 
     if (data) setInterviewers(data);
   };
@@ -105,7 +169,7 @@ export const InterviewerAvailability = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.interviewerId || !formData.date || !formData.startTime || !formData.endTime) {
+    if (!formData.interviewerId || !formData.date || !formData.startTime || !formData.endTime || !formData.unitId) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -123,7 +187,7 @@ export const InterviewerAvailability = () => {
           date: formData.date,
           start_time: formData.startTime,
           end_time: formData.endTime,
-          unit_id: (formData.unitId && formData.unitId !== 'all_units') ? formData.unitId : null,
+          unit_id: formData.unitId,
           class_ids: formData.classIds.length > 0 ? formData.classIds : null
         } as any);
 
@@ -187,7 +251,9 @@ export const InterviewerAvailability = () => {
                   <Label htmlFor="interviewer">Entrevistador *</Label>
                   <Select
                     value={formData.interviewerId}
-                    onValueChange={(value) => handleInputChange('interviewerId', value)}
+                    onValueChange={(value) => {
+                      handleInputChange('interviewerId', value);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o entrevistador" />
@@ -201,55 +267,6 @@ export const InterviewerAvailability = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div>
-                  <Label htmlFor="unit">Unidade (Opcional)</Label>
-                  <Select
-                    value={formData.unitId}
-                    onValueChange={(value) => {
-                      handleInputChange('unitId', value);
-                      setFormData(prev => ({ ...prev, classIds: [] })); // Limpa turmas ao mudar unidade
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as unidades" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all_units">Todas as unidades</SelectItem>
-                      {units.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.unitId && formData.unitId !== 'all_units' && (
-                  <div className="md:col-span-2">
-                    <Label className="mb-2 block">Turmas (Opcional)</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border p-4 rounded-md max-h-40 overflow-y-auto">
-                      {classes
-                        .filter(c => c.unit_id === formData.unitId)
-                        .map((cls) => (
-                          <div key={cls.id} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={`class-${cls.id}`}
-                              checked={formData.classIds.includes(cls.id)}
-                              onCheckedChange={() => handleClassToggle(cls.id)}
-                            />
-                            <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer">
-                              {cls.name} ({cls.series?.name})
-                            </Label>
-                          </div>
-                        ))}
-                      {classes.filter(c => c.unit_id === formData.unitId).length === 0 && (
-                        <p className="text-sm text-gray-500 col-span-3">Nenhuma turma encontrada nesta unidade</p>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Se nenhuma turma for selecionada, a disponibilidade valerá para todas as turmas da unidade.</p>
-                  </div>
-                )}
 
                 <div>
                   <Label htmlFor="date">Data *</Label>
@@ -283,6 +300,62 @@ export const InterviewerAvailability = () => {
                     required
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="unit">Unidade *</Label>
+                  <Select
+                    value={formData.unitId}
+                    onValueChange={(value) => {
+                      handleInputChange('unitId', value);
+                      setFormData(prev => ({ ...prev, classIds: [] })); // Limpa turmas ao mudar unidade
+                    }}
+                    required
+                    disabled={!formData.interviewerId || availableUnits.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        !formData.interviewerId 
+                          ? "Selecione primeiro o entrevistador" 
+                          : availableUnits.length === 0 
+                            ? "Nenhuma unidade disponível" 
+                            : "Selecione a unidade"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.unitId && (
+                  <div className="md:col-span-2">
+                    <Label className="mb-2 block">Turmas (Opcional)</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border p-4 rounded-md max-h-40 overflow-y-auto">
+                      {classes
+                        .filter(c => c.unit_id === formData.unitId)
+                        .map((cls) => (
+                          <div key={cls.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`class-${cls.id}`}
+                              checked={formData.classIds.includes(cls.id)}
+                              onCheckedChange={() => handleClassToggle(cls.id)}
+                            />
+                            <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer">
+                              {cls.name} ({cls.series?.name})
+                            </Label>
+                          </div>
+                        ))}
+                      {classes.filter(c => c.unit_id === formData.unitId).length === 0 && (
+                        <p className="text-sm text-gray-500 col-span-3">Nenhuma turma encontrada nesta unidade</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Se nenhuma turma for selecionada, a disponibilidade valerá para todas as turmas da unidade.</p>
+                  </div>
+                )}
               </div>
 
               <div className="flex space-x-2">
