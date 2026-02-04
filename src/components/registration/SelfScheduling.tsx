@@ -294,6 +294,7 @@ export const SelfScheduling = ({
       }
 
       // Call RPC function for secure public scheduling (handles permissions for anon users)
+      console.log('🔄 Iniciando agendamento via RPC...');
       const { data: result, error: rpcError } = await supabase.rpc('public_schedule_interview', {
         p_student_id: studentId,
         p_interviewer_id: randomInterviewerId,
@@ -302,7 +303,12 @@ export const SelfScheduling = ({
         p_comments: `Agendamento realizado via auto-agendamento. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.error('❌ Erro no RPC:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('✅ Resultado do RPC:', result);
 
       // Check result success (RPC returns JSONB)
       if (result && (result as any).success === false) {
@@ -319,7 +325,7 @@ export const SelfScheduling = ({
       });
 
     } catch (error) {
-      console.error('Error booking appointment:', error);
+      console.error('Erro detalhado ao agendar (RPC):', error);
       toast.error('Erro ao realizar agendamento. Tente novamente.');
     } finally {
       setBookingLoading(false);
