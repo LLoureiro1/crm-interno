@@ -126,7 +126,7 @@ const Confirmation: React.FC = () => {
             {hasExam ? (
               <>
                 Este é o primeiro passo para garantir um futuro cheio de conquistas!
-                Esperamos te esperando de braços abertos em nossa unidade!
+                Estamos te esperando de braços abertos em nossa unidade!
               </>
             ) : (
               <>Estamos muito felizes em ter você conosco!</>
