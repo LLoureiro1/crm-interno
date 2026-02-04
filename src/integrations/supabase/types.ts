@@ -776,6 +776,16 @@ export type Database = {
       distribute_contact_list_items: {
         Args: { p_list_id: string }
         Returns: undefined
+      },
+      public_schedule_interview: {
+        Args: {
+          p_student_id: string
+          p_interviewer_id: string
+          p_date: string
+          p_time: string
+          p_comments?: string
+        }
+        Returns: Json
       }
     }
     Enums: {

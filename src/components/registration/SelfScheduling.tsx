@@ -293,35 +293,20 @@ export const SelfScheduling = ({
         return;
       }
 
-      // 3. Create Appointment
-      const { data: appointment, error: appError } = await supabase
-        .from('appointments')
-        .insert({
-          student_id: studentId,
-          interviewer_id: randomInterviewerId,
-          appointment_date: dateStr,
-          appointment_time: selectedSlot.time,
-          status: 'scheduled',
-          formato_entrevista: 'presencial' // Default
-        })
-        .select()
-        .single();
+      // Call RPC function for secure public scheduling (handles permissions for anon users)
+      const { data: result, error: rpcError } = await supabase.rpc('public_schedule_interview', {
+        p_student_id: studentId,
+        p_interviewer_id: randomInterviewerId,
+        p_date: dateStr,
+        p_time: selectedSlot.time,
+        p_comments: `Agendamento realizado via auto-agendamento. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`
+      });
 
-      if (appError) throw appError;
+      if (rpcError) throw rpcError;
 
-      // 4. Update Student Status and Interview Date
-      const { error: studentError } = await supabase
-        .from('students')
-        .update({ 
-          status: 'atendimento_agendado',
-          interview_date: dateStr // Saving the interview date
-        })
-        .eq('id', studentId);
-
-      if (studentError) {
-        console.error('Error updating student status:', studentError);
-        // Não falhar o agendamento se o update do status falhar, mas logar o erro
-        toast.warning('Agendamento criado, mas houve um problema ao atualizar o status. Entre em contato conosco.');
+      // Check result success (RPC returns JSONB)
+      if (result && (result as any).success === false) {
+         throw new Error((result as any).error || 'Erro desconhecido ao agendar');
       }
 
       toast.success('Agendamento realizado com sucesso!');
