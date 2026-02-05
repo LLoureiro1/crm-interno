@@ -2065,19 +2065,29 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent side="bottom">
-                      {student.classes?.has_exam && (
+                      {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                          <SelectItem value="confirmado">Confirmado</SelectItem>
+                          <SelectItem value="matriculado">Matriculado</SelectItem>
+                          <SelectItem value="desistente">Desistente</SelectItem>
+                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
                         </>
-                      )}
-                      <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
-                      {!hasHadInterview && (
-                        <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                      )}
-                      <SelectItem value="desistente">Desistente</SelectItem>
-                      {canUpdateToMatriculado && (
-                        <SelectItem value="matriculado">Matriculado</SelectItem>
+                      ) : (
+                        <>
+                          {student.classes?.has_exam && (
+                            <>
+                              <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
+                              <SelectItem value="confirmado">Confirmado</SelectItem>
+                            </>
+                          )}
+                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
+                          {!hasHadInterview && (
+                            <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
+                          )}
+                          <SelectItem value="desistente">Desistente</SelectItem>
+                          {canUpdateToMatriculado && (
+                            <SelectItem value="matriculado">Matriculado</SelectItem>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

@@ -350,17 +350,27 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent side="bottom">
-                      {student.classes?.has_exam && (
+                      {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                          <SelectItem value="confirmado">Confirmado</SelectItem>
+                          <SelectItem value="matriculado">Matriculado</SelectItem>
+                          <SelectItem value="desistente">Desistente</SelectItem>
+                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
                         </>
-                      )}
-                      <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
-                      <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                      <SelectItem value="desistente">Desistente</SelectItem>
-                      {canUpdateToMatriculado && (
-                        <SelectItem value="matriculado">Matriculado</SelectItem>
+                      ) : (
+                        <>
+                          {student.classes?.has_exam && (
+                            <>
+                              <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
+                              <SelectItem value="confirmado">Confirmado</SelectItem>
+                            </>
+                          )}
+                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
+                          <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
+                          <SelectItem value="desistente">Desistente</SelectItem>
+                          {canUpdateToMatriculado && (
+                            <SelectItem value="matriculado">Matriculado</SelectItem>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
