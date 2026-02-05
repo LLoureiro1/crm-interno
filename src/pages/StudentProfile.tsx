@@ -18,6 +18,7 @@ import { StudentPhoneManager } from '@/components/ui/StudentPhoneManager';
 import { GradeEditor } from '@/components/GradeEditor';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
 import { ProposalSummaryModal } from '@/components/ui/ProposalSummaryModal';
+import { ManualSchedulingModal } from '@/components/appointments/ManualSchedulingModal';
 import { toast } from 'sonner';
 import { getCurrentDate } from '@/utils/dateUtils';
 import type { Tables, Enums } from '@/integrations/supabase/types';
@@ -68,6 +69,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
+  const [showSchedulingModal, setShowSchedulingModal] = useState(false);
   const [showDiscountEditor, setShowDiscountEditor] = useState(false);
   const [discountEdit, setDiscountEdit] = useState<string>('');
   const [interviewDate, setInterviewDate] = useState('');
@@ -1562,8 +1564,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       )}
                     </div>
                   )}
-                  {student.interview_date && (
-                    <>
+                  {student.interview_date ? (
+                    <div className="col-span-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
@@ -1573,7 +1575,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                             {isInterviewDay && ' (HOJE)'}
                           </p>
                         </div>
-                        {/* Ações: cancelar entrevista */}
                         {canRegisterAttendance && (
                           <div className="flex items-center">
                             <Button
@@ -1596,7 +1597,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           </Badge>
                         </div>
                       )}
-
                       {canRegisterAttendance && !!student?.interview_date && !((isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente') && (
                         <div className="mt-2 ml-4">
                           <Button
@@ -1611,11 +1611,22 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           </Button>
                         </div>
                       )}
-                    </>
+                    </div>
+                  ) : (
+                    <div className="col-span-2">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-3 w-3" />
+                          <span className="font-medium">Data da Entrevista:</span>
+                          <span className="text-gray-500 ml-1">Não agendada</span>
+                        </div>
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
+
+
+
 
             {/* Financial Data */}
             <Card>
@@ -1799,6 +1810,22 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSchedulingModal(true)}
+                  className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 mb-2"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Conferir Disponibilidades
+                </Button>
+                <div className="relative mb-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">Ou agende manualmente</span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
                     <Label htmlFor="interview-date">Data</Label>
@@ -2352,6 +2379,24 @@ type ContactAttempt = Tables<'contact_attempts'> & {
             onOpenChange={setShowProposalModal}
             student={student}
           />
+        )}
+
+        {/* Modal de Agendamento Manual */}
+        {student && (
+            <ManualSchedulingModal
+                open={showSchedulingModal}
+                onOpenChange={setShowSchedulingModal}
+                student={{
+                    id: student.id,
+                    unit_id: student.classes?.unit_id,
+                    class_id: student.class_id,
+                    student_name: student.student_name
+                }}
+                onSuccess={() => {
+                    fetchStudent();
+                    fetchInteractions();
+                }}
+            />
         )}
       </div>
     </div>
