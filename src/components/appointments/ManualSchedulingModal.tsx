@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, isSameDay, addMinutes, isBefore, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -37,7 +40,9 @@ type Availability = {
 };
 
 export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }: ManualSchedulingModalProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [modality, setModality] = useState<'presencial' | 'a_distancia'>('presencial');
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
@@ -194,6 +199,11 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
     setBookingLoading(true);
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      const formattedDate = format(date, 'dd/MM/yyyy');
+      
+      // Get interviewer name
+      const interviewerName = availabilities.find(a => a.interviewer_id === interviewerId)?.profiles?.name || 'Entrevistador';
+      const modalityText = modality === 'presencial' ? 'Presencial' : 'A Distância';
 
       // Create appointment
       const { error } = await supabase
@@ -204,6 +214,7 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
           appointment_date: dateStr,
           appointment_time: time,
           status: 'scheduled',
+          formato_entrevista: modality,
           comments: 'Agendamento manual realizado pelo sistema'
         });
 
@@ -229,7 +240,8 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
         .insert({
           student_id: student.id,
           interaction_type: 'agendamento',
-          comments: `Agendamento de entrevista para ${format(date, 'dd/MM/yyyy')} às ${time}`
+          user_id: user?.id,
+          comments: `Entrevista agendada para ${formattedDate} às ${time} com ${interviewerName} (${modalityText}). Status automaticamente alterado para "Atendimento Agendado".`
         });
 
       toast.success('Agendamento realizado com sucesso!');
@@ -281,7 +293,8 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
                             }}
                             modifiers={{ available: availableDates }}
                             modifiersStyles={{
-                                available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' }
+                                available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' },
+                                selected: { color: 'white', backgroundColor: '#2563eb' }
                             }}
                             classNames={{
                                 day_selected: "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700",
@@ -299,6 +312,24 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
                                     ? `Horários em ${format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}` 
                                     : 'Selecione uma data'}
                             </h3>
+
+                            <div className="mb-4">
+                                <Label className="text-sm font-medium mb-2 block">Modalidade</Label>
+                                <RadioGroup 
+                                    value={modality} 
+                                    onValueChange={(v: 'presencial' | 'a_distancia') => setModality(v)}
+                                    className="flex space-x-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="presencial" id="presencial" />
+                                        <Label htmlFor="presencial">Presencial</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="a_distancia" id="a_distancia" />
+                                        <Label htmlFor="a_distancia">A Distância</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
 
                             {selectedDate ? (
                                 slots.length > 0 ? (
