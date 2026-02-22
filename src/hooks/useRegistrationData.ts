@@ -7,7 +7,7 @@ type City = Tables<'cities'>;
 type Serie = Tables<'series'>;
 type Class = Tables<'classes'> & {
   series: Serie;
-  units: Tables<'units'>;
+  units: Tables<'units'> & { slug?: string };
 };
 
 interface UseRegistrationDataReturn {

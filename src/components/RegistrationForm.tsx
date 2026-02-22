@@ -19,8 +19,9 @@ import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/useAuth';
 
-type Unit = Tables<'units'>;
+type Unit = Tables<'units'> & { slug?: string };
 type Serie = Tables<'series'>;
 type Class = Tables<'classes'> & {
   series: Serie;
@@ -31,6 +32,7 @@ export const RegistrationForm = () => {
   console.log('📝 RegistrationForm renderizado');
   const navigate = useNavigate();
   const { unitSlug } = useParams<{ unitSlug?: string }>();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
     responsibleName: '',
@@ -60,7 +62,6 @@ export const RegistrationForm = () => {
   const { hasSources, loading: sourcesLoading, error: sourcesError } = useRegistrationSources(formData.unitId);
   const { activeTrackingCode } = useTrackingCode();
 
-  // Detectar e pré-selecionar unidade baseado no slug da URL
   useEffect(() => {
     const loadUnitBySlug = async () => {
       if (unitSlug) {
@@ -82,6 +83,11 @@ export const RegistrationForm = () => {
           }
 
           if (unit) {
+            if (!user && unit.slug === 'central') {
+              toast.error('A unidade Central não está disponível para inscrição online.');
+              setTimeout(() => navigate('/inscricao'), 2000);
+              return;
+            }
             console.log('✅ Unidade encontrada:', unit);
             setPreSelectedUnit(unit);
             setIsUnitLocked(true);
@@ -95,9 +101,8 @@ export const RegistrationForm = () => {
     };
 
     loadUnitBySlug();
-  }, [unitSlug, navigate]);
+  }, [unitSlug, navigate, user]);
 
-  // Filtrar unidades quando série é selecionada
   useEffect(() => {
     if (formData.seriesId) {
       const filteredClasses = classes.filter(cls => cls.series_id === formData.seriesId);
@@ -113,10 +118,29 @@ export const RegistrationForm = () => {
           if (!unit || !unit.id) return false;
           return arr.findIndex(u => u && u.id && u.id === unit.id) === index;
         });
-      
+
+      let visibleUnits = uniqueUnits;
+
+      if (!profile) {
+        visibleUnits = uniqueUnits.filter(unit => unit.slug !== 'central');
+      } else {
+        const userUnitId = profile.unit_id;
+        if (userUnitId) {
+          const userUnit = uniqueUnits.find(unit => unit.id === userUnitId);
+          const isCentralUser = !!(userUnit && userUnit.slug === 'central');
+          if (isCentralUser) {
+            visibleUnits = uniqueUnits;
+          } else {
+            visibleUnits = uniqueUnits.filter(unit => unit.id === userUnitId);
+          }
+        } else {
+          visibleUnits = uniqueUnits.filter(unit => unit.slug !== 'central');
+        }
+      }
+
       // Se há uma unidade pré-selecionada, filtrar apenas ela
       if (preSelectedUnit && isUnitLocked) {
-        const unitInList = uniqueUnits.find(u => u.id === preSelectedUnit.id);
+        const unitInList = visibleUnits.find(u => u.id === preSelectedUnit.id);
         if (unitInList) {
           setAvailableUnits([unitInList]);
           // Auto-selecionar a unidade
@@ -128,7 +152,7 @@ export const RegistrationForm = () => {
           setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
         }
       } else {
-        setAvailableUnits(uniqueUnits);
+        setAvailableUnits(visibleUnits);
         // Limpar seleções dependentes
         setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
       }
