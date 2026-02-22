@@ -83,7 +83,7 @@ export const RegistrationForm = () => {
           }
 
           if (unit) {
-            if (!user && unit.slug === 'central') {
+            if (!user && String(unit.name).toLowerCase() === 'central') {
               toast.error('A unidade Central não está disponível para inscrição online.');
               setTimeout(() => navigate('/inscricao'), 2000);
               return;
@@ -122,19 +122,19 @@ export const RegistrationForm = () => {
       let visibleUnits = uniqueUnits;
 
       if (!profile) {
-        visibleUnits = uniqueUnits.filter(unit => unit.slug !== 'central');
+        visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
       } else {
         const userUnitId = profile.unit_id;
         if (userUnitId) {
           const userUnit = uniqueUnits.find(unit => unit.id === userUnitId);
-          const isCentralUser = !!(userUnit && userUnit.slug === 'central');
+          const isCentralUser = !!(userUnit && String(userUnit.name).toLowerCase() === 'central');
           if (isCentralUser) {
             visibleUnits = uniqueUnits;
           } else {
             visibleUnits = uniqueUnits.filter(unit => unit.id === userUnitId);
           }
         } else {
-          visibleUnits = uniqueUnits.filter(unit => unit.slug !== 'central');
+          visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
         }
       }
 
