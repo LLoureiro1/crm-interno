@@ -431,7 +431,7 @@ export const RegistrationForm = () => {
           </CardHeader>
           <CardContent>
             <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">              
-              <p>Caso possua mais de 1 filho(a), faça a inscrição do primeiro e após a conclusão haverá a opção para a inscrição do próximo.</p>
+              <p>Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção para a inscrição do próximo.</p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
