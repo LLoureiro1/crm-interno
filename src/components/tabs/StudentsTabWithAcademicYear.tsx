@@ -93,6 +93,17 @@ export const StudentsTabWithAcademicYear = () => {
     if (data) setUnits(data);
   };
 
+  const isCentralUser = !!(
+    profile?.unit_id &&
+    units.some(unit => unit.id === profile.unit_id && String(unit.name).toLowerCase() === 'central')
+  );
+
+  const visibleUnits = units.filter(unit => {
+    if (!profile?.unit_id) return true;
+    if (isCentralUser) return true;
+    return unit.id === profile.unit_id;
+  });
+
   const fetchSeries = async () => {
     const { data } = await supabase.from('series').select('*');
     if (data) setSeries(data);

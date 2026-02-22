@@ -202,6 +202,12 @@ export const AdvancedReportsTab = () => {
         setUnits(data || []);
     };
 
+    const visibleUnits = units.filter(unit => {
+        if (!profile?.unit_id) return true;
+        if (isCentralUser) return true;
+        return unit.id === profile.unit_id;
+    });
+
     const fetchClasses = async () => {
         const { data, error } = await supabase
             .from('classes')
@@ -1181,7 +1187,7 @@ export const AdvancedReportsTab = () => {
                 </SelectTrigger>
                 <SelectContent side="bottom">
                   <SelectItem value="all">Todas as unidades</SelectItem>
-                  {units.map((unit) => (
+                  {visibleUnits.map((unit) => (
                     <SelectItem key={unit.id} value={unit.id}>
                       {unit.name}
                     </SelectItem>

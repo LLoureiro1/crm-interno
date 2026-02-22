@@ -135,6 +135,17 @@ export const StudentsTab = () => {
     if (data) setUnits(data);
   };
 
+  const isCentralUser = !!(
+    profile?.unit_id &&
+    units.some(unit => unit.id === profile.unit_id && String(unit.name).toLowerCase() === 'central')
+  );
+
+  const visibleUnits = units.filter(unit => {
+    if (!profile?.unit_id) return true;
+    if (isCentralUser) return true;
+    return unit.id === profile.unit_id;
+  });
+
   const fetchSeries = async () => {
     const { data } = await supabase.from('series').select('*');
     if (data) setSeries(data);
@@ -473,7 +484,7 @@ export const StudentsTab = () => {
 
             <div className="md:col-span-1">
               <MultiSelect
-                options={units.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
+                options={visibleUnits.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
                 selected={unitFilter}
                 onChange={setUnitFilter}
                 placeholder="Unidade"

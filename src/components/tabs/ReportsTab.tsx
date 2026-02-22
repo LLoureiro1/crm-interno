@@ -110,6 +110,12 @@ export const ReportsTab = () => {
     if (data) setSeries(data);
   };
 
+  const visibleUnits = units.filter(unit => {
+    if (!profile?.unit_id) return true;
+    if (isCentralUser) return true;
+    return unit.id === profile.unit_id;
+  });
+
   // Guardar as próximas datas de prova por unidade para alinhar contagem e lista
   const [nextExamDatesByUnit, setNextExamDatesByUnit] = useState<Record<string, string>>({});
 
@@ -333,7 +339,7 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </SelectTrigger>
           <SelectContent side="bottom">
             <SelectItem value="all">Todas as unidades</SelectItem>
-            {units.map(unit => (
+            {visibleUnits.map(unit => (
               <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
             ))}
           </SelectContent>
