@@ -10,6 +10,7 @@ import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -30,10 +31,12 @@ interface ReportData {
 }
 
 export const ReportsTab = () => {
+  const { profile } = useAuth();
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<string>('all');
+  const [isCentralUser, setIsCentralUser] = useState(false);
 
   // Função para calcular o ano letivo atual
   const getCurrentAcademicYear = () => {
@@ -62,16 +65,43 @@ export const ReportsTab = () => {
   const [dialogStudents, setDialogStudents] = useState<Student[]>([]);
 
   useEffect(() => {
-    fetchUnits();
     fetchSeries();
   }, []);
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
+  useEffect(() => {
+    const checkCentral = async () => {
+      if (!profile?.unit_id) {
+        setIsCentralUser(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, name')
+        .eq('id', profile.unit_id)
+        .maybeSingle();
+
+      if (error || !data?.name) {
+        setIsCentralUser(false);
+        return;
+      }
+
+      setIsCentralUser(String(data.name).toLowerCase() === 'central');
+    };
+
+    checkCentral();
+  }, [profile?.unit_id]);
 
   useEffect(() => {
     fetchReportData();
   }, [selectedUnit, selectedSeries]);
 
   const fetchUnits = async () => {
-    const { data } = await supabase.from('units').select('*');
+    const { data } = await supabase.from('units').select('*').order('name');
     if (data) setUnits(data);
   };
 
@@ -143,7 +173,9 @@ export const ReportsTab = () => {
       )
     `);
 
-    if (selectedUnit !== 'all') {
+    const shouldFilterByUnit = !isCentralUser && selectedUnit !== 'all';
+
+    if (shouldFilterByUnit) {
       query = query.eq('classes.unit_id', selectedUnit);
     }
 
@@ -166,7 +198,7 @@ export const ReportsTab = () => {
       ).length;
       const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
         studentsValid,
-        selectedUnit !== 'all' ? selectedUnit : undefined
+        shouldFilterByUnit ? selectedUnit : undefined
       );
       setNextExamDatesByUnit(datesByUnit);
       const matriculados = students.filter(s => s.status === 'matriculado').length;

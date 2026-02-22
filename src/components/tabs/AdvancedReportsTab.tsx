@@ -9,6 +9,7 @@ import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { toPng } from 'html-to-image';
+import { useAuth } from '@/hooks/useAuth';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -90,6 +91,7 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
 };
 
 export const AdvancedReportsTab = () => {
+    const { profile } = useAuth();
     const [conversionRate, setConversionRate] = useState(0);
     const [averageDiscount, setAverageDiscount] = useState(0);
     const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
@@ -159,6 +161,31 @@ export const AdvancedReportsTab = () => {
     const [averageEnrollmentTimeDays, setAverageEnrollmentTimeDays] = useState(0);
     const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
     const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
+    const [isCentralUser, setIsCentralUser] = useState(false);
+
+    useEffect(() => {
+        const checkCentral = async () => {
+            if (!profile?.unit_id) {
+                setIsCentralUser(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('units')
+                .select('id, name')
+                .eq('id', profile.unit_id)
+                .maybeSingle();
+
+            if (error || !data?.name) {
+                setIsCentralUser(false);
+                return;
+            }
+
+            setIsCentralUser(String(data.name).toLowerCase() === 'central');
+        };
+
+        checkCentral();
+    }, [profile?.unit_id]);
 
     // Funções para buscar dados de filtros
     const fetchUnits = async () => {
@@ -171,7 +198,7 @@ export const AdvancedReportsTab = () => {
             console.error('Erro ao buscar unidades:', error);
             return;
         }
-        
+
         setUnits(data || []);
     };
 

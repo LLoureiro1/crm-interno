@@ -14,6 +14,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -29,6 +30,7 @@ type ExamDate = Tables<'exam_dates'> & {
 
 export const StudentsTab = () => {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [examDates, setExamDates] = useState<ExamDate[]>([]);
@@ -129,7 +131,7 @@ export const StudentsTab = () => {
   };
 
   const fetchUnits = async () => {
-    const { data } = await supabase.from('units').select('*');
+    const { data } = await supabase.from('units').select('*').order('name');
     if (data) setUnits(data);
   };
 
