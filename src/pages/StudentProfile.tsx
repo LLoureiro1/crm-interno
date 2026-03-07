@@ -934,7 +934,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason})` : newStatus === 'matriculado' ? ` (Código ERP: ${erpCode.trim()})` : ''}`
+          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason === 'ja_e_aluno' ? 'Já é aluno' : invalidReason})` : newStatus === 'matriculado' ? ` (Código ERP: ${erpCode.trim()})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
@@ -2138,7 +2138,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
                           <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
                           <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
-                          <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
                           <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
                           <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
@@ -2185,6 +2184,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <SelectContent side="bottom">
                         <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
                         <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
+                        <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
                               </SelectContent>
                     </Select>
                   </div>

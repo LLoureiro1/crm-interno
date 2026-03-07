@@ -45,6 +45,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   const [newStatus, setNewStatus] = useState<Enums<'student_status'>>(student.status);
   const [dropoutReason, setDropoutReason] = useState<Enums<'dropout_reason'> | ''>('');
   const [dropoutComment, setDropoutComment] = useState<string>('');
+  const [invalidReason, setInvalidReason] = useState<string>('');
   const [interactions, setInteractions] = useState<Tables<'student_interactions'>[]>([]);
   const [hasHadInterview, setHasHadInterview] = useState<boolean>(false);
 
@@ -113,6 +114,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       return;
     }
 
+    if (newStatus === 'cadastro_invalido' && !invalidReason) {
+      toast.error('Selecione o motivo do cadastro inválido');
+      return;
+    }
+
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'desistente') {
@@ -121,6 +127,10 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
         if (dropoutComment.trim()) {
           updateData.dropout_comment = dropoutComment.trim();
         }
+      }
+
+      if (newStatus === 'cadastro_invalido') {
+        updateData.invalid_reason = invalidReason;
       }
 
       const { error } = await supabase
@@ -137,12 +147,15 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : ''}`
+          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason === 'ja_e_aluno' ? 'Já é aluno' : invalidReason})` : ''}`
         });
 
       toast.success('Status atualizado com sucesso');
       onUpdate();
       fetchInteractions();
+      setDropoutReason('');
+      setDropoutComment('');
+      setInvalidReason('');
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
@@ -388,7 +401,6 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                         <SelectItem value="impossibilidade_contato">Impossibilidade de contato</SelectItem>
                         <SelectItem value="mudanca_de_endereco">Mudança de Endereço</SelectItem>
                         <SelectItem value="matriculou_outra_escola">Matriculou em Outra Escola</SelectItem>
-                        <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
                         <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
                         <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
                         <SelectItem value="outro">Outro</SelectItem>
@@ -409,6 +421,21 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                         />
                       </div>
                     )}
+                  </div>
+                )}
+
+                {newStatus === 'cadastro_invalido' && (
+                  <div className="mt-2">
+                    <Select value={invalidReason} onValueChange={setInvalidReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o motivo" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
+                        <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
+                        <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 

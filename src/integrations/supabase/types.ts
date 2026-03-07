@@ -442,6 +442,7 @@ export type Database = {
           discount_percentage: number | null
           discount_material: number | null
           dropout_reason: Database["public"]["Enums"]["dropout_reason"] | null
+          invalid_reason: Database["public"]["Enums"]["invalid_reason"] | null
           email: string
           exam_date: string | null
           id: string
@@ -473,6 +474,7 @@ export type Database = {
           discount_percentage?: number | null
           discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
           email: string
           exam_date?: string | null
           id?: string
@@ -504,6 +506,7 @@ export type Database = {
           discount_percentage?: number | null
           discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
           email?: string
           exam_date?: string | null
           id?: string
@@ -796,6 +799,10 @@ export type Database = {
         | "motivos_financeiros"
         | "falta_vaga"
         | "outro"
+      invalid_reason:
+        | "cadastro_duplicado"
+        | "cadastro_de_teste"
+        | "ja_e_aluno"
       education_level:
         | "educacao_infantil"
         | "fundamental_i"
@@ -957,6 +964,11 @@ export const Constants = {
         "motivos_financeiros",
         "falta_vaga",
         "outro",
+      ],
+      invalid_reason: [
+        "cadastro_duplicado",
+        "cadastro_de_teste",
+        "ja_e_aluno",
       ],
       education_level: [
         "educacao_infantil",
