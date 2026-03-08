@@ -273,7 +273,7 @@ export const ClassManagement = () => {
                     {editingClass ? 'Editar Turma' : 'Nova Turma'}
                   </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="flex flex-col space-y-3 md:grid md:grid-cols-2 md:gap-4">
+                <form onSubmit={handleSubmit} className="flex flex-col space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
                   <div>
                     <Label htmlFor="name">Nome *</Label>
                     <Input
