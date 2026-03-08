@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { sanitizePlainText, sanitizePhone } from '@/utils/sanitization';
+import { formatPhone } from '@/utils/registrationFormatters';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Unit = Tables<'units'> & {
@@ -214,8 +215,10 @@ export const UnitManagement = () => {
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: sanitizePhone(e.target.value) }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }))}
                   required
+                  maxLength={15}
+                  placeholder="(00) 00000-0000"
                 />
               </div>
               <div className="relative">
