@@ -90,580 +90,597 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
   );
 };
 
+// Função para calcular o ano letivo atual
+const getCurrentAcademicYear = () => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
+
+  // Se é agosto ou depois, o ano letivo é o próximo ano
+  if (currentMonth >= 8) {
+    return String(currentYear + 1);
+  }
+  // Caso contrário, é o ano atual
+  return String(currentYear);
+};
+
 export const AdvancedReportsTab = () => {
-    const { profile } = useAuth();
-    const [conversionRate, setConversionRate] = useState(0);
-    const [averageDiscount, setAverageDiscount] = useState(0);
-    const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
-    const [interviewerStats, setInterviewerStats] = useState<Array<{name: string, conversion: number, total: number, enrolled: number}>>([]);
+  const { profile } = useAuth();
+  const [conversionRate, setConversionRate] = useState(0);
+  const [averageDiscount, setAverageDiscount] = useState(0);
+  const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
+  const [interviewerStats, setInterviewerStats] = useState<Array<{ name: string, conversion: number, total: number, enrolled: number }>>([]);
 
-    // Função para calcular o ano letivo atual
-    const getCurrentAcademicYear = () => {
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1; // 1-12
+  // Estados dos filtros
+  const [units, setUnits] = useState<Tables<'units'>[]>([]);
+  const [series, setSeries] = useState<Tables<'series'>[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>('all');
+  const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
+  const [registrationSourcesPie, setRegistrationSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
+  const [trackingSourcesPie, setTrackingSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
 
-        // Se é agosto ou depois, o ano letivo é o próximo ano
-        if (currentMonth >= 8) {
-            return String(currentYear + 1);
-        }
-        // Caso contrário, é o ano atual
-        return String(currentYear);
-    };
-    
-    // Estados dos filtros
-    const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
-    const [selectedClassId, setSelectedClassId] = useState<string>('all');
-    const [units, setUnits] = useState<Tables<'units'>[]>([]);
-    const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
-    const [filteredClasses, setFilteredClasses] = useState<Tables<'classes'>[]>([]);
-    const [registrationSourcesPie, setRegistrationSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
-    const [trackingSourcesPie, setTrackingSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
+  // Estados para estatísticas de entrevistas
+  const [scheduledInterviews, setScheduledInterviews] = useState(0);
+  const [completedInterviews, setCompletedInterviews] = useState(0);
+  const [interviewCompletionRate, setInterviewCompletionRate] = useState(0);
 
-    // Estados para estatísticas de entrevistas
-    const [scheduledInterviews, setScheduledInterviews] = useState(0);
-    const [completedInterviews, setCompletedInterviews] = useState(0);
-    const [interviewCompletionRate, setInterviewCompletionRate] = useState(0);
+  // Estados para relatório de origens de inscrição
+  const [registrationSources, setRegistrationSources] = useState<Array<{
+    source_label: string;
+    total_students: number;
+    percentage: number;
+    enrolled_students: number;
+    conversion_rate: number;
+  }>>([]);
 
-    // Estados para relatório de origens de inscrição
-    const [registrationSources, setRegistrationSources] = useState<Array<{
-        source_label: string;
-        total_students: number;
-        percentage: number;
-        enrolled_students: number;
-        conversion_rate: number;
-    }>>([]);
+  // Estados para relatório de tracking codes
+  const [trackingSources, setTrackingSources] = useState<Array<{
+    tracking_code: string;
+    total_students: number;
+    percentage: number;
+    enrolled_students: number;
+    conversion_rate: number;
+  }>>([]);
 
-    // Estados para relatório de tracking codes
-    const [trackingSources, setTrackingSources] = useState<Array<{
-        tracking_code: string;
-        total_students: number;
-        percentage: number;
-        enrolled_students: number;
-        conversion_rate: number;
-    }>>([]);
+  // Estados para relatório de tentativas de contato
+  const [contactsByChannel, setContactsByChannel] = useState<Array<{ channel: string; total: number; succeeded: number }>>([]);
+  const [contactsByReason, setContactsByReason] = useState<Array<{ reason: string; total: number; succeeded: number }>>([]);
+  const [avgContactsPerEnrolled, setAvgContactsPerEnrolled] = useState(0);
 
-    // Estados para relatório de tentativas de contato
-    const [contactsByChannel, setContactsByChannel] = useState<Array<{ channel: string; total: number; succeeded: number }>>([]);
-    const [contactsByReason, setContactsByReason] = useState<Array<{ reason: string; total: number; succeeded: number }>>([]);
-    const [avgContactsPerEnrolled, setAvgContactsPerEnrolled] = useState(0);
+  // Estados para presença em provas (datas passadas)
+  const [examAttendanceStats, setExamAttendanceStats] = useState<Array<{
+    exam_date: string;
+    unit_name: string;
+    registered: number;
+    attended: number;
+    attendance_rate: number;
+  }>>([]);
 
-    // Estados para presença em provas (datas passadas)
-    const [examAttendanceStats, setExamAttendanceStats] = useState<Array<{
-        exam_date: string;
-        unit_name: string;
-        registered: number;
-        attended: number;
-        attendance_rate: number;
-    }>>([]);
+  // Estados para novas métricas solicitadas
+  const [averageEnrollmentTimeDays, setAverageEnrollmentTimeDays] = useState(0);
+  const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
+  const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
+  const [isCentralUser, setIsCentralUser] = useState(false);
 
-    // Estados para novas métricas solicitadas
-    const [averageEnrollmentTimeDays, setAverageEnrollmentTimeDays] = useState(0);
-    const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
-    const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
-    const [isCentralUser, setIsCentralUser] = useState(false);
+  useEffect(() => {
+    const checkCentral = async () => {
+      if (!profile?.unit_id) {
+        setIsCentralUser(false);
+        return;
+      }
 
-    useEffect(() => {
-        const checkCentral = async () => {
-            if (!profile?.unit_id) {
-                setIsCentralUser(false);
-                return;
-            }
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, name')
+        .eq('id', profile.unit_id)
+        .maybeSingle();
 
-            const { data, error } = await supabase
-                .from('units')
-                .select('id, name')
-                .eq('id', profile.unit_id)
-                .maybeSingle();
+      if (error || !data?.name) {
+        setIsCentralUser(false);
+        return;
+      }
 
-            if (error || !data?.name) {
-                setIsCentralUser(false);
-                return;
-            }
-
-            setIsCentralUser(String(data.name).toLowerCase() === 'central');
-        };
-
-        checkCentral();
-    }, [profile?.unit_id]);
-
-    // Funções para buscar dados de filtros
-    const fetchUnits = async () => {
-        const { data, error } = await supabase
-            .from('units')
-            .select('*')
-            .order('name');
-        
-        if (error) {
-            console.error('Erro ao buscar unidades:', error);
-            return;
-        }
-
-        setUnits(data || []);
+      setIsCentralUser(String(data.name).toLowerCase() === 'central');
     };
 
-    const visibleUnits = units.filter(unit => {
-        if (!profile?.unit_id) return true;
-        if (isCentralUser) return true;
-        return unit.id === profile.unit_id;
-    });
+    checkCentral();
+  }, [profile?.unit_id]);
 
-    const fetchClasses = async () => {
-        const { data, error } = await supabase
-            .from('classes')
-            .select(`
+  // Funções para buscar dados de filtros
+  const fetchUnits = async () => {
+    const { data, error } = await supabase
+      .from('units')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Erro ao buscar unidades:', error);
+      return;
+    }
+
+    setUnits(data || []);
+  };
+
+  const visibleUnits = units.filter(unit => {
+    // Sempre ocultar a unidade "Central"
+    if (unit.name.toLowerCase() === 'central') return false;
+
+    if (!profile?.unit_id) return true;
+    if (isCentralUser) return true;
+    return unit.id === profile.unit_id;
+  });
+
+  const fetchSeries = async () => {
+    const { data, error } = await supabase
+      .from('series')
+      .select('*')
+      .order('ordenar', { ascending: true });
+
+    if (error) {
+      console.error('Erro ao buscar séries:', error);
+      return;
+    }
+
+    setSeries(data || []);
+  };
+
+  const fetchClasses = async () => {
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
                 *,
                 units(name),
                 series(name)
             `)
-            .order('name');
-        
-        if (error) {
-            console.error('Erro ao buscar turmas:', error);
-            return;
+      .order('name');
+
+    if (error) {
+      console.error('Erro ao buscar turmas:', error);
+      return;
+    }
+
+    setClasses(data || []);
+  };
+
+  // Função: presença em provas por data (apenas datas passadas)
+  const fetchExamAttendanceStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      // Buscar datas de prova passadas (filtrando por unidade se aplicável)
+      let examDatesQuery = (supabase as any)
+        .from('exam_dates')
+        .select(`id, exam_date, units(name), unit_id`)
+        .lt('exam_date', today)
+        .order('exam_date', { ascending: true });
+
+      if (selectedUnitId !== 'all') {
+        examDatesQuery = examDatesQuery.eq('unit_id', selectedUnitId);
+      }
+
+      const { data: examDates, error: examDatesError } = await examDatesQuery;
+      if (examDatesError) {
+        console.error('Erro ao buscar datas de prova:', examDatesError);
+        setExamAttendanceStats([]);
+        return;
+      }
+
+      const pastExamDates = (examDates || []) as Array<{ id: string; exam_date: string; units: { name: string }; unit_id: string }>;
+      if (pastExamDates.length === 0) {
+        setExamAttendanceStats([]);
+        return;
+      }
+
+      // Buscar alunos filtrados por ano letivo/unidade/série e com exam_date definido
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, exam_date, final_grade, status, unit_id');
+
+      studentsQuery = applyFilters(studentsQuery)
+        .not('exam_date', 'is', null)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      const { data: studentsData, error: studentsError } = await studentsQuery;
+      if (studentsError) {
+        console.error('Erro ao buscar alunos para presença em provas:', studentsError);
+        setExamAttendanceStats([]);
+        return;
+      }
+
+      const students = (studentsData || []) as Array<{ id: string; exam_date: string | null; final_grade: number | null; unit_id: string }>;
+
+      // Agregar por data de prova e UNIDADE
+      const byDateUnitMap = new Map<string, { registered: number; attended: number }>();
+      students.forEach(s => {
+        const date = s.exam_date;
+        const unitId = s.unit_id;
+        if (!date || !unitId) return;
+        const key = `${date}_${unitId}`;
+        if (!byDateUnitMap.has(key)) byDateUnitMap.set(key, { registered: 0, attended: 0 });
+        const agg = byDateUnitMap.get(key)!;
+        agg.registered += 1;
+        const attended = s.final_grade !== null; // Heurística de presença: nota unificada lançada
+        if (attended) agg.attended += 1;
+      });
+
+      // Montar resultado apenas para datas passadas existentes
+      const stats = pastExamDates.map(ed => {
+        const key = `${ed.exam_date}_${ed.unit_id}`;
+        const agg = byDateUnitMap.get(key) || { registered: 0, attended: 0 };
+        const rate = agg.registered > 0 ? (agg.attended / agg.registered) * 100 : 0;
+        return {
+          exam_date: ed.exam_date,
+          unit_name: ed.units?.name || 'Unidade',
+          registered: agg.registered,
+          attended: agg.attended,
+          attendance_rate: rate,
+        };
+      })
+        // Mostrar apenas datas com pelo menos um inscrito ou algum comparecimento
+        .filter(item => item.registered > 0 || item.attended > 0)
+        .sort((a, b) => a.exam_date.localeCompare(b.exam_date));
+
+      setExamAttendanceStats(stats);
+    } catch (error) {
+      console.error('Erro ao calcular presença em provas:', error);
+      setExamAttendanceStats([]);
+    }
+  };
+
+
+  // Função para aplicar filtros nas queries
+  const applyFilters = (query: any) => {
+    // Sempre filtrar por ano letivo atual
+    const currentAcademicYear = getCurrentAcademicYear();
+    console.log('🔍 Debug Relatórios Avançados:');
+    console.log('📅 Data atual:', new Date().toLocaleDateString());
+    console.log('📚 Ano letivo calculado:', currentAcademicYear);
+
+    query = query.eq('ano_letivo', parseInt(currentAcademicYear));
+
+    if (selectedUnitId !== 'all') {
+      query = query.eq('unit_id', selectedUnitId);
+    }
+    if (selectedSeriesId !== 'all') {
+      // Filtrar por turmas que pertencem à série selecionada
+      const classIdsInSeries = classes
+        .filter(cls => cls.series_id === selectedSeriesId)
+        .map(cls => cls.id);
+
+      if (classIdsInSeries.length > 0) {
+        query = query.in('class_id', classIdsInSeries);
+      } else {
+        // Se a série não tem turmas, forçar resultado vazio
+        query = query.eq('class_id', '00000000-0000-0000-0000-000000000000');
+      }
+    }
+    return query;
+  };
+
+  // Função: tempo médio entre cadastro e matrícula (em dias)
+  const fetchAverageTimeToEnrollment = async () => {
+    try {
+      // Buscar alunos matriculados com datas de criação/atualização
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, created_at, updated_at')
+        .eq('status', 'matriculado');
+
+      studentsQuery = applyFilters(studentsQuery);
+
+      const { data: studentsData, error: studentsError } = await studentsQuery;
+      if (studentsError) {
+        console.error('Erro ao buscar alunos para tempo de matrícula:', studentsError);
+        setAverageEnrollmentTimeDays(0);
+        return;
+      }
+
+      const students = (studentsData || []) as Array<{ id: string; created_at: string | null; updated_at: string | null }>;
+      if (students.length === 0) {
+        setAverageEnrollmentTimeDays(0);
+        return;
+      }
+
+      const studentIds = students.map(s => s.id);
+      // Buscar interações de matrícula (se existirem) para obter data precisa
+      const { data: interactionsData, error: interactionsError } = await supabase
+        .from('student_interactions')
+        .select('student_id, created_at')
+        .eq('interaction_type', 'matricula')
+        .in('student_id', studentIds);
+
+      if (interactionsError) {
+        console.error('Erro ao buscar interações de matrícula:', interactionsError);
+      }
+
+      // Mapa do primeiro registro de matrícula por aluno
+      const firstEnrollmentMap = new Map<string, string>();
+      (interactionsData || []).forEach((it: any) => {
+        const prev = firstEnrollmentMap.get(it.student_id);
+        if (!prev || new Date(it.created_at) < new Date(prev)) {
+          firstEnrollmentMap.set(it.student_id, it.created_at);
         }
-        
-        setClasses(data || []);
-        setFilteredClasses(data || []);
-    };
+      });
 
-    // Função: presença em provas por data (apenas datas passadas)
-    const fetchExamAttendanceStats = async () => {
-        try {
-            const today = new Date().toISOString().split('T')[0];
-
-            // Buscar datas de prova passadas (filtrando por unidade se aplicável)
-            let examDatesQuery = (supabase as any)
-                .from('exam_dates')
-                .select(`id, exam_date, units(name), unit_id`)
-                .lt('exam_date', today)
-                .order('exam_date', { ascending: true });
-
-            if (selectedUnitId !== 'all') {
-                examDatesQuery = examDatesQuery.eq('unit_id', selectedUnitId);
-            }
-
-            const { data: examDates, error: examDatesError } = await examDatesQuery;
-            if (examDatesError) {
-                console.error('Erro ao buscar datas de prova:', examDatesError);
-                setExamAttendanceStats([]);
-                return;
-            }
-
-            const pastExamDates = (examDates || []) as Array<{ id: string; exam_date: string; units: { name: string } }>;            
-            if (pastExamDates.length === 0) {
-                setExamAttendanceStats([]);
-                return;
-            }
-
-            // Buscar alunos filtrados por ano letivo/unidade/turma e com exam_date definido
-            let studentsQuery = supabase
-                .from('students')
-                .select('id, exam_date, final_grade, status');
-
-            studentsQuery = applyFilters(studentsQuery)
-                .not('exam_date', 'is', null)
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
-
-            const { data: studentsData, error: studentsError } = await studentsQuery;
-            if (studentsError) {
-                console.error('Erro ao buscar alunos para presença em provas:', studentsError);
-                setExamAttendanceStats([]);
-                return;
-            }
-
-            const students = (studentsData || []) as Array<{ id: string; exam_date: string | null; final_grade: number | null }>;
-
-            // Agregar por data de prova
-            const byDateMap = new Map<string, { registered: number; attended: number }>();
-            students.forEach(s => {
-                const date = s.exam_date;
-                if (!date) return;
-                if (!byDateMap.has(date)) byDateMap.set(date, { registered: 0, attended: 0 });
-                const agg = byDateMap.get(date)!;
-                agg.registered += 1;
-                const attended = s.final_grade !== null; // Heurística de presença: nota unificada lançada
-                if (attended) agg.attended += 1;
-            });
-
-            // Montar resultado apenas para datas passadas existentes
-            const stats = pastExamDates.map(ed => {
-                const agg = byDateMap.get(ed.exam_date) || { registered: 0, attended: 0 };
-                const rate = agg.registered > 0 ? (agg.attended / agg.registered) * 100 : 0;
-                return {
-                    exam_date: ed.exam_date,
-                    unit_name: ed.units?.name || 'Unidade',
-                    registered: agg.registered,
-                    attended: agg.attended,
-                    attendance_rate: rate,
-                };
-            })
-            // Mostrar apenas datas com pelo menos um inscrito ou algum comparecimento
-            .filter(item => item.registered > 0 || item.attended > 0)
-            .sort((a, b) => a.exam_date.localeCompare(b.exam_date));
-
-            setExamAttendanceStats(stats);
-        } catch (error) {
-            console.error('Erro ao calcular presença em provas:', error);
-            setExamAttendanceStats([]);
+      // Calcular diferença em dias: (data_matricula - created_at)
+      let totalDays = 0;
+      let count = 0;
+      students.forEach(s => {
+        const createdAt = s.created_at ? new Date(s.created_at) : null;
+        // Preferir data da interação de matrícula; fallback para updated_at
+        const enrollmentAtStr = firstEnrollmentMap.get(s.id) || s.updated_at || null;
+        const enrollmentAt = enrollmentAtStr ? new Date(enrollmentAtStr) : null;
+        if (createdAt && enrollmentAt && enrollmentAt >= createdAt) {
+          const diffMs = enrollmentAt.getTime() - createdAt.getTime();
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          totalDays += diffDays;
+          count += 1;
         }
-    };
+      });
 
-    // Filtrar turmas baseado na unidade selecionada
-    useEffect(() => {
-        if (selectedUnitId === 'all') {
-            setFilteredClasses(classes);
-        } else {
-            setFilteredClasses(classes.filter(cls => cls.unit_id === selectedUnitId));
-        }
-        // Reset class selection when unit changes
-        if (selectedClassId !== 'all') {
-            setSelectedClassId('all');
-        }
-    }, [selectedUnitId, classes]);
+      const avgDays = count > 0 ? totalDays / count : 0;
+      setAverageEnrollmentTimeDays(avgDays);
+    } catch (error) {
+      console.error('Erro ao calcular tempo médio entre cadastro e matrícula:', error);
+      setAverageEnrollmentTimeDays(0);
+    }
+  };
 
-    // Função para aplicar filtros nas queries
-    const applyFilters = (query: any) => {
-        // Sempre filtrar por ano letivo atual
-        const currentAcademicYear = getCurrentAcademicYear();
-        console.log('🔍 Debug Relatórios Avançados:');
-        console.log('📅 Data atual:', new Date().toLocaleDateString());
-        console.log('📚 Ano letivo calculado:', currentAcademicYear);
-        
-        query = query.eq('ano_letivo', parseInt(currentAcademicYear));
-        
-        if (selectedUnitId !== 'all') {
-            query = query.eq('unit_id', selectedUnitId);
-        }
-        if (selectedClassId !== 'all') {
-            query = query.eq('class_id', selectedClassId);
-        }
-        return query;
-    };
+  // Função: motivos de desistência (contagem e porcentagem)
+  const fetchDropoutReasonsStats = async () => {
+    try {
+      let query = supabase
+        .from('students')
+        .select('id, dropout_reason')
+        .eq('status', 'desistente');
 
-    // Função: tempo médio entre cadastro e matrícula (em dias)
-    const fetchAverageTimeToEnrollment = async () => {
-        try {
-            // Buscar alunos matriculados com datas de criação/atualização
-            let studentsQuery = supabase
-                .from('students')
-                .select('id, created_at, updated_at')
-                .eq('status', 'matriculado');
+      query = applyFilters(query);
 
-            studentsQuery = applyFilters(studentsQuery);
+      const { data, error } = await query;
+      if (error) {
+        console.error('Erro ao buscar desistentes:', error);
+        setDropoutReasonStats([]);
+        return;
+      }
 
-            const { data: studentsData, error: studentsError } = await studentsQuery;
-            if (studentsError) {
-                console.error('Erro ao buscar alunos para tempo de matrícula:', studentsError);
-                setAverageEnrollmentTimeDays(0);
-                return;
-            }
+      const desistentes = (data || []) as Array<{ id: string; dropout_reason: string | null }>;
+      if (desistentes.length === 0) {
+        setDropoutReasonStats([]);
+        return;
+      }
 
-            const students = (studentsData || []) as Array<{ id: string; created_at: string | null; updated_at: string | null }>;
-            if (students.length === 0) {
-                setAverageEnrollmentTimeDays(0);
-                return;
-            }
+      const total = desistentes.length;
+      const counts = new Map<string, number>();
+      desistentes.forEach(d => {
+        const reason = d.dropout_reason || 'outro';
+        counts.set(reason, (counts.get(reason) || 0) + 1);
+      });
 
-            const studentIds = students.map(s => s.id);
-            // Buscar interações de matrícula (se existirem) para obter data precisa
-            const { data: interactionsData, error: interactionsError } = await supabase
-                .from('student_interactions')
-                .select('student_id, created_at')
-                .eq('interaction_type', 'matricula')
-                .in('student_id', studentIds);
+      const labelMap: Record<string, string> = {
+        impossibilidade_contato: 'Impossibilidade de contato',
+        mudanca_de_endereco: 'Mudança de endereço',
+        matriculou_outra_escola: 'Matriculou-se em outra escola',
+        motivos_financeiros: 'Motivos financeiros',
+        falta_vaga: 'Falta de vaga',
+        outro: 'Outro',
+      };
 
-            if (interactionsError) {
-                console.error('Erro ao buscar interações de matrícula:', interactionsError);
-            }
+      const stats = Array.from(counts.entries())
+        .map(([reason, count]) => ({
+          reason: labelMap[reason] || reason,
+          count,
+          percentage: total > 0 ? (count / total) * 100 : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
 
-            // Mapa do primeiro registro de matrícula por aluno
-            const firstEnrollmentMap = new Map<string, string>();
-            (interactionsData || []).forEach((it: any) => {
-                const prev = firstEnrollmentMap.get(it.student_id);
-                if (!prev || new Date(it.created_at) < new Date(prev)) {
-                    firstEnrollmentMap.set(it.student_id, it.created_at);
-                }
-            });
+      setDropoutReasonStats(stats);
+    } catch (error) {
+      console.error('Erro ao calcular motivos de desistência:', error);
+      setDropoutReasonStats([]);
+    }
+  };
 
-            // Calcular diferença em dias: (data_matricula - created_at)
-            let totalDays = 0;
-            let count = 0;
-            students.forEach(s => {
-                const createdAt = s.created_at ? new Date(s.created_at) : null;
-                // Preferir data da interação de matrícula; fallback para updated_at
-                const enrollmentAtStr = firstEnrollmentMap.get(s.id) || s.updated_at || null;
-                const enrollmentAt = enrollmentAtStr ? new Date(enrollmentAtStr) : null;
-                if (createdAt && enrollmentAt && enrollmentAt >= createdAt) {
-                    const diffMs = enrollmentAt.getTime() - createdAt.getTime();
-                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-                    totalDays += diffDays;
-                    count += 1;
-                }
-            });
+  // Função: número de contatos feitos por atendente
+  const fetchContactsPerAttendant = async () => {
+    try {
+      // IDs de alunos filtrados (excluindo estados indesejados)
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, status');
 
-            const avgDays = count > 0 ? totalDays / count : 0;
-            setAverageEnrollmentTimeDays(avgDays);
-        } catch (error) {
-            console.error('Erro ao calcular tempo médio entre cadastro e matrícula:', error);
-            setAverageEnrollmentTimeDays(0);
-        }
-    };
+      studentsQuery = applyFilters(studentsQuery)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
-    // Função: motivos de desistência (contagem e porcentagem)
-    const fetchDropoutReasonsStats = async () => {
-        try {
-            let query = supabase
-                .from('students')
-                .select('id, dropout_reason')
-                .eq('status', 'desistente');
+      const { data: studentsData, error: studentsError } = await studentsQuery;
+      if (studentsError) {
+        console.error('Erro ao buscar alunos para contatos por atendente:', studentsError);
+        setContactsByAttendant([]);
+        return;
+      }
 
-            query = applyFilters(query);
+      const studentIds = (studentsData || []).map((s: any) => s.id);
+      if (studentIds.length === 0) {
+        setContactsByAttendant([]);
+        return;
+      }
 
-            const { data, error } = await query;
-            if (error) {
-                console.error('Erro ao buscar desistentes:', error);
-                setDropoutReasonStats([]);
-                return;
-            }
+      // Buscar tentativas de contato dos alunos filtrados, agrupadas por atendente
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('contact_attempts')
+        .select(`attempted_by, student_id, profiles!contact_attempts_attempted_by_fkey (name)`)
+        .in('student_id', studentIds);
 
-            const desistentes = (data || []) as Array<{ id: string; dropout_reason: string | null }>;
-            if (desistentes.length === 0) {
-                setDropoutReasonStats([]);
-                return;
-            }
+      if (attemptsError) {
+        console.error('Erro ao buscar tentativas de contato por atendente:', attemptsError);
+        setContactsByAttendant([]);
+        return;
+      }
 
-            const total = desistentes.length;
-            const counts = new Map<string, number>();
-            desistentes.forEach(d => {
-                const reason = d.dropout_reason || 'outro';
-                counts.set(reason, (counts.get(reason) || 0) + 1);
-            });
+      const byAttendant = new Map<string, { name: string; total: number }>();
+      (attempts || []).forEach((a: any) => {
+        const id = a.attempted_by || 'desconhecido';
+        const name = a.profiles?.name || 'Atendente desconhecido';
+        if (!byAttendant.has(id)) byAttendant.set(id, { name, total: 0 });
+        const agg = byAttendant.get(id)!;
+        agg.total += 1;
+      });
 
-            const labelMap: Record<string, string> = {
-                impossibilidade_contato: 'Impossibilidade de contato',
-                mudanca_de_endereco: 'Mudança de endereço',
-                matriculou_outra_escola: 'Matriculou-se em outra escola',
-                motivos_financeiros: 'Motivos financeiros',
-                falta_vaga: 'Falta de vaga',
-                outro: 'Outro',
-            };
+      const stats = Array.from(byAttendant.values())
+        .map(a => ({ attendant_name: a.name, total: a.total }))
+        .sort((a, b) => b.total - a.total);
 
-            const stats = Array.from(counts.entries())
-                .map(([reason, count]) => ({
-                    reason: labelMap[reason] || reason,
-                    count,
-                    percentage: total > 0 ? (count / total) * 100 : 0,
-                }))
-                .sort((a, b) => b.count - a.count);
+      setContactsByAttendant(stats);
+    } catch (error) {
+      console.error('Erro ao calcular contatos por atendente:', error);
+      setContactsByAttendant([]);
+    }
+  };
 
-            setDropoutReasonStats(stats);
-        } catch (error) {
-            console.error('Erro ao calcular motivos de desistência:', error);
-            setDropoutReasonStats([]);
-        }
-    };
+  const fetchConversionRate = async () => {
+    try {
+      // Query base para total de estudantes (excluindo cadastro_invalido e processo_anos_anteriores)
+      let totalQuery = supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
-    // Função: número de contatos feitos por atendente
-    const fetchContactsPerAttendant = async () => {
-        try {
-            // IDs de alunos filtrados (excluindo estados indesejados)
-            let studentsQuery = supabase
-                .from('students')
-                .select('id, status');
+      // Query base para estudantes matriculados
+      let enrolledQuery = supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'matriculado');
 
-            studentsQuery = applyFilters(studentsQuery)
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      // Aplicar filtros
+      totalQuery = applyFilters(totalQuery);
+      enrolledQuery = applyFilters(enrolledQuery);
 
-            const { data: studentsData, error: studentsError } = await studentsQuery;
-            if (studentsError) {
-                console.error('Erro ao buscar alunos para contatos por atendente:', studentsError);
-                setContactsByAttendant([]);
-                return;
-            }
+      const [totalResult, enrolledResult] = await Promise.all([
+        totalQuery,
+        enrolledQuery
+      ]);
 
-            const studentIds = (studentsData || []).map((s: any) => s.id);
-            if (studentIds.length === 0) {
-                setContactsByAttendant([]);
-                return;
-            }
+      if (totalResult.error || enrolledResult.error) {
+        console.error('Error fetching student counts:', totalResult.error || enrolledResult.error);
+        return;
+      }
 
-            // Buscar tentativas de contato dos alunos filtrados, agrupadas por atendente
-            const { data: attempts, error: attemptsError } = await supabase
-                .from('contact_attempts')
-                .select(`attempted_by, student_id, profiles!contact_attempts_attempted_by_fkey (name)`)
-                .in('student_id', studentIds);
+      const totalStudents = totalResult.count ?? 0;
+      const enrolledStudents = enrolledResult.count ?? 0;
 
-            if (attemptsError) {
-                console.error('Erro ao buscar tentativas de contato por atendente:', attemptsError);
-                setContactsByAttendant([]);
-                return;
-            }
+      if (totalStudents > 0) {
+        const rate = (enrolledStudents / totalStudents) * 100;
+        setConversionRate(rate);
+      } else {
+        setConversionRate(0);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular taxa de conversão:', error);
+      setConversionRate(0);
+    }
+  };
 
-            const byAttendant = new Map<string, { name: string; total: number }>();
-            (attempts || []).forEach((a: any) => {
-                const id = a.attempted_by || 'desconhecido';
-                const name = a.profiles?.name || 'Atendente desconhecido';
-                if (!byAttendant.has(id)) byAttendant.set(id, { name, total: 0 });
-                const agg = byAttendant.get(id)!;
-                agg.total += 1;
-            });
+  const fetchAverageDiscount = async () => {
+    try {
+      // Buscar todos os alunos matriculados com desconto
+      let query = supabase
+        .from('students')
+        .select('discount_percentage')
+        .eq('status', 'matriculado')
+        .not('discount_percentage', 'is', null);
 
-            const stats = Array.from(byAttendant.values())
-                .map(a => ({ attendant_name: a.name, total: a.total }))
-                .sort((a, b) => b.total - a.total);
+      // Aplicar filtros
+      query = applyFilters(query);
 
-            setContactsByAttendant(stats);
-        } catch (error) {
-            console.error('Erro ao calcular contatos por atendente:', error);
-            setContactsByAttendant([]);
-        }
-    };
+      const { data: enrolledStudents, error } = await query;
 
-    const fetchConversionRate = async () => {
-        try {
-            // Query base para total de estudantes (excluindo cadastro_invalido e processo_anos_anteriores)
-            let totalQuery = supabase
-                .from('students')
-                .select('*', { count: 'exact', head: true })
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
-            
-            // Query base para estudantes matriculados
-            let enrolledQuery = supabase
-                .from('students')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'matriculado');
+      if (error) {
+        console.error('Erro ao buscar descontos:', error);
+        return;
+      }
 
-            // Aplicar filtros
-            totalQuery = applyFilters(totalQuery);
-            enrolledQuery = applyFilters(enrolledQuery);
+      if (!enrolledStudents || enrolledStudents.length === 0) {
+        setAverageDiscount(0);
+        return;
+      }
 
-            const [totalResult, enrolledResult] = await Promise.all([
-                totalQuery,
-                enrolledQuery
-            ]);
+      // Calcular média dos descontos
+      const totalDiscount = enrolledStudents.reduce((sum, student) => {
+        return sum + (student.discount_percentage || 0);
+      }, 0);
 
-            if (totalResult.error || enrolledResult.error) {
-                console.error('Error fetching student counts:', totalResult.error || enrolledResult.error);
-                return;
-            }
+      const avgDiscount = totalDiscount / enrolledStudents.length;
+      setAverageDiscount(avgDiscount);
 
-            const totalStudents = totalResult.count ?? 0;
-            const enrolledStudents = enrolledResult.count ?? 0;
+    } catch (error) {
+      console.error('Erro ao calcular desconto médio:', error);
+      setAverageDiscount(0);
+    }
+  };
 
-            if (totalStudents > 0) {
-                const rate = (enrolledStudents / totalStudents) * 100;
-                setConversionRate(rate);
-            } else {
-                setConversionRate(0);
-            }
-        } catch (error) {
-            console.error('Erro ao calcular taxa de conversão:', error);
-            setConversionRate(0);
-        }
-    };
-
-    const fetchAverageDiscount = async () => {
-        try {
-            // Buscar todos os alunos matriculados com desconto
-            let query = supabase
-                .from('students')
-                .select('discount_percentage')
-                .eq('status', 'matriculado')
-                .not('discount_percentage', 'is', null);
-            
-            // Aplicar filtros
-            query = applyFilters(query);
-            
-            const { data: enrolledStudents, error } = await query;
-
-            if (error) {
-                console.error('Erro ao buscar descontos:', error);
-                return;
-            }
-
-            if (!enrolledStudents || enrolledStudents.length === 0) {
-                setAverageDiscount(0);
-                return;
-            }
-
-            // Calcular média dos descontos
-            const totalDiscount = enrolledStudents.reduce((sum, student) => {
-                return sum + (student.discount_percentage || 0);
-            }, 0);
-
-            const avgDiscount = totalDiscount / enrolledStudents.length;
-            setAverageDiscount(avgDiscount);
-
-        } catch (error) {
-            console.error('Erro ao calcular desconto médio:', error);
-            setAverageDiscount(0);
-        }
-    };
-
-    const fetchAverageMonthlyFee = async () => {
-        try {
-            // Buscar alunos matriculados com dados da turma
-            let query = supabase
-                .from('students')
-                .select(`
+  const fetchAverageMonthlyFee = async () => {
+    try {
+      // Buscar alunos matriculados com dados da turma
+      let query = supabase
+        .from('students')
+        .select(`
                     discount_percentage,
                     classes (
                         monthly_fee
                     )
                 `)
-                .eq('status', 'matriculado');
-            
-            // Aplicar filtros
-            query = applyFilters(query);
-            
-            const { data: enrolledStudents, error } = await query;
+        .eq('status', 'matriculado');
 
-            if (error) {
-                console.error('Erro ao buscar dados de mensalidade:', error);
-                return;
-            }
+      // Aplicar filtros
+      query = applyFilters(query);
 
-            if (!enrolledStudents || enrolledStudents.length === 0) {
-                setAverageMonthlyFee(0);
-                return;
-            }
+      const { data: enrolledStudents, error } = await query;
 
-            // Calcular mensalidade média com desconto aplicado
-            let totalFeeWithDiscount = 0;
-            let validStudents = 0;
+      if (error) {
+        console.error('Erro ao buscar dados de mensalidade:', error);
+        return;
+      }
 
-            enrolledStudents.forEach(student => {
-                if (student.classes?.monthly_fee) {
-                    const originalFee = student.classes.monthly_fee;
-                    const discountPercentage = student.discount_percentage || 0;
-                    const discountMultiplier = 1 - (discountPercentage / 100);
-                    const finalFee = originalFee * discountMultiplier;
-                    
-                    totalFeeWithDiscount += finalFee;
-                    validStudents++;
-                }
-            });
+      if (!enrolledStudents || enrolledStudents.length === 0) {
+        setAverageMonthlyFee(0);
+        return;
+      }
 
-            if (validStudents > 0) {
-                const avgFee = totalFeeWithDiscount / validStudents;
-                setAverageMonthlyFee(avgFee);
-            } else {
-                setAverageMonthlyFee(0);
-            }
+      // Calcular mensalidade média com desconto aplicado
+      let totalFeeWithDiscount = 0;
+      let validStudents = 0;
 
-        } catch (error) {
-            console.error('Erro ao calcular mensalidade média:', error);
-            setAverageMonthlyFee(0);
+      enrolledStudents.forEach(student => {
+        if (student.classes?.monthly_fee) {
+          const originalFee = student.classes.monthly_fee;
+          const discountPercentage = student.discount_percentage || 0;
+          const discountMultiplier = 1 - (discountPercentage / 100);
+          const finalFee = originalFee * discountMultiplier;
+
+          totalFeeWithDiscount += finalFee;
+          validStudents++;
         }
-    };
+      });
 
-    const fetchInterviewerConversion = async () => {
-        try {
-            // Buscar interações de atendimento para contar o total real de atendimentos por entrevistador
-            let interactionsQuery = supabase
-                .from('student_interactions')
-                .select(`
+      if (validStudents > 0) {
+        const avgFee = totalFeeWithDiscount / validStudents;
+        setAverageMonthlyFee(avgFee);
+      } else {
+        setAverageMonthlyFee(0);
+      }
+
+    } catch (error) {
+      console.error('Erro ao calcular mensalidade média:', error);
+      setAverageMonthlyFee(0);
+    }
+  };
+
+  const fetchInterviewerConversion = async () => {
+    try {
+      // Buscar interações de atendimento para contar o total real de atendimentos por entrevistador
+      let interactionsQuery = supabase
+        .from('student_interactions')
+        .select(`
                     user_id,
                     student_id,
                     profiles!student_interactions_user_id_fkey (
@@ -677,170 +694,176 @@ export const AdvancedReportsTab = () => {
                         class_id
                     )
                 `)
-                .eq('interaction_type', 'atendimento');
+        .eq('interaction_type', 'atendimento');
 
-            const { data: interactions, error: interactionsError } = await interactionsQuery;
+      const { data: interactions, error: interactionsError } = await interactionsQuery;
 
-            if (interactionsError) {
-                console.error('Erro ao buscar dados de interações:', interactionsError);
-                return;
-            }
+      if (interactionsError) {
+        console.error('Erro ao buscar dados de interações:', interactionsError);
+        return;
+      }
 
-            if (!interactions || interactions.length === 0) {
-                setInterviewerStats([]);
-                return;
-            }
+      if (!interactions || interactions.length === 0) {
+        setInterviewerStats([]);
+        return;
+      }
 
-            // Filtrar interações baseado nos filtros selecionados e excluir status indesejados
-            const filteredInteractions = interactions.filter(interaction => {
-                if (!interaction.students) return false;
-                
-                // Excluir alunos com status cadastro_invalido e processo_anos_anteriores
-                if (interaction.students.status === 'cadastro_invalido' || 
-                    interaction.students.status === 'processo_anos_anteriores') {
-                    return false;
-                }
-                
-                if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
-                    return false;
-                }
-                
-                if (selectedClassId !== 'all' && interaction.students.class_id !== selectedClassId) {
-                    return false;
-                }
-                
-                return true;
-            });
+      // Filtrar interações baseado nos filtros selecionados e excluir status indesejados
+      const filteredInteractions = interactions.filter(interaction => {
+        if (!interaction.students) return false;
 
-            // Agrupar alunos por entrevistador baseado em student_interactions
-            const interviewerMap = new Map();
-
-            filteredInteractions.forEach(interaction => {
-                const interviewerId = interaction.user_id; // user_id da interação
-                const interviewerName = interaction.profiles?.name || 'Entrevistador desconhecido';
-                const studentId = interaction.student_id;
-                const isEnrolled = interaction.students?.status === 'matriculado';
-
-                if (!interviewerMap.has(interviewerId)) {
-                    interviewerMap.set(interviewerId, {
-                        name: interviewerName,
-                        total: 0, // Total de atendimentos reais (baseado em student_interactions)
-                        enrolledStudents: new Set(), // Set para alunos únicos matriculados
-                        totalStudents: new Set() // Set para alunos únicos atendidos
-                    });
-                }
-
-                const stats = interviewerMap.get(interviewerId);
-                stats.total += 1; // Conta cada interação de atendimento
-                stats.totalStudents.add(studentId); // Adiciona aluno único ao total
-                
-                if (isEnrolled) {
-                    stats.enrolledStudents.add(studentId); // Adiciona aluno único matriculado
-                }
-            });
-
-            // Calcular conversão e ordenar por taxa
-            const interviewerStats = Array.from(interviewerMap.values())
-                .map(stats => ({
-                    name: stats.name,
-                    total: stats.total, // Total de atendimentos reais
-                    enrolled: stats.enrolledStudents.size, // Total de alunos únicos matriculados
-                    conversion: stats.totalStudents.size > 0 ? (stats.enrolledStudents.size / stats.totalStudents.size) * 100 : 0
-                }))
-                .filter(stats => stats.total >= 3) // Só mostrar entrevistadores com pelo menos 3 atendimentos
-                .sort((a, b) => b.conversion - a.conversion)
-                .slice(0, 5); // Top 5 entrevistadores
-
-            setInterviewerStats(interviewerStats);
-
-        } catch (error) {
-            console.error('Erro ao calcular conversão por entrevistador:', error);
-            setInterviewerStats([]);
+        // Excluir alunos com status cadastro_invalido e processo_anos_anteriores
+        if (interaction.students.status === 'cadastro_invalido' ||
+          interaction.students.status === 'processo_anos_anteriores') {
+          return false;
         }
-    };
 
-    const fetchInterviewStats = async () => {
-        try {
-            // Buscar entrevistas marcadas (alunos com interview_date, excluindo cadastro_invalido e processo_anos_anteriores)
-            let scheduledQuery = supabase
-                .from('students')
-                .select('*', { count: 'exact', head: true })
-                .not('interview_date', 'is', null)
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
-            
-            // Buscar entrevistas realizadas através de student_interactions
-            // Contar alunos únicos que tiveram interação do tipo "atendimento"
-            let completedQuery = supabase
-                .from('student_interactions')
-                .select('student_id')
-                .eq('interaction_type', 'atendimento');
-            
-            // Aplicar filtros para entrevistas marcadas
-            scheduledQuery = applyFilters(scheduledQuery);
+        if (selectedSeriesId !== 'all') {
+          const classIdsInSeries = classes
+            .filter(cls => cls.series_id === selectedSeriesId)
+            .map(cls => cls.id);
 
-            const [scheduledResult, completedResult] = await Promise.all([
-                scheduledQuery,
-                completedQuery
-            ]);
+          if (selectedUnitId !== 'all') {
+            if (interaction.students.unit_id !== selectedUnitId) return false;
+          }
 
-            if (scheduledResult.error || completedResult.error) {
-                console.error('Erro ao buscar estatísticas de entrevistas:', scheduledResult.error || completedResult.error);
-                return;
-            }
-
-            const scheduled = scheduledResult.count ?? 0;
-            
-            // Para entrevistas realizadas, precisamos aplicar filtros adicionais
-            // pois student_interactions não tem unit_id/class_id diretamente
-            let completedCount = 0;
-            
-            if (completedResult.data && completedResult.data.length > 0) {
-                // Se há filtros aplicados, precisamos verificar se os alunos das interações
-                // pertencem às unidades/turmas selecionadas
-                if (selectedUnitId !== 'all' || selectedClassId !== 'all') {
-                    const studentIds = [...new Set(completedResult.data.map(item => item.student_id))];
-                    
-                    let studentsQuery = supabase
-                        .from('students')
-                        .select('id, unit_id, class_id')
-                        .in('id', studentIds);
-                    
-                    studentsQuery = applyFilters(studentsQuery);
-                    
-                    const { data: filteredStudents, error: studentsError } = await studentsQuery;
-                    
-                    if (studentsError) {
-                        console.error('Erro ao filtrar alunos das interações:', studentsError);
-                        completedCount = 0;
-                    } else {
-                        completedCount = filteredStudents?.length || 0;
-                    }
-                } else {
-                    // Sem filtros, contar alunos únicos das interações
-                    completedCount = new Set(completedResult.data.map(item => item.student_id)).size;
-                }
-            }
-
-            const rate = scheduled > 0 ? (completedCount / scheduled) * 100 : 0;
-
-            setScheduledInterviews(scheduled);
-            setCompletedInterviews(completedCount);
-            setInterviewCompletionRate(rate);
-
-        } catch (error) {
-            console.error('Erro ao calcular estatísticas de entrevistas:', error);
-            setScheduledInterviews(0);
-            setCompletedInterviews(0);
-            setInterviewCompletionRate(0);
+          if (!classIdsInSeries.includes(interaction.students.class_id)) return false;
+        } else if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
+          return false;
         }
-    };
 
-    const fetchRegistrationSources = async () => {
-        try {
-            // Buscar dados de origens de inscrição com contagem de alunos usando a nova estrutura
-            let query = (supabase as any)
-                .from('students')
-                .select(`
+        return true;
+      });
+
+      // Agrupar alunos por entrevistador baseado em student_interactions
+      const interviewerMap = new Map();
+
+      filteredInteractions.forEach(interaction => {
+        const interviewerId = interaction.user_id; // user_id da interação
+        const interviewerName = interaction.profiles?.name || 'Entrevistador desconhecido';
+        const studentId = interaction.student_id;
+        const isEnrolled = interaction.students?.status === 'matriculado';
+
+        if (!interviewerMap.has(interviewerId)) {
+          interviewerMap.set(interviewerId, {
+            name: interviewerName,
+            total: 0, // Total de atendimentos reais (baseado em student_interactions)
+            enrolledStudents: new Set(), // Set para alunos únicos matriculados
+            totalStudents: new Set() // Set para alunos únicos atendidos
+          });
+        }
+
+        const stats = interviewerMap.get(interviewerId);
+        stats.total += 1; // Conta cada interação de atendimento
+        stats.totalStudents.add(studentId); // Adiciona aluno único ao total
+
+        if (isEnrolled) {
+          stats.enrolledStudents.add(studentId); // Adiciona aluno único matriculado
+        }
+      });
+
+      // Calcular conversão e ordenar por taxa
+      const interviewerStats = Array.from(interviewerMap.values())
+        .map(stats => ({
+          name: stats.name,
+          total: stats.total, // Total de atendimentos reais
+          enrolled: stats.enrolledStudents.size, // Total de alunos únicos matriculados
+          conversion: stats.totalStudents.size > 0 ? (stats.enrolledStudents.size / stats.totalStudents.size) * 100 : 0
+        }))
+        .filter(stats => stats.total >= 3) // Só mostrar entrevistadores com pelo menos 3 atendimentos
+        .sort((a, b) => b.conversion - a.conversion)
+        .slice(0, 5); // Top 5 entrevistadores
+
+      setInterviewerStats(interviewerStats);
+
+    } catch (error) {
+      console.error('Erro ao calcular conversão por entrevistador:', error);
+      setInterviewerStats([]);
+    }
+  };
+
+  const fetchInterviewStats = async () => {
+    try {
+      // Buscar entrevistas marcadas (alunos com interview_date, excluindo cadastro_invalido e processo_anos_anteriores)
+      let scheduledQuery = supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .not('interview_date', 'is', null)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      // Buscar entrevistas realizadas através de student_interactions
+      // Contar alunos únicos que tiveram interação do tipo "atendimento"
+      let completedQuery = supabase
+        .from('student_interactions')
+        .select('student_id')
+        .eq('interaction_type', 'atendimento');
+
+      // Aplicar filtros para entrevistas marcadas
+      scheduledQuery = applyFilters(scheduledQuery);
+
+      const [scheduledResult, completedResult] = await Promise.all([
+        scheduledQuery,
+        completedQuery
+      ]);
+
+      if (scheduledResult.error || completedResult.error) {
+        console.error('Erro ao buscar estatísticas de entrevistas:', scheduledResult.error || completedResult.error);
+        return;
+      }
+
+      const scheduled = scheduledResult.count ?? 0;
+
+      // Para entrevistas realizadas, precisamos aplicar filtros adicionais
+      // pois student_interactions não tem unit_id/class_id diretamente
+      let completedCount = 0;
+
+      if (completedResult.data && completedResult.data.length > 0) {
+        // Se há filtros aplicados, precisamos verificar se os alunos das interações
+        // pertencem às unidades/turmas selecionadas
+        if (selectedUnitId !== 'all' || selectedSeriesId !== 'all') {
+          const studentIds = [...new Set(completedResult.data.map(item => item.student_id))];
+
+          let studentsQuery = supabase
+            .from('students')
+            .select('id, unit_id, class_id')
+            .in('id', studentIds);
+
+          studentsQuery = applyFilters(studentsQuery);
+
+          const { data: filteredStudents, error: studentsError } = await studentsQuery;
+
+          if (studentsError) {
+            console.error('Erro ao filtrar alunos das interações:', studentsError);
+            completedCount = 0;
+          } else {
+            completedCount = filteredStudents?.length || 0;
+          }
+        } else {
+          // Sem filtros, contar alunos únicos das interações
+          completedCount = new Set(completedResult.data.map(item => item.student_id)).size;
+        }
+      }
+
+      const rate = scheduled > 0 ? (completedCount / scheduled) * 100 : 0;
+
+      setScheduledInterviews(scheduled);
+      setCompletedInterviews(completedCount);
+      setInterviewCompletionRate(rate);
+
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas de entrevistas:', error);
+      setScheduledInterviews(0);
+      setCompletedInterviews(0);
+      setInterviewCompletionRate(0);
+    }
+  };
+
+  const fetchRegistrationSources = async () => {
+    try {
+      // Buscar dados de origens de inscrição com contagem de alunos usando a nova estrutura
+      let query = (supabase as any)
+        .from('students')
+        .select(`
                     registration_source_id,
                     status,
                     unit_registration_source_associations!students_registration_source_id_fkey (
@@ -851,317 +874,318 @@ export const AdvancedReportsTab = () => {
                         )
                     )
                 `)
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)')
-                .not('registration_source_id', 'is', null);
-            
-            // Aplicar filtros
-            query = applyFilters(query);
-            
-            const { data: students, error } = await query;
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)')
+        .not('registration_source_id', 'is', null);
 
-            if (error) {
-                console.error('Erro ao buscar origens de inscrição:', error);
-                setRegistrationSources([]);
-                return;
-            }
+      // Aplicar filtros
+      query = applyFilters(query);
 
-            if (!students || students.length === 0) {
-                setRegistrationSources([]);
-                return;
-            }
+      const { data: students, error } = await query;
 
-            // Agrupar por origem e calcular estatísticas
-            const sourceMap = new Map();
+      if (error) {
+        console.error('Erro ao buscar origens de inscrição:', error);
+        setRegistrationSources([]);
+        return;
+      }
 
-            students.forEach((student: any) => {
-                // Usar custom_label se disponível, senão usar o label global
-                const sourceLabel = student.unit_registration_source_associations?.custom_label || 
-                                  student.unit_registration_source_associations?.global_registration_sources?.source_label || 
-                                  'Origem não identificada';
-                const isEnrolled = student.status === 'matriculado';
+      if (!students || students.length === 0) {
+        setRegistrationSources([]);
+        return;
+      }
 
-                if (!sourceMap.has(sourceLabel)) {
-                    sourceMap.set(sourceLabel, {
-                        source_label: sourceLabel,
-                        total_students: 0,
-                        enrolled_students: 0
-                    });
-                }
+      // Agrupar por origem e calcular estatísticas
+      const sourceMap = new Map();
 
-                const stats = sourceMap.get(sourceLabel);
-                stats.total_students += 1;
-                
-                if (isEnrolled) {
-                    stats.enrolled_students += 1;
-                }
-            });
+      students.forEach((student: any) => {
+        // Usar custom_label se disponível, senão usar o label global
+        const sourceLabel = student.unit_registration_source_associations?.custom_label ||
+          student.unit_registration_source_associations?.global_registration_sources?.source_label ||
+          'Origem não identificada';
+        const isEnrolled = student.status === 'matriculado';
 
-            // Calcular percentuais e taxa de conversão
-            const totalStudents = students.length;
-            const sourceStats = Array.from(sourceMap.values())
-                .map(stats => ({
-                    ...stats,
-                    percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
-                    conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
-                }))
-                .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
-
-            setRegistrationSources(sourceStats);
-
-            let totalValidQuery = supabase
-                .from('students')
-                .select('id', { count: 'exact', head: true })
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
-            totalValidQuery = applyFilters(totalValidQuery);
-            const { count: totalValidCount } = await totalValidQuery;
-            const nonAccounted = (totalValidCount || 0) - totalStudents;
-            setRegistrationSourcesPie({
-                data: [
-                    ...sourceStats.map(s => ({ name: s.source_label, value: s.total_students })),
-                    ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
-                ]
-            });
-
-        } catch (error) {
-            console.error('Erro ao calcular estatísticas de origens:', error);
-            setRegistrationSources([]);
+        if (!sourceMap.has(sourceLabel)) {
+          sourceMap.set(sourceLabel, {
+            source_label: sourceLabel,
+            total_students: 0,
+            enrolled_students: 0
+          });
         }
-    };
 
-    // Função para buscar estatísticas de tracking codes
-    const fetchTrackingSources = async () => {
-        try {
-            // Buscar todos os estudantes com tracking_code
-            let query = supabase
-                .from('students')
-                .select('tracking_code, status')
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+        const stats = sourceMap.get(sourceLabel);
+        stats.total_students += 1;
 
-            // Aplicar filtros
-            query = applyFilters(query);
-
-            const { data: students, error } = await query;
-
-            if (error) {
-                console.error('Erro ao buscar dados de tracking:', error);
-                return;
-            }
-
-            // Filtrar apenas estudantes com tracking_code
-            const studentsWithTracking = students?.filter(student => student.tracking_code && student.tracking_code.trim() !== '') || [];
-
-            // Agrupar por tracking_code
-            const trackingMap = new Map();
-
-            studentsWithTracking.forEach((student: any) => {
-                const trackingCode = student.tracking_code;
-                const isEnrolled = student.status === 'matriculado';
-
-                if (!trackingMap.has(trackingCode)) {
-                    trackingMap.set(trackingCode, {
-                        tracking_code: trackingCode,
-                        total_students: 0,
-                        enrolled_students: 0
-                    });
-                }
-
-                const stats = trackingMap.get(trackingCode);
-                stats.total_students++;
-                if (isEnrolled) {
-                    stats.enrolled_students++;
-                }
-            });
-
-            // Calcular percentuais e taxa de conversão
-            const totalStudents = studentsWithTracking.length;
-            const trackingStats = Array.from(trackingMap.values())
-                .map(stats => ({
-                    ...stats,
-                    percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
-                    conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
-                }))
-                .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
-
-            setTrackingSources(trackingStats);
-
-            let totalValidQuery = supabase
-                .from('students')
-                .select('id', { count: 'exact', head: true })
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
-            totalValidQuery = applyFilters(totalValidQuery);
-            const { count: totalValidCount } = await totalValidQuery;
-            const nonAccounted = (totalValidCount || 0) - totalStudents;
-            setTrackingSourcesPie({
-                data: [
-                    ...trackingStats.map(s => ({ name: s.tracking_code, value: s.total_students })),
-                    ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
-                ]
-            });
-
-        } catch (error) {
-            console.error('Erro ao calcular estatísticas de tracking:', error);
-            setTrackingSources([]);
+        if (isEnrolled) {
+          stats.enrolled_students += 1;
         }
-    };
+      });
 
-    // Função: estatísticas de tentativas de contato por canal e motivo
-    const fetchContactAttemptStats = async () => {
-        try {
-            // IDs de alunos filtrados (excluindo estados indesejados)
-            let studentsQuery = supabase
-                .from('students')
-                .select('id, status');
+      // Calcular percentuais e taxa de conversão
+      const totalStudents = students.length;
+      const sourceStats = Array.from(sourceMap.values())
+        .map(stats => ({
+          ...stats,
+          percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
+          conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
+        }))
+        .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
 
-            studentsQuery = applyFilters(studentsQuery)
-                .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      setRegistrationSources(sourceStats);
 
-            const { data: studentsData, error: studentsError } = await studentsQuery;
-            if (studentsError) {
-                console.error('Erro ao buscar alunos para tentativas:', studentsError);
-                setContactsByChannel([]);
-                setContactsByReason([]);
-                return;
-            }
+      let totalValidQuery = supabase
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      totalValidQuery = applyFilters(totalValidQuery);
+      const { count: totalValidCount } = await totalValidQuery;
+      const nonAccounted = (totalValidCount || 0) - totalStudents;
+      setRegistrationSourcesPie({
+        data: [
+          ...sourceStats.map(s => ({ name: s.source_label, value: s.total_students })),
+          ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
+        ]
+      });
 
-            const studentIds = (studentsData || []).map((s: any) => s.id);
-            if (studentIds.length === 0) {
-                setContactsByChannel([]);
-                setContactsByReason([]);
-                return;
-            }
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas de origens:', error);
+      setRegistrationSources([]);
+    }
+  };
 
-            // Buscar tentativas de contato para os alunos filtrados
-            const { data: attempts, error: attemptsError } = await supabase
-                .from('contact_attempts')
-                .select('student_id, channel, reason, succeeded')
-                .in('student_id', studentIds);
+  // Função para buscar estatísticas de tracking codes
+  const fetchTrackingSources = async () => {
+    try {
+      // Buscar todos os estudantes com tracking_code
+      let query = supabase
+        .from('students')
+        .select('tracking_code, status')
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
-            if (attemptsError) {
-                console.error('Erro ao buscar tentativas de contato:', attemptsError);
-                setContactsByChannel([]);
-                setContactsByReason([]);
-                return;
-            }
+      // Aplicar filtros
+      query = applyFilters(query);
 
-            // Agregação por canal e motivo
-            const byChannelMap = new Map<string, { total: number; succeeded: number }>();
-            const byReasonMap = new Map<string, { total: number; succeeded: number }>();
+      const { data: students, error } = await query;
 
-            (attempts || []).forEach((a: any) => {
-                const ch = String(a.channel);
-                const rsn = a.reason ? String(a.reason) : 'sem_motivo';
-                const succ = a.succeeded ? 1 : 0;
+      if (error) {
+        console.error('Erro ao buscar dados de tracking:', error);
+        return;
+      }
 
-                if (!byChannelMap.has(ch)) byChannelMap.set(ch, { total: 0, succeeded: 0 });
-                const chAgg = byChannelMap.get(ch)!;
-                chAgg.total += 1;
-                chAgg.succeeded += succ;
+      // Filtrar apenas estudantes com tracking_code
+      const studentsWithTracking = students?.filter(student => student.tracking_code && student.tracking_code.trim() !== '') || [];
 
-                if (!byReasonMap.has(rsn)) byReasonMap.set(rsn, { total: 0, succeeded: 0 });
-                const rsnAgg = byReasonMap.get(rsn)!;
-                rsnAgg.total += 1;
-                rsnAgg.succeeded += succ;
-            });
+      // Agrupar por tracking_code
+      const trackingMap = new Map();
 
-            const contactsByChannel = Array.from(byChannelMap.entries())
-                .map(([channel, agg]) => ({ channel, ...agg }))
-                .sort((a, b) => b.total - a.total);
+      studentsWithTracking.forEach((student: any) => {
+        const trackingCode = student.tracking_code;
+        const isEnrolled = student.status === 'matriculado';
 
-            const contactsByReason = Array.from(byReasonMap.entries())
-                .map(([reason, agg]) => ({ reason, ...agg }))
-                .sort((a, b) => b.total - a.total);
-
-            setContactsByChannel(contactsByChannel);
-            setContactsByReason(contactsByReason);
-        } catch (error) {
-            console.error('Erro ao calcular estatísticas de tentativas de contato:', error);
-            setContactsByChannel([]);
-            setContactsByReason([]);
+        if (!trackingMap.has(trackingCode)) {
+          trackingMap.set(trackingCode, {
+            tracking_code: trackingCode,
+            total_students: 0,
+            enrolled_students: 0
+          });
         }
-    };
 
-    // Função: média de tentativas por aluno matriculado
-    const fetchAverageContactsPerEnrolled = async () => {
-        try {
-            // IDs de alunos matriculados (filtrados)
-            let enrolledQuery = supabase
-                .from('students')
-                .select('id')
-                .eq('status', 'matriculado');
-
-            enrolledQuery = applyFilters(enrolledQuery);
-
-            const { data: enrolledIdsData, error: enrolledError } = await enrolledQuery;
-            if (enrolledError) {
-                console.error('Erro ao buscar alunos matriculados:', enrolledError);
-                setAvgContactsPerEnrolled(0);
-                return;
-            }
-
-            const enrolledIds = (enrolledIdsData || []).map((s: any) => s.id);
-            if (enrolledIds.length === 0) {
-                setAvgContactsPerEnrolled(0);
-                return;
-            }
-
-            // Buscar tentativas para esses alunos
-            const { data: attempts, error: attemptsError } = await supabase
-                .from('contact_attempts')
-                .select('student_id')
-                .in('student_id', enrolledIds);
-
-            if (attemptsError) {
-                console.error('Erro ao buscar tentativas para matriculados:', attemptsError);
-                setAvgContactsPerEnrolled(0);
-                return;
-            }
-
-            const counts = new Map<string, number>();
-            enrolledIds.forEach((id: string) => counts.set(id, 0));
-            (attempts || []).forEach((a: any) => {
-                const prev = counts.get(a.student_id) || 0;
-                counts.set(a.student_id, prev + 1);
-            });
-
-            const totalAttempts = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
-            const avg = totalAttempts / enrolledIds.length;
-
-            setAvgContactsPerEnrolled(avg);
-        } catch (error) {
-            console.error('Erro ao calcular média de contatos por matriculado:', error);
-            setAvgContactsPerEnrolled(0);
+        const stats = trackingMap.get(trackingCode);
+        stats.total_students++;
+        if (isEnrolled) {
+          stats.enrolled_students++;
         }
-    };
+      });
 
-    // Função para buscar todos os dados
-    const fetchAllData = () => {
-        fetchConversionRate();
-        fetchAverageDiscount();
-        fetchAverageMonthlyFee();
-        fetchInterviewerConversion();
-        fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
-        fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
-        fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
-        fetchContactAttemptStats(); // Tentativas por canal/motivo
-        fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
-        fetchExamAttendanceStats(); // Presença em provas (datas passadas)
-        fetchAverageTimeToEnrollment(); // Tempo médio entre cadastro e matrícula
-        fetchDropoutReasonsStats(); // Motivos de desistência
-        fetchContactsPerAttendant(); // Contatos por atendente
-    };
+      // Calcular percentuais e taxa de conversão
+      const totalStudents = studentsWithTracking.length;
+      const trackingStats = Array.from(trackingMap.values())
+        .map(stats => ({
+          ...stats,
+          percentage: totalStudents > 0 ? (stats.total_students / totalStudents) * 100 : 0,
+          conversion_rate: stats.total_students > 0 ? (stats.enrolled_students / stats.total_students) * 100 : 0
+        }))
+        .sort((a, b) => b.total_students - a.total_students); // Ordenar por total de alunos
 
-    // Effect inicial para buscar dados básicos
-    useEffect(() => {
-        fetchUnits();
-        fetchClasses();
-    }, []);
+      setTrackingSources(trackingStats);
 
-    // Effect para atualizar dados quando filtros mudarem
-    useEffect(() => {
-        if (units.length > 0 && classes.length > 0) {
-            fetchAllData();
-        }
-    }, [selectedUnitId, selectedClassId, units.length, classes.length]);
+      let totalValidQuery = supabase
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      totalValidQuery = applyFilters(totalValidQuery);
+      const { count: totalValidCount } = await totalValidQuery;
+      const nonAccounted = (totalValidCount || 0) - totalStudents;
+      setTrackingSourcesPie({
+        data: [
+          ...trackingStats.map(s => ({ name: s.tracking_code, value: s.total_students })),
+          ...(nonAccounted > 0 ? [{ name: 'Não contabilizado', value: nonAccounted }] : [])
+        ]
+      });
+
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas de tracking:', error);
+      setTrackingSources([]);
+    }
+  };
+
+  // Função: estatísticas de tentativas de contato por canal e motivo
+  const fetchContactAttemptStats = async () => {
+    try {
+      // IDs de alunos filtrados (excluindo estados indesejados)
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, status');
+
+      studentsQuery = applyFilters(studentsQuery)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      const { data: studentsData, error: studentsError } = await studentsQuery;
+      if (studentsError) {
+        console.error('Erro ao buscar alunos para tentativas:', studentsError);
+        setContactsByChannel([]);
+        setContactsByReason([]);
+        return;
+      }
+
+      const studentIds = (studentsData || []).map((s: any) => s.id);
+      if (studentIds.length === 0) {
+        setContactsByChannel([]);
+        setContactsByReason([]);
+        return;
+      }
+
+      // Buscar tentativas de contato para os alunos filtrados
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('contact_attempts')
+        .select('student_id, channel, reason, succeeded')
+        .in('student_id', studentIds);
+
+      if (attemptsError) {
+        console.error('Erro ao buscar tentativas de contato:', attemptsError);
+        setContactsByChannel([]);
+        setContactsByReason([]);
+        return;
+      }
+
+      // Agregação por canal e motivo
+      const byChannelMap = new Map<string, { total: number; succeeded: number }>();
+      const byReasonMap = new Map<string, { total: number; succeeded: number }>();
+
+      (attempts || []).forEach((a: any) => {
+        const ch = String(a.channel);
+        const rsn = a.reason ? String(a.reason) : 'sem_motivo';
+        const succ = a.succeeded ? 1 : 0;
+
+        if (!byChannelMap.has(ch)) byChannelMap.set(ch, { total: 0, succeeded: 0 });
+        const chAgg = byChannelMap.get(ch)!;
+        chAgg.total += 1;
+        chAgg.succeeded += succ;
+
+        if (!byReasonMap.has(rsn)) byReasonMap.set(rsn, { total: 0, succeeded: 0 });
+        const rsnAgg = byReasonMap.get(rsn)!;
+        rsnAgg.total += 1;
+        rsnAgg.succeeded += succ;
+      });
+
+      const contactsByChannel = Array.from(byChannelMap.entries())
+        .map(([channel, agg]) => ({ channel, ...agg }))
+        .sort((a, b) => b.total - a.total);
+
+      const contactsByReason = Array.from(byReasonMap.entries())
+        .map(([reason, agg]) => ({ reason, ...agg }))
+        .sort((a, b) => b.total - a.total);
+
+      setContactsByChannel(contactsByChannel);
+      setContactsByReason(contactsByReason);
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas de tentativas de contato:', error);
+      setContactsByChannel([]);
+      setContactsByReason([]);
+    }
+  };
+
+  // Função: média de tentativas por aluno matriculado
+  const fetchAverageContactsPerEnrolled = async () => {
+    try {
+      // IDs de alunos matriculados (filtrados)
+      let enrolledQuery = supabase
+        .from('students')
+        .select('id')
+        .eq('status', 'matriculado');
+
+      enrolledQuery = applyFilters(enrolledQuery);
+
+      const { data: enrolledIdsData, error: enrolledError } = await enrolledQuery;
+      if (enrolledError) {
+        console.error('Erro ao buscar alunos matriculados:', enrolledError);
+        setAvgContactsPerEnrolled(0);
+        return;
+      }
+
+      const enrolledIds = (enrolledIdsData || []).map((s: any) => s.id);
+      if (enrolledIds.length === 0) {
+        setAvgContactsPerEnrolled(0);
+        return;
+      }
+
+      // Buscar tentativas para esses alunos
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('contact_attempts')
+        .select('student_id')
+        .in('student_id', enrolledIds);
+
+      if (attemptsError) {
+        console.error('Erro ao buscar tentativas para matriculados:', attemptsError);
+        setAvgContactsPerEnrolled(0);
+        return;
+      }
+
+      const counts = new Map<string, number>();
+      enrolledIds.forEach((id: string) => counts.set(id, 0));
+      (attempts || []).forEach((a: any) => {
+        const prev = counts.get(a.student_id) || 0;
+        counts.set(a.student_id, prev + 1);
+      });
+
+      const totalAttempts = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
+      const avg = totalAttempts / enrolledIds.length;
+
+      setAvgContactsPerEnrolled(avg);
+    } catch (error) {
+      console.error('Erro ao calcular média de contatos por matriculado:', error);
+      setAvgContactsPerEnrolled(0);
+    }
+  };
+
+  // Função para buscar todos os dados
+  const fetchAllData = () => {
+    fetchConversionRate();
+    fetchAverageDiscount();
+    fetchAverageMonthlyFee();
+    fetchInterviewerConversion();
+    fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
+    fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
+    fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
+    fetchContactAttemptStats(); // Tentativas por canal/motivo
+    fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
+    fetchExamAttendanceStats(); // Presença em provas (datas passadas)
+    fetchAverageTimeToEnrollment(); // Tempo médio entre cadastro e matrícula
+    fetchDropoutReasonsStats(); // Motivos de desistência
+    fetchContactsPerAttendant(); // Contatos por atendente
+  };
+
+  // Effect inicial para buscar dados básicos
+  useEffect(() => {
+    fetchUnits();
+    fetchSeries();
+    fetchClasses();
+  }, []);
+
+  // Effect para atualizar dados quando filtros mudarem
+  useEffect(() => {
+    if (units.length > 0 && classes.length > 0) {
+      fetchAllData();
+    }
+  }, [selectedUnitId, selectedSeriesId, units.length, classes.length]);
   return (
     <div className="space-y-6">
       <div>
@@ -1173,7 +1197,7 @@ export const AdvancedReportsTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
-          <CardDescription>Selecione unidade e/ou turma para análise específica</CardDescription>
+          <CardDescription>Selecione unidade e/ou série para análise específica</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -1198,17 +1222,17 @@ export const AdvancedReportsTab = () => {
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Turma
+                Série
               </label>
-              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+              <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todas as turmas" />
+                  <SelectValue placeholder="Todas as séries" />
                 </SelectTrigger>
                 <SelectContent side="bottom">
-                  <SelectItem value="all">Todas as turmas</SelectItem>
-                  {filteredClasses.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name} - {(cls as any).series?.name}
+                  <SelectItem value="all">Todas as séries</SelectItem>
+                  {series.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1216,9 +1240,9 @@ export const AdvancedReportsTab = () => {
             </div>
 
             <div>
-              <Button 
-                onClick={fetchAllData} 
-                variant="outline" 
+              <Button
+                onClick={fetchAllData}
+                variant="outline"
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -1326,9 +1350,8 @@ export const AdvancedReportsTab = () => {
                         {item.registered} inscritos • {item.attended} comparecimentos
                       </div>
                     </div>
-                    <div className={`text-lg font-semibold ${
-                      item.attendance_rate >= 70 ? 'text-green-600' : item.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
+                    <div className={`text-lg font-semibold ${item.attendance_rate >= 70 ? 'text-green-600' : item.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
                       {item.attendance_rate.toFixed(1)}%
                     </div>
                   </div>
@@ -1375,10 +1398,9 @@ export const AdvancedReportsTab = () => {
                       {interviewer.enrolled}/{interviewer.total} alunos
                     </span>
                   </div>
-                  <span className={`font-semibold ${
-                    interviewer.conversion >= 70 ? 'text-green-600' : 
-                    interviewer.conversion >= 50 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
+                  <span className={`font-semibold ${interviewer.conversion >= 70 ? 'text-green-600' :
+                      interviewer.conversion >= 50 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
                     {interviewer.conversion.toFixed(1)}%
                   </span>
                 </div>
@@ -1535,65 +1557,64 @@ export const AdvancedReportsTab = () => {
                   <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
-                {/* Resumo geral */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {registrationSources.length}
+                  {/* Resumo geral */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {registrationSources.length}
+                      </div>
+                      <div className="text-sm text-blue-600">Canais Ativos</div>
                     </div>
-                    <div className="text-sm text-blue-600">Canais Ativos</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {registrationSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {registrationSources.reduce((sum, source) => sum + source.total_students, 0)}
+                      </div>
+                      <div className="text-sm text-green-600">Total de Inscrições</div>
                     </div>
-                    <div className="text-sm text-green-600">Total de Inscrições</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {registrationSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {registrationSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                      </div>
+                      <div className="text-sm text-purple-600">Alunos Matriculados</div>
                     </div>
-                    <div className="text-sm text-purple-600">Alunos Matriculados</div>
                   </div>
-                </div>
 
-                {/* Lista detalhada */}
-                <div className="space-y-3">
-                  {registrationSources.map((source, index) => (
-                    <div key={source.source_label} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{source.source_label}</h4>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <span className="text-sm text-gray-600">
-                              {source.total_students} inscrições ({source.percentage.toFixed(1)}%)
-                            </span>
-                            <span className="text-sm text-gray-600">
-                              {source.enrolled_students} matriculados
-                            </span>
+                  {/* Lista detalhada */}
+                  <div className="space-y-3">
+                    {registrationSources.map((source, index) => (
+                      <div key={source.source_label} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{source.source_label}</h4>
+                            <div className="flex items-center space-x-4 mt-1">
+                              <span className="text-sm text-gray-600">
+                                {source.total_students} inscrições ({source.percentage.toFixed(1)}%)
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {source.enrolled_students} matriculados
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-lg font-bold ${source.conversion_rate >= 70 ? 'text-green-600' :
+                                source.conversion_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                              {source.conversion_rate.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">Taxa de Conversão</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-lg font-bold ${
-                            source.conversion_rate >= 70 ? 'text-green-600' : 
-                            source.conversion_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-                          }`}>
-                            {source.conversion_rate.toFixed(1)}%
-                          </div>
-                          <div className="text-xs text-gray-500">Taxa de Conversão</div>
+
+                        {/* Barra de progresso */}
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${source.percentage}%` }}
+                          ></div>
                         </div>
                       </div>
-                      
-                      {/* Barra de progresso */}
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${source.percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 </TabsContent>
                 <TabsContent value="pizza">
                   <PieSection
@@ -1633,66 +1654,66 @@ export const AdvancedReportsTab = () => {
                   <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
-                {/* Resumo geral */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {trackingSources.length}
+                  {/* Resumo geral */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {trackingSources.length}
+                      </div>
+                      <div className="text-sm text-blue-600">Códigos Ativos</div>
                     </div>
-                    <div className="text-sm text-blue-600">Códigos Ativos</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
+                      </div>
+                      <div className="text-sm text-green-600">Total de Alunos com Código</div>
                     </div>
-                    <div className="text-sm text-green-600">Total de Alunos com Código</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {trackingSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {trackingSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                      </div>
+                      <div className="text-sm text-purple-600">Alunos Matriculados</div>
                     </div>
-                    <div className="text-sm text-purple-600">Alunos Matriculados</div>
                   </div>
-                </div>
 
-                {/* Lista detalhada */}
-                <div className="space-y-3">
-                  {trackingSources.map((source, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            Código: {source.tracking_code}
-                          </h4>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {source.total_students} cadastros • {source.enrolled_students} matriculados
+                  {/* Lista detalhada */}
+                  <div className="space-y-3">
+                    {trackingSources.map((source, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-medium text-gray-900">
+                              Código: {source.tracking_code}
+                            </h4>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {source.total_students} cadastros • {source.enrolled_students} matriculados
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-semibold text-gray-900">
+                              {source.conversion_rate.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">conversão</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-semibold text-gray-900">
-                            {source.conversion_rate.toFixed(1)}%
-                          </div>
-                          <div className="text-xs text-gray-500">conversão</div>
+
+                        {/* Barra de progresso */}
+                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${source.percentage}%` }}
+                          ></div>
+                        </div>
+
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>{source.percentage.toFixed(1)}% do total rastreado</span>
+                          <span>
+                            {source.enrolled_students}/{source.total_students} matriculados
+                          </span>
                         </div>
                       </div>
-                      
-                      {/* Barra de progresso */}
-                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${source.percentage}%` }}
-                        ></div>
-                      </div>
-                      
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>{source.percentage.toFixed(1)}% do total rastreado</span>
-                        <span>
-                          {source.enrolled_students}/{source.total_students} matriculados
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 </TabsContent>
                 <TabsContent value="pizza">
                   <PieSection
