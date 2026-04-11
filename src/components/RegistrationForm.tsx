@@ -426,7 +426,7 @@ export const RegistrationForm = () => {
         {/* Logos da unidade */}
         <div className="flex justify-center mb-1">
           <img
-            src="/logotipo_escola.png"
+            src="/logo_apogeu_nobg.png"
             alt="Rede de Ensino"
             className="h-24 w-auto object-contain"
           />
