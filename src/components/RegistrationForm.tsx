@@ -66,13 +66,13 @@ export const RegistrationForm = () => {
     const loadUnitBySlug = async () => {
       if (unitSlug) {
         console.log('🔗 Slug detectado na URL:', unitSlug);
-        
+
         try {
           const { data: units, error } = await (supabase as any)
             .from('units')
             .select('*')
             .eq('slug', unitSlug);
-          
+
           const unit = units?.[0];
 
           if (error) {
@@ -106,15 +106,14 @@ export const RegistrationForm = () => {
   useEffect(() => {
     if (formData.seriesId) {
       const filteredClasses = classes.filter(cls => cls.series_id === formData.seriesId);
-      
-      // Extrair unidades únicas das turmas filtradas
+
+      // Extrair unidades únicas das turmas filtradas pela série
       // Filtrar turmas que têm unidades válidas (não null)
       const validClasses = filteredClasses.filter(cls => cls.units !== null);
-      
+
       const uniqueUnits = validClasses
         .map(cls => cls.units)
         .filter((unit, index, arr) => {
-          // Verificar se unit é válido antes de usar
           if (!unit || !unit.id) return false;
           return arr.findIndex(u => u && u.id && u.id === unit.id) === index;
         });
@@ -122,41 +121,47 @@ export const RegistrationForm = () => {
       let visibleUnits = uniqueUnits;
 
       if (!profile) {
+        // Usuário anônimo: ocultar Central
         visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
       } else {
-        const userUnitId = profile.unit_id;
-        if (userUnitId) {
-          const userUnit = uniqueUnits.find(unit => unit.id === userUnitId);
-          const isCentralUser = !!(userUnit && String(userUnit.name).toLowerCase() === 'central');
-          if (isCentralUser) {
-            visibleUnits = uniqueUnits;
-          } else {
-            visibleUnits = uniqueUnits.filter(unit => unit.id === userUnitId);
-          }
+        const isAdminOrDirecao = profile.profile === 'admin' || profile.profile === 'direcao';
+
+        // CORREÇÃO: buscar a unidade do usuário em TODAS as classes para verificar se é a Central
+        const userUnitName = classes
+          .filter(cls => cls.units)
+          .find(cls => cls.unit_id === profile.unit_id)?.units?.name;
+        const isFromCentral = userUnitName?.toLowerCase() === 'central';
+
+        if (isAdminOrDirecao || isFromCentral) {
+          // Admin, Direção ou Usuário da Central veem todas as unidades disponíveis para a série
+          visibleUnits = uniqueUnits;
         } else {
-          visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
+          // Entrevistador e Padrão de outras unidades veem apenas a unidade à qual estão associados
+          const userUnitId = profile.unit_id;
+          if (userUnitId) {
+            visibleUnits = uniqueUnits.filter(unit => unit.id === userUnitId);
+          } else {
+            visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
+          }
         }
       }
 
-      // Se há uma unidade pré-selecionada, filtrar apenas ela
+      // Se há uma unidade pré-selecionada por slug, filtrar apenas ela
       if (preSelectedUnit && isUnitLocked) {
         const unitInList = visibleUnits.find(u => u.id === preSelectedUnit.id);
         if (unitInList) {
           setAvailableUnits([unitInList]);
-          // Auto-selecionar a unidade
           setFormData(prev => ({ ...prev, unitId: unitInList.id, classId: '' }));
         } else {
-          // A unidade pré-selecionada não tem turmas para esta série
           setAvailableUnits([]);
           toast.warning('Esta unidade não possui turmas para a série selecionada');
           setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
         }
       } else {
         setAvailableUnits(visibleUnits);
-        // Limpar seleções dependentes
         setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
       }
-      
+
       setAvailableClasses([]);
     } else {
       setAvailableClasses([]);
@@ -168,13 +173,13 @@ export const RegistrationForm = () => {
   useEffect(() => {
     if (formData.unitId && formData.seriesId) {
       const filteredClasses = classes.filter(
-        cls => cls.series_id === formData.seriesId 
+        cls => cls.series_id === formData.seriesId
           && cls.unit_id === formData.unitId
           && cls.units !== null // Adicionar verificação para units não nulo
       );
-      
+
       setAvailableClasses(filteredClasses);
-      
+
       if (filteredClasses.length === 1) {
         // ✅ Apenas 1 turma → Auto-atribuir
         setFormData(prev => ({ ...prev, classId: filteredClasses[0].id }));
@@ -205,7 +210,7 @@ export const RegistrationForm = () => {
 
   const handleAdditionalPhonesChange = (additionalPhones: string[]) => {
     setFormData(prev => ({ ...prev, additionalPhones }));
-    
+
     // Limpar erros relacionados a telefones adicionais
     const phoneErrorKeys = Object.keys(fieldErrors).filter(key => key.startsWith('additionalPhones.'));
     if (phoneErrorKeys.length > 0) {
@@ -219,22 +224,22 @@ export const RegistrationForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Sanitizar dados do formulário antes da validação
     const sanitizedFormData = sanitizeRegistrationData(formData);
-    
+
     const errors = validateForm(sanitizedFormData, hasSources, {
       sourcesError: !!sourcesError,
       sourcesLoading
     });
-    
+
     // Validação adicional: se há múltiplas turmas, uma deve ser selecionada
     if (showClassSelector && !sanitizedFormData.classId) {
       errors.classId = 'Selecione uma turma';
     }
-    
+
     setFieldErrors(errors);
-    
+
     if (Object.keys(errors).length > 0) {
       toast.error('Por favor, corrija os campos destacados em vermelho');
       return;
@@ -244,26 +249,37 @@ export const RegistrationForm = () => {
 
     try {
       const selectedClass = availableClasses.find(cls => cls.id === sanitizedFormData.classId);
-      
+
       // Se a turma possui exame, buscar a próxima data de exame para a unidade
       let nextExam: { id: string; exam_date: string } | null = null;
       if (selectedClass?.has_exam) {
         const { data: examData, error: examError } = await supabase
           .from('exam_dates')
-          .select('id, exam_date')
+          .select('id, exam_date, exam_time')
           .eq('unit_id', sanitizedFormData.unitId)
           .gte('exam_date', getCurrentDate())
           .order('exam_date', { ascending: true })
-          .limit(1)
-          .maybeSingle();
+          .limit(5);
 
-        if (!examError && examData) {
-          nextExam = examData as unknown as { id: string; exam_date: string };
+        if (!examError && examData && examData.length > 0) {
+          const now = new Date();
+          const todayStr = getCurrentDate();
+          const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+          const validExam = examData.find(exam => {
+            if (exam.exam_date > todayStr) return true;
+            if (exam.exam_date === todayStr && exam.exam_time && exam.exam_time > currentTimeStr) return true;
+            return false;
+          });
+
+          if (validExam) {
+            nextExam = validExam as unknown as { id: string; exam_date: string };
+          }
         } else {
           console.warn('Nenhuma data de exame encontrada ou erro ao buscar:', examError);
         }
       }
-      
+
       const allowSourceFallback = hasSources && (!!sourcesError || sourcesLoading);
 
       const studentData = {
@@ -321,7 +337,7 @@ export const RegistrationForm = () => {
       }
 
       toast.success('Inscrição realizada com sucesso!');
-      
+
       // Redirecionar para a tela de confirmação
       navigate('/confirmacao', {
         state: {
@@ -386,9 +402,9 @@ export const RegistrationForm = () => {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="flex items-center justify-between">
                   <span>Erro ao carregar dados: {dataError}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={refetch}
                     className="ml-4"
                   >
@@ -409,20 +425,12 @@ export const RegistrationForm = () => {
       <div className="max-w-2xl mx-auto">
         {/* Logos da unidade */}
         <div className="flex justify-center mb-1">
-          {unitSlug?.toLowerCase() === 'lima-duarte' ? (
-            <img 
-              src="/logo_piaget_apogeu.png" 
-              alt="APOGEU Piaget e Rede de Ensino Apogeu" 
-              className="h-20 w-auto object-contain"
-            />
-          ) : (
-            <img 
-              src="/logo_apogeu_nobg.png" 
-              alt="Rede de Ensino Apogeu" 
-              className="h-20 w-auto object-contain"
-            />
-          )}
-        </div>        
+          <img
+            src="/logotipo_escola.png"
+            alt="Rede de Ensino"
+            className="h-24 w-auto object-contain"
+          />
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-lg text-center text-gray-900">
@@ -430,10 +438,10 @@ export const RegistrationForm = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">              
+            <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
               <p>Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção para a inscrição do próximo.</p>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <StudentDataSection
                 formData={formData}
@@ -441,12 +449,12 @@ export const RegistrationForm = () => {
                 onInputChange={handleInputChange}
               />
 
-          <ResponsibleDataSection
-            formData={formData}
-            fieldErrors={fieldErrors}
-            onInputChange={handleInputChange}
-            onAdditionalPhonesChange={handleAdditionalPhonesChange}
-          />
+              <ResponsibleDataSection
+                formData={formData}
+                fieldErrors={fieldErrors}
+                onInputChange={handleInputChange}
+                onAdditionalPhonesChange={handleAdditionalPhonesChange}
+              />
 
               <AcademicDataSection
                 formData={formData}
@@ -466,8 +474,8 @@ export const RegistrationForm = () => {
                 onInputChange={handleInputChange}
               />
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                 disabled={loading || dataLoading}
               >
@@ -480,13 +488,13 @@ export const RegistrationForm = () => {
                   'Realizar Inscrição'
                 )}
               </Button>
-                
-                {/* Aviso de uso de dados (LGPD) */}
-            <div className="mb-4 rounded-md bg-blue-50 border border-blue-100 p-3">
-              <p className="text-sm text-gray-800">
-                As informações coletadas serão utilizadas exclusivamente para fins de inscrição e comunicação sobre o Processo de Admissão 2026.
-              </p>
-            </div>
+
+              {/* Aviso de uso de dados (LGPD) */}
+              <div className="mb-4 rounded-md bg-blue-50 border border-blue-100 p-3">
+                <p className="text-sm text-gray-800">
+                  As informações coletadas serão utilizadas exclusivamente para fins de inscrição e comunicação sobre o Processo de Admissão 2026.
+                </p>
+              </div>
 
               {/* Consentimento abaixo do botão (LGPD) */}
               <p className="mt-2 text-xs text-gray-700 text-center">
