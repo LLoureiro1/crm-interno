@@ -84,6 +84,14 @@ export const ExamDateManagement = () => {
       return;
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(formData.exam_date + 'T00:00:00');
+    if (selectedDate < today) {
+      toast.error('A data da prova não pode ser no passado');
+      return;
+    }
+
     try {
       // Criar uma data de prova para cada unidade selecionada
       const examDatesData = formData.selectedUnits.map(unitId => ({
@@ -164,6 +172,7 @@ export const ExamDateManagement = () => {
                           setFormData(prev => ({ ...prev, exam_date: `${year}-${month}-${day}` }));
                         }
                       }}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                     />
                   </PopoverContent>
@@ -205,8 +214,8 @@ export const ExamDateManagement = () => {
                       checked={formData.selectedUnits.includes(unit.id)}
                       onCheckedChange={() => handleUnitToggle(unit.id)}
                     />
-                    <Label 
-                      htmlFor={unit.id} 
+                    <Label
+                      htmlFor={unit.id}
                       className="text-sm font-normal cursor-pointer"
                     >
                       {unit.name}
