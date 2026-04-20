@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Plus, Trash2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -182,6 +182,11 @@ export const InterviewerAvailability = () => {
       return;
     }
 
+    if (formData.date < getCurrentDate()) {
+      toast.error('A data não pode ser no passado');
+      return;
+    }
+
     if (formData.startTime >= formData.endTime) {
       toast.error('Horário de início deve ser anterior ao horário de fim');
       return;
@@ -202,10 +207,10 @@ export const InterviewerAvailability = () => {
       if (error) throw error;
 
       toast.success('Disponibilidade adicionada com sucesso');
-      setFormData({ 
-        interviewerId: '', 
-        date: '', 
-        startTime: '', 
+      setFormData({
+        interviewerId: '',
+        date: '',
+        startTime: '',
         endTime: '',
         unitId: '',
         classIds: []
@@ -283,6 +288,7 @@ export const InterviewerAvailability = () => {
                     type="date"
                     value={formData.date}
                     onChange={(e) => handleInputChange('date', e.target.value)}
+                    min={getCurrentDate()}
                     required
                   />
                 </div>
@@ -322,10 +328,10 @@ export const InterviewerAvailability = () => {
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={
-                        !formData.interviewerId 
-                          ? "Selecione primeiro o entrevistador" 
-                          : availableUnits.length === 0 
-                            ? "Nenhuma unidade disponível" 
+                        !formData.interviewerId
+                          ? "Selecione primeiro o entrevistador"
+                          : availableUnits.length === 0
+                            ? "Nenhuma unidade disponível"
                             : "Selecione a unidade"
                       } />
                     </SelectTrigger>
@@ -347,7 +353,7 @@ export const InterviewerAvailability = () => {
                         .filter(c => c.unit_id === formData.unitId)
                         .map((cls) => (
                           <div key={cls.id} className="flex items-center space-x-2">
-                            <Checkbox 
+                            <Checkbox
                               id={`class-${cls.id}`}
                               checked={formData.classIds.includes(cls.id)}
                               onCheckedChange={() => handleClassToggle(cls.id)}
