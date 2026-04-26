@@ -15,6 +15,7 @@ interface SelfSchedulingProps {
   classId: string;
   studentId: string;
   onSuccess: (appointment: any) => void;
+  onAvailabilitiesLoaded?: (hasAvailabilities: boolean) => void;
   unitAddress?: string;
   unitName?: string;
   fallback?: React.ReactNode;
@@ -24,11 +25,12 @@ type Availability = Tables<'interviewer_availability'> & {
   profiles: Tables<'profiles'>;
 };
 
-export const SelfScheduling = ({ 
-  unitId, 
-  classId, 
-  studentId, 
+export const SelfScheduling = ({
+  unitId,
+  classId,
+  studentId,
   onSuccess,
+  onAvailabilitiesLoaded,
   unitAddress,
   unitName,
   fallback
@@ -124,10 +126,10 @@ export const SelfScheduling = ({
 
         (data || []).forEach((appt: any) => {
           if (!appt.interviewer_id || !appt.appointment_time) return;
-          
+
           // Normalizar horário para HH:mm (banco pode retornar HH:mm:ss)
           const time = appt.appointment_time.substring(0, 5);
-          
+
           const existing = map[time] || [];
           existing.push(appt.interviewer_id);
           map[time] = existing;
@@ -151,7 +153,7 @@ export const SelfScheduling = ({
       const today = format(new Date(), 'yyyy-MM-dd');
       console.log('📅 Buscando disponibilidades a partir de:', today);
       console.log('🔍 Filtros - Unit:', unitId, 'Class:', classId);
-      
+
       // Fetch availabilities
       // Note: We need to filter client-side for class_ids array contains logic 
       // if we can't do it easily in PostgREST without complex filters
@@ -172,29 +174,29 @@ export const SelfScheduling = ({
       const filtered = (data || []).filter((avail: any) => {
         // Filter by Unit: Match specific unit OR Global (null)
         const unitMatch = !avail.unit_id || avail.unit_id === unitId;
-        
+
         // Filter by Class: Empty array (all classes) OR contains specific class
         // Tratamento robusto para class_ids (caso venha null, array vazio ou string)
         let hasClassIds = false;
         let includesClass = false;
 
         if (avail.class_ids) {
-            if (Array.isArray(avail.class_ids)) {
-                hasClassIds = avail.class_ids.length > 0;
-                includesClass = avail.class_ids.includes(classId);
-            } else if (typeof avail.class_ids === 'string') {
-                // Fallback caso venha como string do Postgres
-                // O formato seria "{uuid,uuid}"
-                const cleanIds = (avail.class_ids as string).replace(/[{}]/g, '').split(',');
-                hasClassIds = cleanIds.length > 0 && cleanIds[0] !== '';
-                includesClass = cleanIds.includes(classId);
-            }
+          if (Array.isArray(avail.class_ids)) {
+            hasClassIds = avail.class_ids.length > 0;
+            includesClass = avail.class_ids.includes(classId);
+          } else if (typeof avail.class_ids === 'string') {
+            // Fallback caso venha como string do Postgres
+            // O formato seria "{uuid,uuid}"
+            const cleanIds = (avail.class_ids as string).replace(/[{}]/g, '').split(',');
+            hasClassIds = cleanIds.length > 0 && cleanIds[0] !== '';
+            includesClass = cleanIds.includes(classId);
+          }
         }
 
         const classMatch = !hasClassIds || includesClass;
 
         if (!unitMatch || !classMatch) {
-            console.log(`❌ Filtrado: ID ${avail.id} - UnitMatch: ${unitMatch}, ClassMatch: ${classMatch}`);
+          console.log(`❌ Filtrado: ID ${avail.id} - UnitMatch: ${unitMatch}, ClassMatch: ${classMatch}`);
         }
 
         return unitMatch && classMatch;
@@ -202,6 +204,9 @@ export const SelfScheduling = ({
 
       console.log('✅ Disponibilidades filtradas:', filtered.length);
       setAvailabilities(filtered);
+      if (onAvailabilitiesLoaded) {
+        onAvailabilitiesLoaded(filtered.length > 0);
+      }
     } catch (error) {
       console.error('Error fetching availabilities:', error);
       toast.error('Erro ao carregar horários disponíveis');
@@ -227,7 +232,7 @@ export const SelfScheduling = ({
   const getSlotsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayAvails = availabilities.filter(a => a.date === dateStr);
-    
+
     const slotsMap = new Map<string, string[]>(); // Time -> InterviewerIDs[]
 
     dayAvails.forEach(avail => {
@@ -235,7 +240,7 @@ export const SelfScheduling = ({
       slots.forEach(time => {
         const existing = slotsMap.get(time) || [];
         if (avail.interviewer_id) {
-            existing.push(avail.interviewer_id);
+          existing.push(avail.interviewer_id);
         }
         slotsMap.set(time, existing);
       });
@@ -247,9 +252,9 @@ export const SelfScheduling = ({
         const availableInterviewers = interviewerIds.filter(
           id => !bookedForTime.includes(id)
         );
-        
+
         if (bookedForTime.length > 0) {
-            console.log(`🕒 Horário ${time}: Total Entrevistadores: ${interviewerIds.length}, Bloqueados: ${bookedForTime.length}, Disponíveis: ${availableInterviewers.length}`);
+          console.log(`🕒 Horário ${time}: Total Entrevistadores: ${interviewerIds.length}, Bloqueados: ${bookedForTime.length}, Disponíveis: ${availableInterviewers.length}`);
         }
 
         return { time, interviewers: availableInterviewers };
@@ -262,7 +267,7 @@ export const SelfScheduling = ({
   // Get dates that have availability
   const availableDates = availabilities
     .map(a => parseISO(a.date))
-    .filter((date, index, self) => 
+    .filter((date, index, self) =>
       index === self.findIndex(d => isSameDay(d, date))
     );
 
@@ -312,11 +317,11 @@ export const SelfScheduling = ({
 
       // Check result success (RPC returns JSONB)
       if (result && (result as any).success === false) {
-         throw new Error((result as any).error || 'Erro desconhecido ao agendar');
+        throw new Error((result as any).error || 'Erro desconhecido ao agendar');
       }
 
       toast.success('Agendamento realizado com sucesso!');
-      
+
       onSuccess({
         date: dateStr,
         time: selectedSlot.time,
@@ -361,95 +366,95 @@ export const SelfScheduling = ({
     <>
       <p className="text-sm text-gray-600 text-left mb-4">Escolha o melhor dia e horário para vir conhecer nossa escola.</p>
       <div className="grid md:grid-cols-2 gap-6 mt-6">
-      <Card className="border-none shadow-none md:border md:shadow-sm">
-        <CardHeader className="px-0 md:px-6">
-          <CardTitle className="text-lg">Escolha uma data</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 md:p-2 flex justify-center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            locale={ptBR}
-            disabled={(date) => {
+        <Card className="border-none shadow-none md:border md:shadow-sm">
+          <CardHeader className="px-0 md:px-6">
+            <CardTitle className="text-lg">Escolha uma data</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 md:p-2 flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              locale={ptBR}
+              disabled={(date) => {
                 // Disable dates before today or dates with no availability
                 const isBeforeToday = isBefore(date, startOfToday());
                 const hasAvailability = availableDates.some(d => isSameDay(d, date));
                 return isBeforeToday || !hasAvailability;
-            }}
-            modifiers={{
+              }}
+              modifiers={{
                 available: availableDates
-            }}
-            modifiersStyles={{
+              }}
+              modifiersStyles={{
                 available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' }
-            }}
-            classNames={{
-              day_selected: "bg-orange-500 text-white hover:bg-orange-600 hover:text-white focus:bg-orange-500 focus:text-white font-bold"
-            }}
-            className="rounded-md border shadow-sm bg-white w-full max-w-sm md:max-w-none"
-          />
-        </CardContent>
-      </Card>
+              }}
+              classNames={{
+                day_selected: "bg-orange-500 text-white hover:bg-orange-600 hover:text-white focus:bg-orange-500 focus:text-white font-bold"
+              }}
+              className="rounded-md border shadow-sm bg-white w-full max-w-sm md:max-w-none"
+            />
+          </CardContent>
+        </Card>
 
-      <Card className="border-none shadow-none md:border md:shadow-sm">
-        <CardHeader className="px-0 md:px-6">
-          <CardTitle className="text-lg">
-            {selectedDate 
-              ? `Horários para ${format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}` 
-              : 'Selecione uma data ao lado'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 md:p-6">
-          {selectedDate ? (
-            slots.length > 0 ? (
-              <ScrollArea className="h-[300px] pr-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {slots.map(({ time, interviewers }) => (
-                    <Button
-                      key={time}
-                      variant={selectedSlot?.time === time ? "default" : "outline"}
-                      className={`w-full justify-center ${selectedSlot?.time === time ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
-                      onClick={() => setSelectedSlot({ time, interviewers })}
-                    >
-                      {time}
-                    </Button>
-                  ))}
-                </div>
-              </ScrollArea>
+        <Card className="border-none shadow-none md:border md:shadow-sm">
+          <CardHeader className="px-0 md:px-6">
+            <CardTitle className="text-lg">
+              {selectedDate
+                ? `Horários para ${format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}`
+                : 'Selecione uma data ao lado'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 md:p-6">
+            {selectedDate ? (
+              slots.length > 0 ? (
+                <ScrollArea className="h-[300px] pr-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {slots.map(({ time, interviewers }) => (
+                      <Button
+                        key={time}
+                        variant={selectedSlot?.time === time ? "default" : "outline"}
+                        className={`w-full justify-center ${selectedSlot?.time === time ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+                        onClick={() => setSelectedSlot({ time, interviewers })}
+                      >
+                        {time}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <p className="text-gray-500 text-center py-8">Não há horários disponíveis nesta data.</p>
+              )
             ) : (
-              <p className="text-gray-500 text-center py-8">Não há horários disponíveis nesta data.</p>
-            )
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
-              <CalendarIcon className="h-12 w-12 mb-2 opacity-20" />
-              <p>Escolha um dia para ver os horários</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {selectedSlot && (
-        <div className="md:col-span-2 flex justify-end">
-          <Button 
-            onClick={handleBooking} 
-            disabled={bookingLoading}
-            className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-lg px-8 py-6 h-auto"
-          >
-            {bookingLoading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Confirmando...
-              </>
-            ) : (
-              <>
-                Confirmar Agendamento
-                <CheckCircle2 className="ml-2 h-5 w-5" />
-              </>
+              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
+                <CalendarIcon className="h-12 w-12 mb-2 opacity-20" />
+                <p>Escolha um dia para ver os horários</p>
+              </div>
             )}
-          </Button>
-        </div>
-      )}
-    </div>
+          </CardContent>
+        </Card>
+
+        {selectedSlot && (
+          <div className="md:col-span-2 flex justify-end">
+            <Button
+              onClick={handleBooking}
+              disabled={bookingLoading}
+              className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-lg px-8 py-6 h-auto"
+            >
+              {bookingLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Confirmando...
+                </>
+              ) : (
+                <>
+                  Confirmar Agendamento
+                  <CheckCircle2 className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
     </>
   );
 };

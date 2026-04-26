@@ -28,6 +28,7 @@ const Confirmation: React.FC = () => {
     unitName?: string;
     unitAddress?: string;
   } | null>(null);
+  const [hasAvailabilities, setHasAvailabilities] = useState(true);
 
   useEffect(() => {
     const fetchExamDetails = async () => {
@@ -179,6 +180,7 @@ const Confirmation: React.FC = () => {
                     unitName={unit.name}
                     unitAddress={unit.address}
                     onSuccess={setAppointmentConfirmed}
+                    onAvailabilitiesLoaded={setHasAvailabilities}
                     fallback={fallbackContent}
                   />
                 </div>
@@ -206,8 +208,11 @@ const Confirmation: React.FC = () => {
 
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              💬 Quer falar com a gente agora mesmo?
-              Clique no botão abaixo e fale diretamente com nossa equipe pelo WhatsApp:
+              {!hasExam && !appointmentConfirmed && studentId && (classId || unitIdState) && unit && hasAvailabilities ? (
+                "💬 Nenhuma das opções de horário apresentadas te atende? Clique no botão abaixo e fale diretamente com nossa equipe pelo WhatsApp:"
+              ) : (
+                "💬 Quer falar com a gente agora mesmo? Clique no botão abaixo e fale diretamente com nossa equipe pelo WhatsApp:"
+              )}
             </p>
             <Button
               asChild
