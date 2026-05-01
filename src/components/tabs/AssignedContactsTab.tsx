@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 
 type Unit = Tables<'units'>;
 type Serie = Tables<'series'>;
@@ -60,6 +60,11 @@ export const AssignedContactsTab = () => {
   const [unitMap, setUnitMap] = useState<Record<string, string>>({});
   const [seriesMap, setSeriesMap] = useState<Record<string, string>>({});
   const [classMap, setClassMap] = useState<Record<string, string>>({});
+  const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>({});
+
+  const toggleCollapse = (listId: string) => {
+    setCollapsedLists(prev => ({ ...prev, [listId]: !prev[listId] }));
+  };
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -87,7 +92,7 @@ export const AssignedContactsTab = () => {
       try {
         const [unitsRes, seriesRes, classesRes] = await Promise.all([
           supabase.from('units').select('id, name'),
-          supabase.from('series').select('id, name'),
+          supabase.from('series').select('id, name').order('ordenar', { ascending: true }),
           supabase.from('classes').select('id, name'),
         ]);
 
@@ -226,6 +231,7 @@ export const AssignedContactsTab = () => {
       {grouped.map(group => {
         const activeCount = group.items.filter(i => !i.left_at).length;
         const f = group.filters;
+        const isCollapsed = collapsedLists[group.listId];
         const unitLabels = f?.unit_ids?.length ? f.unit_ids.map((id) => unitMap[id] || id) : [];
         const seriesLabels = f?.series_ids?.length ? f.series_ids.map((id) => seriesMap[id] || id) : [];
         const classLabels = f?.class_ids?.length ? f.class_ids.map((id) => classMap[id] || id) : [];
@@ -234,9 +240,15 @@ export const AssignedContactsTab = () => {
         const examLabels = f?.exam_date_filters?.length ? f.exam_date_filters.map(formatExamFilter) : [];
         return (
           <Card key={group.listId}>
-            <CardHeader>
+            <CardHeader
+              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-t-lg"
+              onClick={() => toggleCollapse(group.listId)}
+            >
               <CardTitle className="flex items-center justify-between">
-                <span>{group.listName}</span>
+                <div className="flex items-center gap-2">
+                  {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  <span>{group.listName}</span>
+                </div>
                 <div className="flex gap-2">
                   <Badge variant="outline">Total: {group.items.length}</Badge>
                   <Badge variant="outline">Ativos: {activeCount}</Badge>
@@ -265,39 +277,41 @@ export const AssignedContactsTab = () => {
                 </div>
               ) : null}
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Aluno</TableHead>
-                      <TableHead>Unidade / Série / Turma</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.items.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.students?.student_name || item.student_id}</TableCell>
-                        <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
-                        <TableCell className="text-sm">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenNewTab(item.student_id)}
-                            onContextMenu={(e) => handleRightClickOpen(e, item.student_id)}
-                            title="Clique esquerdo ou direito para abrir em nova aba"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Abrir ficha
-                          </Button>
-                        </TableCell>
+            {!isCollapsed && (
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Aluno</TableHead>
+                        <TableHead>Unidade / Série / Turma</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                      {group.items.map(item => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.students?.student_name || item.student_id}</TableCell>
+                          <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
+                          <TableCell className="text-sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenNewTab(item.student_id)}
+                              onContextMenu={(e) => handleRightClickOpen(e, item.student_id)}
+                              title="Clique esquerdo ou direito para abrir em nova aba"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Abrir ficha
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            )}
           </Card>
         );
       })}
