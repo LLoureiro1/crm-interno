@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate, dateToLocal
 import type { Tables } from '@/integrations/supabase/types';
 import { MaterialPaymentSelector, type MaterialPaymentType } from '@/components/ui/MaterialPaymentSelector';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
+import { getSegmentLabel, getSeriesIdsForSegment, sortSegments } from '@/utils/educationLevel';
 
 type Appointment = Tables<'appointments'> & {
   students?: Tables<'students'> & {
@@ -67,7 +68,21 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [interviewers, setInterviewers] = useState<Tables<'profiles'>[]>([]);
-  const [filters, setFilters] = useState({ unit: 'all', series: 'all', interviewer: 'all' });
+  const [filters, setFilters] = useState({ unit: 'all', segment: 'all', series: 'all', interviewer: 'all' });
+
+  const availableSegments = useMemo(
+    () => sortSegments(series.map((s) => s.level)),
+    [series]
+  );
+
+  const filteredSeriesOptions = useMemo(() => {
+    if (filters.segment === 'all') return series;
+    return series.filter((s) => s.level === filters.segment);
+  }, [series, filters.segment]);
+
+  const handleSegmentChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, segment: value, series: 'all' }));
+  };
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
@@ -149,7 +164,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       const [unitsData, seriesData, interviewersData] = await Promise.all([
         supabase.from('units').select('*').order('name'),
-        supabase.from('series').select('*').order('name'),
+        supabase.from('series').select('*').order('ordenar', { ascending: true }),
         interviewersQuery.order('name')
       ]);
 
@@ -264,6 +279,12 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
         return seriesMatch;
       });
       console.log('After series filter:', filtered.length);
+    } else if (filters.segment && filters.segment !== 'all') {
+      const seriesIdsInSegment = getSeriesIdsForSegment(series, filters.segment);
+      filtered = filtered.filter(apt =>
+        seriesIdsInSegment.includes(apt.students?.classes?.series_id ?? '')
+      );
+      console.log('After segment filter:', filtered.length);
     }
 
     if (filters.interviewer && filters.interviewer !== 'all') {
@@ -597,6 +618,23 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                 </div>
 
                 <div>
+                  <label className="text-sm font-medium">Segmento</label>
+                  <Select value={filters.segment} onValueChange={handleSegmentChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os segmentos" />
+                    </SelectTrigger>
+                    <SelectContent side="bottom">
+                      <SelectItem value="all">Todos os segmentos</SelectItem>
+                      {availableSegments.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {getSegmentLabel(level)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <label className="text-sm font-medium">Série</label>
                   <Select value={filters.series} onValueChange={(value) => setFilters(prev => ({ ...prev, series: value }))}>
                     <SelectTrigger>
@@ -604,7 +642,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                     </SelectTrigger>
                     <SelectContent side="bottom">
                       <SelectItem value="all">Todas as séries</SelectItem>
-                      {series.map(serie => (
+                      {filteredSeriesOptions.map(serie => (
                         <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -627,7 +665,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
                 </div>
 
                 <Button 
-                  onClick={() => setFilters({ unit: 'all', series: 'all', interviewer: 'all' })}
+                  onClick={() => setFilters({ unit: 'all', segment: 'all', series: 'all', interviewer: 'all' })}
                   variant="outline"
                   className="w-full"
                 >

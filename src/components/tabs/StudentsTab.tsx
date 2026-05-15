@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/ut
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
+import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -37,6 +38,7 @@ export const StudentsTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [unitFilter, setUnitFilter] = useState<string[]>([]);
+  const [segmentFilter, setSegmentFilter] = useState<string[]>([]);
   const [seriesFilter, setSeriesFilter] = useState<string[]>([]);
   const [examDateFilter, setExamDateFilter] = useState<string[]>([]);
   const [academicYearFilter, setAcademicYearFilter] = useState<string[]>([]);
@@ -78,7 +80,32 @@ export const StudentsTab = () => {
   useEffect(() => {
     filterStudents();
     setCurrentPage(1); // Reset para primeira página quando filtros mudarem
-  }, [students, searchTerm, statusFilter, unitFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter, contactCounts]);
+  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter, contactCounts]);
+
+  const availableSegments = useMemo(
+    () => sortSegments(series.map((s) => s.level)),
+    [series]
+  );
+
+  const filteredSeriesOptions = useMemo(() => {
+    const list = segmentFilter.length > 0
+      ? series.filter((s) => segmentFilter.includes(s.level))
+      : series;
+    return list.filter(Boolean).map((s) => ({
+      value: s.id,
+      label: s.name || 'Sem nome',
+    }));
+  }, [series, segmentFilter]);
+
+  const handleSegmentFilterChange = (newSegments: string[]) => {
+    setSegmentFilter(newSegments);
+    if (newSegments.length > 0 && seriesFilter.length > 0) {
+      const allowedIds = new Set(
+        series.filter((s) => newSegments.includes(s.level)).map((s) => s.id)
+      );
+      setSeriesFilter((prev) => prev.filter((id) => allowedIds.has(id)));
+    }
+  };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -147,7 +174,10 @@ export const StudentsTab = () => {
   });
 
   const fetchSeries = async () => {
-    const { data } = await supabase.from('series').select('*');
+    const { data } = await supabase
+      .from('series')
+      .select('*')
+      .order('ordenar', { ascending: true });
     if (data) setSeries(data);
   };
 
@@ -230,6 +260,10 @@ export const StudentsTab = () => {
 
     if (seriesFilter.length > 0) {
       filtered = filtered.filter(student => seriesFilter.includes(student.classes?.series_id!));
+    } else if (segmentFilter.length > 0) {
+      filtered = filtered.filter(student =>
+        segmentFilter.includes(student.classes?.series?.level ?? '')
+      );
     }
 
     if (examDateFilter.length > 0) {
@@ -494,7 +528,20 @@ export const StudentsTab = () => {
 
             <div className="md:col-span-1">
               <MultiSelect
-                options={series.filter(Boolean).map(_series => ({ value: _series.id, label: _series.name || 'Sem nome' }))}
+                options={availableSegments.map((level) => ({
+                  value: level,
+                  label: getSegmentLabel(level),
+                }))}
+                selected={segmentFilter}
+                onChange={handleSegmentFilterChange}
+                placeholder="Segmento"
+                className="w-full"
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={filteredSeriesOptions}
                 selected={seriesFilter}
                 onChange={setSeriesFilter}
                 placeholder="Série"
