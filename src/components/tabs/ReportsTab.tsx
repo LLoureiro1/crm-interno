@@ -129,7 +129,7 @@ export const ReportsTab = () => {
       // Determinar conjunto de unidades de interesse
       const unitIds = unitId
         ? [unitId]
-        : Array.from(new Set(students.map((s) => s.classes.unit_id)));
+        : Array.from(new Set(students.map((s) => s.unit_id ?? s.classes?.unit_id).filter(Boolean) as string[]));
 
       if (unitIds.length === 0) {
         return { count: 0, datesByUnit: {} };
@@ -158,7 +158,8 @@ export const ReportsTab = () => {
 
       // Contar alunos pela data de exame: exam_date deve coincidir com a próxima da sua unidade
       const count = students.filter((student) => {
-        const unitNextDate = earliestByUnit[student.classes.unit_id];
+        const studentUnitId = student.unit_id ?? student.classes?.unit_id;
+        const unitNextDate = studentUnitId ? earliestByUnit[studentUnitId] : undefined;
         return !!unitNextDate && student.exam_date === unitNextDate;
       }).length;
 
@@ -179,17 +180,22 @@ export const ReportsTab = () => {
       )
     `);
 
-    const shouldFilterByUnit = !isCentralUser && selectedUnit !== 'all';
+    const filterByUnit = selectedUnit !== 'all';
 
-    if (shouldFilterByUnit) {
-      query = query.eq('classes.unit_id', selectedUnit);
+    if (filterByUnit) {
+      query = query.eq('unit_id', selectedUnit);
     }
 
     if (selectedSeries !== 'all') {
       query = query.eq('classes.series_id', selectedSeries);
     }
 
-    const { data: allStudents } = await query;
+    const { data: allStudents, error: studentsError } = await query;
+
+    if (studentsError) {
+      console.error('Erro ao buscar alunos para relatórios:', studentsError);
+      return;
+    }
 
     if (allStudents) {
       const currentAcademicYear = getCurrentAcademicYear();
@@ -204,7 +210,7 @@ export const ReportsTab = () => {
       ).length;
       const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
         studentsValid,
-        shouldFilterByUnit ? selectedUnit : undefined
+        filterByUnit ? selectedUnit : undefined
       );
       setNextExamDatesByUnit(datesByUnit);
       const matriculados = students.filter(s => s.status === 'matriculado').length;
@@ -249,11 +255,15 @@ export const ReportsTab = () => {
         // Alinhar com a próxima prova por unidade (quando "Todas as unidades"),
         // ou apenas daquela unidade quando um filtro específico estiver selecionado
         if (Object.keys(nextExamDatesByUnit).length > 0) {
-          return studentsData.filter((s) =>
-            !!nextExamDatesByUnit[s.classes.unit_id] &&
-            s.exam_date === nextExamDatesByUnit[s.classes.unit_id] &&
-            s.status !== 'cadastro_invalido'
-          );
+          return studentsData.filter((s) => {
+            const studentUnitId = s.unit_id ?? s.classes?.unit_id;
+            return (
+              !!studentUnitId &&
+              !!nextExamDatesByUnit[studentUnitId] &&
+              s.exam_date === nextExamDatesByUnit[studentUnitId] &&
+              s.status !== 'cadastro_invalido'
+            );
+          });
         }
         // Fallback: quando ainda não há mapeamento de próxima prova por unidade,
         // exibir alunos que possuem alguma data de exame definida
