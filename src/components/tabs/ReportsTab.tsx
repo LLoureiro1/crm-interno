@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,6 +11,11 @@ import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getSegmentLabel,
+  getSeriesIdsForSegment,
+  sortSegments,
+} from '@/utils/educationLevel';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -35,8 +40,24 @@ export const ReportsTab = () => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<string>('all');
   const [isCentralUser, setIsCentralUser] = useState(false);
+
+  const availableSegments = useMemo(
+    () => sortSegments(series.map((s) => s.level)),
+    [series]
+  );
+
+  const filteredSeriesOptions = useMemo(() => {
+    if (selectedSegment === 'all') return series;
+    return series.filter((s) => s.level === selectedSegment);
+  }, [series, selectedSegment]);
+
+  const handleSegmentChange = (value: string) => {
+    setSelectedSegment(value);
+    setSelectedSeries('all');
+  };
 
   // Função para calcular o ano letivo atual
   const getCurrentAcademicYear = () => {
@@ -98,7 +119,7 @@ export const ReportsTab = () => {
 
   useEffect(() => {
     fetchReportData();
-  }, [selectedUnit, selectedSeries]);
+  }, [selectedUnit, selectedSegment, selectedSeries]);
 
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
@@ -106,7 +127,10 @@ export const ReportsTab = () => {
   };
 
   const fetchSeries = async () => {
-    const { data } = await supabase.from('series').select('*');
+    const { data } = await supabase
+      .from('series')
+      .select('*')
+      .order('ordenar', { ascending: true });
     if (data) setSeries(data);
   };
 
@@ -188,6 +212,13 @@ export const ReportsTab = () => {
 
     if (selectedSeries !== 'all') {
       query = query.eq('classes.series_id', selectedSeries);
+    } else if (selectedSegment !== 'all') {
+      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
+      if (seriesIdsInSegment.length > 0) {
+        query = query.in('classes.series_id', seriesIdsInSegment);
+      } else {
+        query = query.eq('classes.series_id', '00000000-0000-0000-0000-000000000000');
+      }
     }
 
     const { data: allStudents, error: studentsError } = await query;
@@ -342,7 +373,7 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
       </div>
 
       {/* Filters */}
-      <div className="flex space-x-4">
+      <div className="flex flex-wrap gap-4">
         <Select value={selectedUnit} onValueChange={setSelectedUnit}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Selecione a unidade" />
@@ -355,13 +386,27 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </SelectContent>
         </Select>
 
+        <Select value={selectedSegment} onValueChange={handleSegmentChange}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Selecione o segmento" />
+          </SelectTrigger>
+          <SelectContent side="bottom">
+            <SelectItem value="all">Todos os segmentos</SelectItem>
+            {availableSegments.map((level) => (
+              <SelectItem key={level} value={level}>
+                {getSegmentLabel(level)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={selectedSeries} onValueChange={setSelectedSeries}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Selecione a série" />
           </SelectTrigger>
           <SelectContent side="bottom">
             <SelectItem value="all">Todas as séries</SelectItem>
-            {series.map(serie => (
+            {filteredSeriesOptions.map(serie => (
               <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
             ))}
           </SelectContent>

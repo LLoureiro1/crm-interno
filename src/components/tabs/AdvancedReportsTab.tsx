@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { toPng } from 'html-to-image';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  getClassIdsForSeriesFilter,
+  getSegmentLabel,
+  sortSegments,
+} from '@/utils/educationLevel';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -115,8 +120,24 @@ export const AdvancedReportsTab = () => {
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
+  const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>('all');
   const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
+
+  const availableSegments = useMemo(
+    () => sortSegments(series.map((s) => s.level)),
+    [series]
+  );
+
+  const filteredSeriesOptions = useMemo(() => {
+    if (selectedSegment === 'all') return series;
+    return series.filter((s) => s.level === selectedSegment);
+  }, [series, selectedSegment]);
+
+  const handleSegmentChange = (value: string) => {
+    setSelectedSegment(value);
+    setSelectedSeriesId('all');
+  };
   const [registrationSourcesPie, setRegistrationSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
   const [trackingSourcesPie, setTrackingSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
 
@@ -342,16 +363,16 @@ export const AdvancedReportsTab = () => {
     if (selectedUnitId !== 'all') {
       query = query.eq('unit_id', selectedUnitId);
     }
-    if (selectedSeriesId !== 'all') {
-      // Filtrar por turmas que pertencem à série selecionada
-      const classIdsInSeries = classes
-        .filter(cls => cls.series_id === selectedSeriesId)
-        .map(cls => cls.id);
-
-      if (classIdsInSeries.length > 0) {
-        query = query.in('class_id', classIdsInSeries);
+    const classIds = getClassIdsForSeriesFilter(
+      classes,
+      series,
+      selectedSeriesId,
+      selectedSegment
+    );
+    if (classIds !== null) {
+      if (classIds.length > 0) {
+        query = query.in('class_id', classIds);
       } else {
-        // Se a série não tem turmas, forçar resultado vazio
         query = query.eq('class_id', '00000000-0000-0000-0000-000000000000');
       }
     }
@@ -718,16 +739,17 @@ export const AdvancedReportsTab = () => {
           return false;
         }
 
-        if (selectedSeriesId !== 'all') {
-          const classIdsInSeries = classes
-            .filter(cls => cls.series_id === selectedSeriesId)
-            .map(cls => cls.id);
-
-          if (selectedUnitId !== 'all') {
-            if (interaction.students.unit_id !== selectedUnitId) return false;
+        const classIds = getClassIdsForSeriesFilter(
+          classes,
+          series,
+          selectedSeriesId,
+          selectedSegment
+        );
+        if (classIds !== null) {
+          if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
+            return false;
           }
-
-          if (!classIdsInSeries.includes(interaction.students.class_id)) return false;
+          if (!classIds.includes(interaction.students.class_id)) return false;
         } else if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
           return false;
         }
@@ -820,7 +842,7 @@ export const AdvancedReportsTab = () => {
       if (completedResult.data && completedResult.data.length > 0) {
         // Se há filtros aplicados, precisamos verificar se os alunos das interações
         // pertencem às unidades/turmas selecionadas
-        if (selectedUnitId !== 'all' || selectedSeriesId !== 'all') {
+        if (selectedUnitId !== 'all' || selectedSeriesId !== 'all' || selectedSegment !== 'all') {
           const studentIds = [...new Set(completedResult.data.map(item => item.student_id))];
 
           let studentsQuery = supabase
@@ -1185,7 +1207,7 @@ export const AdvancedReportsTab = () => {
     if (units.length > 0 && classes.length > 0) {
       fetchAllData();
     }
-  }, [selectedUnitId, selectedSeriesId, units.length, classes.length]);
+  }, [selectedUnitId, selectedSegment, selectedSeriesId, units.length, classes.length, series.length]);
   return (
     <div className="space-y-6">
       <div>
@@ -1197,10 +1219,10 @@ export const AdvancedReportsTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
-          <CardDescription>Selecione unidade e/ou série para análise específica</CardDescription>
+          <CardDescription>Selecione unidade, segmento e/ou série para análise específica</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Unidade
@@ -1222,6 +1244,25 @@ export const AdvancedReportsTab = () => {
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Segmento
+              </label>
+              <Select value={selectedSegment} onValueChange={handleSegmentChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os segmentos" />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="all">Todos os segmentos</SelectItem>
+                  {availableSegments.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {getSegmentLabel(level)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Série
               </label>
               <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
@@ -1230,7 +1271,7 @@ export const AdvancedReportsTab = () => {
                 </SelectTrigger>
                 <SelectContent side="bottom">
                   <SelectItem value="all">Todas as séries</SelectItem>
-                  {series.map((s) => (
+                  {filteredSeriesOptions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
