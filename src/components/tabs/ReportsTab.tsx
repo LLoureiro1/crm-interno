@@ -16,6 +16,7 @@ import {
   getSeriesIdsForSegment,
   sortSegments,
 } from '@/utils/educationLevel';
+import { StatusFunnelChart } from '@/components/reports/StatusFunnelChart';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -473,10 +474,9 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {(() => {
-              // Definir a ordem específica dos status
               const statusOrder = [
                 'nao_confirmado',
-                'confirmado', 
+                'confirmado',
                 'ausente',
                 'nenhum_agendamento',
                 'atendimento_agendado',
@@ -484,10 +484,8 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
                 'atendimento_recentemente',
                 'atendimento_ha_mais_de_uma_semana',
                 'desistente',
-                'matriculado'
+                'matriculado',
               ];
-
-              // Filtrar apenas os status que existem nos dados e ordenar conforme a ordem definida
               return statusOrder
             .filter(status => reportData.statusCounts[status] !== undefined)
             .map(status => (
@@ -503,6 +501,23 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </div>
         </CardContent>
       </Card>
+
+      <StatusFunnelChart
+        statusCounts={reportData.statusCounts}
+        statusLabels={statusLabels}
+        selectedUnit={selectedUnit}
+        selectedSegment={selectedSegment}
+        selectedSeries={selectedSeries}
+        onUnitChange={setSelectedUnit}
+        onSegmentChange={handleSegmentChange}
+        onSeriesChange={setSelectedSeries}
+        visibleUnits={visibleUnits}
+        availableSegments={availableSegments}
+        filteredSeriesOptions={filteredSeriesOptions}
+        onStatusClick={(status, label) =>
+          openDialog(getStudentsByStatus(status), `Alunos com status: ${label}`)
+        }
+      />
 
       {/* Único Dialog global para exibir a tabela de alunos */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
