@@ -1,16 +1,38 @@
 import { ReactNode } from 'react';
-import { Home } from 'lucide-react';
+import { Home, Menu } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardNavProvider, TAB_LABELS, useDashboardNav } from '@/contexts/DashboardNavContext';
 import { AppSidebar } from '@/components/AppSidebar';
+import { Button } from '@/components/ui/button';
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 
 interface LayoutProps {
   children: ReactNode;
+}
+
+function SidebarMenuToggle() {
+  const { toggleSidebar, open, openMobile, isMobile } = useSidebar();
+  const isOpen = isMobile ? openMobile : open;
+  const label = isOpen ? 'Fechar menu' : 'Abrir menu';
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={toggleSidebar}
+      className="shrink-0 gap-2 border-[#1437cc]/25 text-[#1437cc] hover:bg-[#1437cc]/10 hover:text-[#1437cc]"
+      aria-label={`${label} lateral`}
+      title={`${label} lateral`}
+    >
+      <Menu className="h-4 w-4" aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+    </Button>
+  );
 }
 
 function LayoutHeader() {
@@ -20,7 +42,7 @@ function LayoutHeader() {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
-      <SidebarTrigger className="text-[#1437cc] hover:bg-[#1437cc]/10 hover:text-[#1437cc]" />
+      <SidebarMenuToggle />
       <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-slate-500">
         <Home className="h-4 w-4 shrink-0 text-[#1437cc]" />
         <span className="text-slate-400">/</span>

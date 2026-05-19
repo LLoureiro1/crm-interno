@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboardNav, TAB_LABELS } from '@/contexts/DashboardNavContext';
+import { useDashboardNav } from '@/contexts/DashboardNavContext';
 import { ReportsTab } from './tabs/ReportsTab';
 import { StudentsMainTab } from './tabs/StudentsMainTab';
 import { AppointmentsTab } from './tabs/AppointmentsTab';
@@ -34,15 +34,8 @@ export const Dashboard = () => {
     }
   }, [activeTab, canAccessAdvancedReports, canAccessConfig, setActiveTab]);
 
-  const pageTitle = TAB_LABELS[activeTab] ?? 'Dashboard';
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{pageTitle}</h1>
-        <p className="text-slate-600">Bem-vindo ao Laurel Escolar</p>
-      </div>
-
       {activeTab === 'reports' && (
         <ErrorBoundary>
           <ReportsTab />

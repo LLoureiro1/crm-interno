@@ -129,9 +129,11 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b border-white/10 p-3">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#ffac1a] text-sm font-bold text-white">
-            A
-          </div>
+          <img
+            src="/logo_apogeu_nobg.png"
+            alt="Apogeu"
+            className="h-9 w-auto max-w-[2.25rem] shrink-0 object-contain group-data-[collapsible=icon]:max-w-8"
+          />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
             <p className="truncate text-[11px] text-white/60">Laurel Escolar</p>
