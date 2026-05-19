@@ -613,61 +613,142 @@ export const StudentsTab = () => {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="min-w-0">
+          <div className="min-w-0 space-y-4">
             {currentStudents.map((student) => {
+              const seriesName = student.classes?.series?.name || '-';
+              const unitName = student.classes?.units?.name || '-';
+
               return (
-                <div key={student.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-x-4 gap-y-2">
-                      <div className="order-2 sm:order-none">
-                        <h3 className="font-medium text-gray-900">{student.student_name}</h3>
+                <div
+                  key={student.id}
+                  className="min-w-0 rounded-lg border p-4 hover:bg-gray-50"
+                >
+                  <div className="flex min-w-0 flex-col gap-3 lg:hidden">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words font-medium text-gray-900">
+                          {student.student_name}
+                        </h3>
                         <p className="text-sm text-gray-600">Código: {student.code}</p>
                       </div>
-                      <div className="order-2 sm:order-none">
-                        <p className="text-sm text-gray-600">{student.classes?.series?.name || '-'}</p>
-                        <p className="text-sm text-gray-600">{student.classes?.units?.name || '-'}</p>
-                      </div>
-                      <div className="order-3 sm:order-none">
+                      <div className="shrink-0">{getStatusBadge(student.status)}</div>
+                    </div>
+
+                    <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
+                      <p className="break-words">{seriesName}</p>
+                      <p className="break-words">{unitName}</p>
+                    </div>
+
+                    {(student.exam_date || student.interview_date) && (
+                      <div className="min-w-0 space-y-1">
                         {student.exam_date && (
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Prova: {formatDateForDisplay(student.exam_date)}
+                          <p className="flex items-center gap-1 text-sm text-gray-600">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            <span>Prova: {formatDateForDisplay(student.exam_date)}</span>
                           </p>
                         )}
                         {student.interview_date && (
-                          <p className="text-sm text-blue-600 flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Entrevista: {formatDateForDisplay(student.interview_date)} 
+                          <p className="flex items-center gap-1 text-sm text-blue-600">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            <span>Entrevista: {formatDateForDisplay(student.interview_date)}</span>
                           </p>
                         )}
                       </div>
-                      <div className="order-1 sm:order-none w-full sm:w-auto">
-                        {getStatusBadge(student.status)}
-                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewStudent(student)}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Eye className="mr-1 h-3.5 w-3.5 shrink-0" />
+                        Resumo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenStudentPage(student.id)}
+                        onContextMenu={(e) => handleContextMenu(e, student.id)}
+                        title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
+                        className="h-8 px-2 text-xs"
+                      >
+                        <ExternalLink className="mr-1 h-3.5 w-3.5 shrink-0" />
+                        Gerenciar
+                      </Button>
                     </div>
                   </div>
-                  <div className="mt-3 sm:mt-0 flex w-full sm:w-auto flex-col sm:flex-row gap-2 sm:space-x-2 sm:justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewStudent(student)}
-                      className="w-full sm:w-auto"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Resumo
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenStudentPage(student.id)}
-                      onContextMenu={(e) => handleContextMenu(e, student.id)}
-                      title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
-                      className="w-full sm:w-auto"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Gerenciar Aluno
-                    </Button>
+
+                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_10rem_minmax(8.5rem,10rem)_auto] lg:items-center lg:gap-x-4">
+                    <div className="min-w-0">
+                      <h3 className="font-medium text-gray-900">{student.student_name}</h3>
+                      <p className="text-sm text-gray-600">Código: {student.code}</p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 text-sm leading-snug text-gray-600" title={seriesName}>
+                        {seriesName}
+                      </p>
+                      <p className="line-clamp-2 text-sm leading-snug text-gray-600" title={unitName}>
+                        {unitName}
+                      </p>
+                    </div>
+
+                    <div className="min-w-[10rem] space-y-1">
+                      <p
+                        className={`flex h-5 items-center gap-1 text-sm ${
+                          student.exam_date ? 'text-gray-600' : 'invisible'
+                        }`}
+                      >
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="whitespace-nowrap">
+                          {student.exam_date
+                            ? `Prova: ${formatDateForDisplay(student.exam_date)}`
+                            : 'Prova: —'}
+                        </span>
+                      </p>
+                      <p
+                        className={`flex h-5 items-center gap-1 text-sm ${
+                          student.interview_date ? 'text-blue-600' : 'invisible'
+                        }`}
+                      >
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="whitespace-nowrap">
+                          {student.interview_date
+                            ? `Entrevista: ${formatDateForDisplay(student.interview_date)}`
+                            : 'Entrevista: —'}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="flex min-w-[8.5rem] justify-center">
+                      {getStatusBadge(student.status)}
+                    </div>
+
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewStudent(student)}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Eye className="mr-1 h-3.5 w-3.5 shrink-0" />
+                        Resumo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenStudentPage(student.id)}
+                        onContextMenu={(e) => handleContextMenu(e, student.id)}
+                        title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
+                        className="h-8 px-2 text-xs"
+                      >
+                        <ExternalLink className="mr-1 h-3.5 w-3.5 shrink-0" />
+                        Gerenciar
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
