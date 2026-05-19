@@ -1,55 +1,51 @@
-
 import { ReactNode } from 'react';
+import { Home } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { DashboardNavProvider, TAB_LABELS, useDashboardNav } from '@/contexts/DashboardNavContext';
+import { AppSidebar } from '@/components/AppSidebar';
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-export const Layout = ({ children }: LayoutProps) => {
-  const { profile, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
+function LayoutHeader() {
+  const { profile } = useAuth();
+  const { activeTab } = useDashboardNav();
+  const pageTitle = TAB_LABELS[activeTab] ?? 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-blue-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Laurel Escolar</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-gray-600" />
-                <span className="text-sm text-gray-700">{profile?.name}</span>
-                <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                  {profile?.profile}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSignOut}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>              
-            </div>
-          </div>
-        </div>
-      </header>
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+      <SidebarTrigger className="text-[#1437cc] hover:bg-[#1437cc]/10 hover:text-[#1437cc]" />
+      <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-slate-500">
+        <Home className="h-4 w-4 shrink-0 text-[#1437cc]" />
+        <span className="text-slate-400">/</span>
+        <span className="truncate font-medium text-[#1437cc]">{pageTitle}</span>
+      </nav>
+      <div className="hidden items-center gap-2 sm:flex">
+        <span className="max-w-[160px] truncate text-sm text-slate-700">{profile?.name}</span>
+        <span className="rounded-full bg-[#ffac1a]/15 px-2 py-0.5 text-xs font-medium capitalize text-[#1437cc]">
+          {profile?.profile}
+        </span>
+      </div>
+    </header>
+  );
+}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-    </div>
+export const Layout = ({ children }: LayoutProps) => {
+  return (
+    <DashboardNavProvider>
+      <SidebarProvider defaultOpen>
+        <AppSidebar />
+        <SidebarInset className="min-h-svh bg-slate-50">
+          <LayoutHeader />
+          <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </DashboardNavProvider>
   );
 };
