@@ -41,8 +41,19 @@ type NavItem = {
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
   const { activeTab, setActiveTab } = useDashboardNav();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const [inscricaoLink, setInscricaoLink] = useState('/inscricao');
+
+  const closeMobileMenu = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const handleNavClick = (tabId: string) => {
+    setActiveTab(tabId);
+    closeMobileMenu();
+  };
 
   const canAccessAdvancedReports =
     profile?.profile === 'admin' || profile?.profile === 'direcao';
@@ -107,8 +118,8 @@ export function AppSidebar() {
               <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
                   isActive={activeTab === item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  tooltip={item.label}
+                  onClick={() => handleNavClick(item.id)}
+                  tooltip={isMobile ? undefined : item.label}
                   className={menuButtonClass}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
@@ -132,9 +143,9 @@ export function AppSidebar() {
           <img
             src="/logo_apogeu_nobg.png"
             alt="Apogeu"
-            className="h-9 w-auto max-w-[2.25rem] shrink-0 object-contain group-data-[collapsible=icon]:max-w-8"
+            className="h-10 w-auto max-w-[6rem] shrink-0 object-contain md:h-9 md:max-w-[2.25rem] md:group-data-[collapsible=icon]:max-w-8"
           />
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
             <p className="truncate text-[11px] text-white/60">Laurel Escolar</p>
           </div>
@@ -149,6 +160,7 @@ export function AppSidebar() {
           <SidebarGroupContent className="px-2">
             <a
               href={inscricaoLink}
+              onClick={closeMobileMenu}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#ffac1a] px-3 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#e89b0f]"
             >
               <UserPlus className="h-4 w-4" />
@@ -188,7 +200,7 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarFooter>
-      <SidebarRail className="hover:after:bg-[#ffac1a]/50" />
+      {!isMobile && <SidebarRail className="hover:after:bg-[#ffac1a]/50" />}
     </Sidebar>
   );
 }

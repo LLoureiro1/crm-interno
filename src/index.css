@@ -102,6 +102,13 @@
 
 a[href*="lovable.dev"], iframe[src*="lovable.dev"], div[style*="Edit with Lovable"], .lovable-badge { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; position: absolute !important; z-index: -9999 !important; }
 
+/* Mobile: sidebar fixa só no desktop; no celular o menu abre no drawer */
+@media (max-width: 767px) {
+  .group\/sidebar-wrapper > .group.peer[data-side="left"] {
+    display: none !important;
+  }
+}
+
 /* Print styles for Proposal Summary */
 @media print {
   body * {

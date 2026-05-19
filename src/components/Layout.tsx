@@ -22,15 +22,21 @@ function SidebarMenuToggle() {
   return (
     <Button
       type="button"
-      variant="outline"
-      size="sm"
+      variant={isMobile ? 'ghost' : 'outline'}
+      size={isMobile ? 'icon' : 'sm'}
       onClick={toggleSidebar}
-      className="shrink-0 gap-2 border-[#1437cc]/25 text-[#1437cc] hover:bg-[#1437cc]/10 hover:text-[#1437cc]"
+      className={
+        isMobile
+          ? 'h-10 w-10 shrink-0 text-[#1437cc] hover:bg-[#1437cc]/10'
+          : 'shrink-0 gap-2 border-[#1437cc]/25 text-[#1437cc] hover:bg-[#1437cc]/10 hover:text-[#1437cc]'
+      }
       aria-label={`${label} lateral`}
+      aria-expanded={isOpen}
       title={`${label} lateral`}
     >
-      <Menu className="h-4 w-4" aria-hidden />
-      <span className="hidden sm:inline">{label}</span>
+      <Menu className="h-5 w-5" aria-hidden />
+      <span className="sr-only">{label}</span>
+      <span className="hidden md:inline">{label}</span>
     </Button>
   );
 }
