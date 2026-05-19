@@ -183,32 +183,32 @@ export const AssignedContactsTab = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Minhas Listas</h2>
-          <p className="text-gray-600">Veja suas listas e alunos atribuídos a você.</p>
-        </div>
+    <div className="min-w-0 w-full max-w-full space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Minhas Listas</h2>
+        <p className="text-gray-600">Veja suas listas e alunos atribuídos a você.</p>
       </div>
 
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="min-w-0 md:col-span-2">
               <Input
                 placeholder="Buscar por aluno, unidade, série ou turma..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className="w-full min-w-0"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Mostrar apenas ativos</label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input
                 type="checkbox"
+                className="shrink-0"
                 checked={showOnlyActive}
                 onChange={(e) => setShowOnlyActive(e.target.checked)}
               />
-            </div>
+              <span>Mostrar apenas ativos</span>
+            </label>
           </div>
         </CardContent>
       </Card>
@@ -239,23 +239,27 @@ export const AssignedContactsTab = () => {
         const statusLabels = f?.status_in?.length ? f.status_in : [];
         const examLabels = f?.exam_date_filters?.length ? f.exam_date_filters.map(formatExamFilter) : [];
         return (
-          <Card key={group.listId}>
+          <Card key={group.listId} className="min-w-0 overflow-hidden">
             <CardHeader
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-t-lg"
+              className="cursor-pointer space-y-3 rounded-t-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
               onClick={() => toggleCollapse(group.listId)}
             >
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                  <span>{group.listName}</span>
+              <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-center gap-2">
+                  {isCollapsed ? (
+                    <ChevronRight className="h-5 w-5 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 shrink-0" />
+                  )}
+                  <span className="break-words text-base">{group.listName}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 sm:shrink-0">
                   <Badge variant="outline">Total: {group.items.length}</Badge>
                   <Badge variant="outline">Ativos: {activeCount}</Badge>
                 </div>
               </CardTitle>
               {(unitLabels.length || seriesLabels.length || classLabels.length || yearsLabels.length || statusLabels.length || examLabels.length) ? (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                   {statusLabels.map((s, i) => (
                     <Badge key={`st-${i}`} variant="secondary" className="text-xs">Status: {s}</Badge>
                   ))}
@@ -278,8 +282,37 @@ export const AssignedContactsTab = () => {
               ) : null}
             </CardHeader>
             {!isCollapsed && (
-              <CardContent>
-                <div className="overflow-x-auto">
+              <CardContent className="min-w-0 px-3 sm:px-6">
+                <div className="space-y-3 md:hidden">
+                  {group.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3"
+                    >
+                      <p className="font-medium text-gray-900 break-words">
+                        {item.students?.student_name || item.student_id}
+                      </p>
+                      <p className="text-sm text-gray-600 break-words">
+                        {item.students?.classes?.units?.name || '-'} /{' '}
+                        {item.students?.classes?.series?.name || '-'} /{' '}
+                        {item.students?.classes?.name || '-'}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => handleOpenNewTab(item.student_id)}
+                        onContextMenu={(e) => handleRightClickOpen(e, item.student_id)}
+                        title="Clique esquerdo ou direito para abrir em nova aba"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+                        Abrir ficha
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden min-w-0 max-w-full overflow-x-auto md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -289,10 +322,16 @@ export const AssignedContactsTab = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {group.items.map(item => (
+                      {group.items.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.students?.student_name || item.student_id}</TableCell>
-                          <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
+                          <TableCell className="font-medium">
+                            {item.students?.student_name || item.student_id}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {item.students?.classes?.units?.name || '-'} /{' '}
+                            {item.students?.classes?.series?.name || '-'} /{' '}
+                            {item.students?.classes?.name || '-'}
+                          </TableCell>
                           <TableCell className="text-sm">
                             <Button
                               variant="outline"
