@@ -343,7 +343,7 @@ export const StudentsTab = () => {
     XLSX.writeFile(wb, `alunos_${getCurrentDate()}.xlsx`);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, className?: string) => {
     const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
       'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
       'confirmado': { label: 'Confirmado', variant: 'secondary' },
@@ -360,7 +360,11 @@ export const StudentsTab = () => {
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return (
+      <Badge variant={config.variant} className={className}>
+        {config.label}
+      </Badge>
+    );
   };
 
   const handleManualStatusUpdate = async () => {
@@ -625,14 +629,18 @@ export const StudentsTab = () => {
                   className="min-w-0 rounded-lg border p-4 hover:bg-gray-50"
                 >
                   <div className="flex min-w-0 flex-col gap-3 lg:hidden">
-                    <div className="flex min-w-0 items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="break-words font-medium text-gray-900">
-                          {student.student_name}
-                        </h3>
-                        <p className="text-sm text-gray-600">Código: {student.code}</p>
-                      </div>
-                      <div className="shrink-0">{getStatusBadge(student.status)}</div>
+                    <div className="w-full">
+                      {getStatusBadge(
+                        student.status,
+                        'h-auto w-full max-w-full justify-center whitespace-normal rounded-md px-2.5 py-1.5 text-center text-[11px] font-semibold leading-snug'
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <h3 className="break-words font-medium text-gray-900">
+                        {student.student_name}
+                      </h3>
+                      <p className="text-sm text-gray-600">Código: {student.code}</p>
                     </div>
 
                     <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
