@@ -93,7 +93,7 @@ export function AppSidebar() {
 
         const unitName = (userUnit?.name || '').toLowerCase();
         const isCentral = unitName === 'central';
-        const slug = (userUnit as { slug?: string | null })?.slug;
+        const slug = userUnit?.slug;
 
         setInscricaoLink(!isCentral && slug ? `/inscricao/${slug}` : '/inscricao');
       } catch {
@@ -149,7 +149,7 @@ export function AppSidebar() {
           </div>
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
-            <p className="truncate text-[11px] text-white/60">Laurel Escolar</p>
+            <p className="truncate text-[11px] text-white/60">CRM Parceiros</p>
           </div>
         </div>
       </SidebarHeader>
