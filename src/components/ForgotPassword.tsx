@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { getAuthErrorMessage } from '@/utils/authErrorMessages';
 
 interface ForgotPasswordProps {
   onBack: () => void;
@@ -26,7 +27,7 @@ export const ForgotPassword = ({ onBack }: ForgotPasswordProps) => {
       const { error, emailExists: exists } = await resetPassword(email);
       
       if (error) {
-        toast.error('Erro ao enviar email de reset: ' + error.message);
+        toast.error(getAuthErrorMessage(error, 'reset'));
         return;
       }
 

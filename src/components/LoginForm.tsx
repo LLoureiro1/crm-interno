@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { ForgotPassword } from './ForgotPassword';
 import { AlertCircle } from 'lucide-react';
+import { getAuthErrorMessage } from '@/utils/authErrorMessages';
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -34,11 +35,11 @@ export const LoginForm = () => {
             duration: 8000,
           });
         } else {
-          toast.error('Erro ao fazer login: ' + error.message);
+          toast.error(getAuthErrorMessage(error, 'login'));
         }
       }
-    } catch (error) {
-      toast.error('Erro inesperado ao fazer login');
+    } catch {
+      toast.error('Ocorreu um problema inesperado. Tente entrar novamente em instantes.');
     } finally {
       setLoading(false);
     }
