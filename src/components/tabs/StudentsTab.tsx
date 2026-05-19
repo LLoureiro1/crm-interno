@@ -681,7 +681,7 @@ export const StudentsTab = () => {
                     </div>
                   </div>
 
-                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_10rem_minmax(8.5rem,10rem)_auto] lg:items-center lg:gap-x-4">
+                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_10rem_minmax(8.5rem,10rem)_auto] lg:items-stretch lg:gap-x-4">
                     <div className="min-w-0">
                       <h3 className="font-medium text-gray-900">{student.student_name}</h3>
                       <p className="text-sm text-gray-600">Código: {student.code}</p>
@@ -696,38 +696,30 @@ export const StudentsTab = () => {
                       </p>
                     </div>
 
-                    <div className="min-w-[10rem] space-y-1">
-                      <p
-                        className={`flex h-5 items-center gap-1 text-sm ${
-                          student.exam_date ? 'text-gray-600' : 'invisible'
-                        }`}
-                      >
-                        <Calendar className="h-3 w-3 shrink-0" />
-                        <span className="whitespace-nowrap">
-                          {student.exam_date
-                            ? `Prova: ${formatDateForDisplay(student.exam_date)}`
-                            : 'Prova: —'}
-                        </span>
-                      </p>
-                      <p
-                        className={`flex h-5 items-center gap-1 text-sm ${
-                          student.interview_date ? 'text-blue-600' : 'invisible'
-                        }`}
-                      >
-                        <Calendar className="h-3 w-3 shrink-0" />
-                        <span className="whitespace-nowrap">
-                          {student.interview_date
-                            ? `Entrevista: ${formatDateForDisplay(student.interview_date)}`
-                            : 'Entrevista: —'}
-                        </span>
-                      </p>
+                    <div className="flex min-w-[10rem] flex-col justify-center gap-1 self-stretch">
+                      {student.exam_date && (
+                        <p className="flex items-center gap-1 text-sm text-gray-600">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span className="whitespace-nowrap">
+                            Prova: {formatDateForDisplay(student.exam_date)}
+                          </span>
+                        </p>
+                      )}
+                      {student.interview_date && (
+                        <p className="flex items-center gap-1 text-sm text-blue-600">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span className="whitespace-nowrap">
+                            Entrevista: {formatDateForDisplay(student.interview_date)}
+                          </span>
+                        </p>
+                      )}
                     </div>
 
-                    <div className="flex min-w-[8.5rem] justify-center">
+                    <div className="flex min-w-[8.5rem] items-center justify-center self-stretch">
                       {getStatusBadge(student.status)}
                     </div>
 
-                    <div className="flex shrink-0 gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5 self-stretch">
                       <Button
                         variant="outline"
                         size="sm"
