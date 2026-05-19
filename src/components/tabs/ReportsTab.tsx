@@ -17,13 +17,22 @@ import {
   sortSegments,
 } from '@/utils/educationLevel';
 import { StatusFunnelChart } from '@/components/reports/StatusFunnelChart';
+import type { ReportClassRow } from '@/utils/classStatusAggregation';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 type Student = Tables<'students'> & {
   classes: {
+    id: string;
     name: string;
     unit_id: string;
+    series_id: string;
+    series: {
+      id: string;
+      name: string;
+      level: string;
+      ordenar: number;
+    };
     units: { id: string; name: string };
   };
 };
@@ -81,6 +90,7 @@ export const ReportsTab = () => {
     statusCounts: {}
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
+  const [classesData, setClassesData] = useState<ReportClassRow[]>([]);
   const [todayAppointmentsStudents, setTodayAppointmentsStudents] = useState<Student[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState<string>('');
@@ -195,17 +205,36 @@ export const ReportsTab = () => {
     }
   };
 
+  const applySeriesFilterToClassesQuery = <T extends { eq: (col: string, val: string) => T; in: (col: string, vals: string[]) => T }>(
+    query: T
+  ) => {
+    if (selectedSeries !== 'all') {
+      return query.eq('series_id', selectedSeries);
+    }
+    if (selectedSegment !== 'all') {
+      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
+      if (seriesIdsInSegment.length > 0) {
+        return query.in('series_id', seriesIdsInSegment);
+      }
+      return query.eq('series_id', '00000000-0000-0000-0000-000000000000');
+    }
+    return query;
+  };
+
   const fetchReportData = async () => {
+    const filterByUnit = selectedUnit !== 'all';
+
     let query = supabase.from('students').select(`
       *,
       classes!inner(
+        id,
         name,
         unit_id,
+        series_id,
+        series:series_id(id, name, level, ordenar),
         units!inner(id, name)
       )
     `);
-
-    const filterByUnit = selectedUnit !== 'all';
 
     if (filterByUnit) {
       query = query.eq('unit_id', selectedUnit);
@@ -222,11 +251,40 @@ export const ReportsTab = () => {
       }
     }
 
-    const { data: allStudents, error: studentsError } = await query;
+    let classesQuery = supabase
+      .from('classes')
+      .select('id, name, unit_id, series_id, series:series_id(id, name, level, ordenar)');
+
+    if (filterByUnit) {
+      classesQuery = classesQuery.eq('unit_id', selectedUnit);
+    }
+    classesQuery = applySeriesFilterToClassesQuery(classesQuery);
+
+    const [{ data: allStudents, error: studentsError }, { data: allClasses, error: classesError }] =
+      await Promise.all([query, classesQuery]);
 
     if (studentsError) {
       console.error('Erro ao buscar alunos para relatórios:', studentsError);
       return;
+    }
+
+    if (classesError) {
+      console.error('Erro ao buscar turmas para relatórios:', classesError);
+    }
+
+    if (allClasses) {
+      const visibleClassRows = allClasses
+        .filter((row) => row.series)
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          unit_id: row.unit_id,
+          series_id: row.series_id,
+          series: row.series as ReportClassRow['series'],
+        }));
+      setClassesData(visibleClassRows);
+    } else {
+      setClassesData([]);
     }
 
     if (allStudents) {
@@ -310,6 +368,15 @@ export const ReportsTab = () => {
   const getStudentsByStatus = (status: string) => {
     return studentsData.filter(s => s.status === status);
   };
+
+  const getStudentsByClassAndStatus = (classId: string, status: string) => {
+    return studentsData.filter((s) => s.class_id === classId && s.status === status);
+  };
+
+  const unitNames = useMemo(
+    () => Object.fromEntries(units.map((u) => [u.id, u.name])),
+    [units]
+  );
 
   // Extraído para fora do componente principal para evitar recriação
 const StudentsTable = ({ students, statusLabels }: { students: Student[], statusLabels: { [key: string]: string } }) => (
@@ -505,6 +572,9 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
       <StatusFunnelChart
         statusCounts={reportData.statusCounts}
         statusLabels={statusLabels}
+        students={studentsData.map((s) => ({ class_id: s.class_id, status: s.status }))}
+        classes={classesData}
+        unitNames={unitNames}
         selectedUnit={selectedUnit}
         selectedSegment={selectedSegment}
         selectedSeries={selectedSeries}
@@ -516,6 +586,12 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
         filteredSeriesOptions={filteredSeriesOptions}
         onStatusClick={(status, label) =>
           openDialog(getStudentsByStatus(status), `Alunos com status: ${label}`)
+        }
+        onClassStatusClick={(classId, status, statusLabel, classLabel) =>
+          openDialog(
+            getStudentsByClassAndStatus(classId, status),
+            `${classLabel} · ${statusLabel}`
+          )
         }
       />
 

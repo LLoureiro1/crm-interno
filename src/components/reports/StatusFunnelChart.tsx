@@ -13,20 +13,27 @@ import {
   buildFunnelData,
   buildFunnelStages,
   STUDENT_STATUS_FUNNEL_EXCLUDED,
+  STUDENT_STATUS_LABELS,
   type FunnelDataPoint,
 } from '@/utils/studentStatus';
+import { ALL_REPORT_STATUS_ORDER } from '@/utils/classStatusAggregation';
 import { getSegmentLabel } from '@/utils/educationLevel';
 import type { Tables } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
+import { ClassesStatusChart } from '@/components/reports/ClassesStatusChart';
+import type { ReportClassRow, ReportStudentRow } from '@/utils/classStatusAggregation';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 
-type ChartView = 'funnel' | 'bars' | 'horizontal';
+type ChartView = 'classes' | 'funnel' | 'bars' | 'horizontal';
 
 type StatusFunnelChartProps = {
   statusCounts: Record<string, number>;
   statusLabels: Record<string, string>;
+  students: ReportStudentRow[];
+  classes: ReportClassRow[];
+  unitNames: Record<string, string>;
   selectedUnit: string;
   selectedSegment: string;
   selectedSeries: string;
@@ -37,9 +44,16 @@ type StatusFunnelChartProps = {
   availableSegments: string[];
   filteredSeriesOptions: Series[];
   onStatusClick?: (status: string, label: string) => void;
+  onClassStatusClick?: (
+    classId: string,
+    status: string,
+    statusLabel: string,
+    classLabel: string
+  ) => void;
 };
 
 const chartViewLabels: Record<ChartView, string> = {
+  classes: 'Por turma',
   funnel: 'Funil',
   bars: 'Barras verticais',
   horizontal: 'Barras horizontais',
@@ -172,6 +186,9 @@ function handleBarClick(
 export function StatusFunnelChart({
   statusCounts,
   statusLabels,
+  students,
+  classes,
+  unitNames,
   selectedUnit,
   selectedSegment,
   selectedSeries,
@@ -182,8 +199,10 @@ export function StatusFunnelChart({
   availableSegments,
   filteredSeriesOptions,
   onStatusClick,
+  onClassStatusClick,
 }: StatusFunnelChartProps) {
-  const [chartView, setChartView] = useState<ChartView>('horizontal');
+  const [chartView, setChartView] = useState<ChartView>('classes');
+  const [selectedClassStatus, setSelectedClassStatus] = useState<string>('all');
 
   const funnelStages = useMemo(
     () => buildFunnelStages(statusCounts, statusLabels),
@@ -212,6 +231,9 @@ export function StatusFunnelChart({
   );
 
   const hasAnyCount = totalInFunnel > 0;
+  const hasClassView = classes.length > 0;
+  const showEmptyState =
+    chartView === 'classes' ? !hasClassView : !hasAnyCount;
 
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string; color: string }> = {
@@ -248,7 +270,9 @@ export function StatusFunnelChart({
           <div>
             <CardTitle>Funil por status</CardTitle>
             <CardDescription>
-              Jornada dos candidatos do ano letivo vigente · {filterSummary}
+              {chartView === 'classes'
+                ? `Turmas por unidade · filtre unidade, segmento, série ou status · ${filterSummary}`
+                : `Jornada dos candidatos do ano letivo vigente · ${filterSummary}`}
             </CardDescription>
           </div>
           <Select value={chartView} onValueChange={(v) => setChartView(v as ChartView)}>
@@ -307,14 +331,40 @@ export function StatusFunnelChart({
               ))}
             </SelectContent>
           </Select>
+
+          {chartView === 'classes' && (
+            <Select value={selectedClassStatus} onValueChange={setSelectedClassStatus}>
+              <SelectTrigger className="w-full sm:w-52">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent side="bottom">
+                <SelectItem value="all">Todos os status</SelectItem>
+                {ALL_REPORT_STATUS_ORDER.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {statusLabels[status] ?? STUDENT_STATUS_LABELS[status] ?? status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardHeader>
 
       <CardContent>
-        {!hasAnyCount ? (
+        {showEmptyState ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum aluno encontrado com os filtros selecionados.
+            {chartView === 'classes'
+              ? 'Nenhuma turma encontrada com os filtros selecionados.'
+              : 'Nenhum aluno encontrado com os filtros selecionados.'}
           </p>
+        ) : chartView === 'classes' ? (
+          <ClassesStatusChart
+            students={students}
+            classes={classes}
+            unitNames={unitNames}
+            statusFilter={selectedClassStatus}
+            onSegmentClick={onClassStatusClick}
+          />
         ) : chartView === 'funnel' ? (
           <ClassicFunnelView
             stages={funnelStages}
@@ -384,9 +434,14 @@ export function StatusFunnelChart({
           </ChartContainer>
         )}
 
-        {hasAnyCount && (
+        {!showEmptyState && chartView !== 'classes' && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Total no funil: <strong>{totalInFunnel}</strong> alunos · Clique em uma etapa para ver a lista
+          </p>
+        )}
+        {!showEmptyState && chartView === 'classes' && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Clique em um trecho da barra para ver os alunos da turma naquele status
           </p>
         )}
       </CardContent>
