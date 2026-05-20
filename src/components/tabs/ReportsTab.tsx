@@ -17,7 +17,10 @@ import {
   sortSegments,
 } from '@/utils/educationLevel';
 import { StatusFunnelChart } from '@/components/reports/StatusFunnelChart';
-import type { ReportClassRow } from '@/utils/classStatusAggregation';
+import {
+  isExcludedFromClassChart,
+  type ReportClassRow,
+} from '@/utils/classStatusAggregation';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -572,7 +575,9 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
       <StatusFunnelChart
         statusCounts={reportData.statusCounts}
         statusLabels={statusLabels}
-        students={studentsData.map((s) => ({ class_id: s.class_id, status: s.status }))}
+        students={studentsData
+          .filter((s) => !isExcludedFromClassChart(s.status))
+          .map((s) => ({ class_id: s.class_id, status: s.status }))}
         classes={classesData}
         unitNames={unitNames}
         selectedUnit={selectedUnit}

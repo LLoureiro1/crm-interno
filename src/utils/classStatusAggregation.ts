@@ -1,14 +1,18 @@
 import {
   STUDENT_STATUS_COLORS,
   STUDENT_STATUS_LABELS,
+  STUDENT_STATUS_FUNNEL_EXCLUDED,
   STUDENT_STATUS_FUNNEL_ORDER,
 } from '@/utils/studentStatus';
 
-export const ALL_REPORT_STATUS_ORDER = [
-  ...STUDENT_STATUS_FUNNEL_ORDER,
-  'cadastro_invalido',
-  'processo_anos_anteriores',
-] as const;
+/** Status exibidos e contabilizados no gráfico por turma. */
+export const ALL_REPORT_STATUS_ORDER = [...STUDENT_STATUS_FUNNEL_ORDER] as const;
+
+const EXCLUDED_STATUSES = new Set<string>(STUDENT_STATUS_FUNNEL_EXCLUDED);
+
+export function isExcludedFromClassChart(status: string): boolean {
+  return EXCLUDED_STATUSES.has(status);
+}
 
 export type ClassSeriesInfo = {
   id: string;
@@ -76,7 +80,10 @@ function buildSegments(
 
 function rowTotal(statusCounts: Record<string, number>, statusFilter: string): number {
   if (statusFilter === 'all') {
-    return Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
+    return ALL_REPORT_STATUS_ORDER.reduce(
+      (sum, status) => sum + (statusCounts[status] ?? 0),
+      0
+    );
   }
   return statusCounts[statusFilter] ?? 0;
 }
@@ -98,6 +105,9 @@ export function buildClassStatusGroups(
   const countsByClass: Record<string, Record<string, number>> = {};
 
   for (const student of students) {
+    if (isExcludedFromClassChart(student.status)) {
+      continue;
+    }
     if (statusFilter !== 'all' && student.status !== statusFilter) {
       continue;
     }
