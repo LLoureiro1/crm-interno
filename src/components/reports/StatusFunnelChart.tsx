@@ -441,7 +441,7 @@ export function StatusFunnelChart({
         )}
         {!showEmptyState && chartView === 'classes' && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Clique em um trecho da barra para ver os alunos da turma naquele status
+            Clique na barra para ver os alunos da turma naquele status
           </p>
         )}
       </CardContent>
