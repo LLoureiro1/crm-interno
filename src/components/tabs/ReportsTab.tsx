@@ -133,7 +133,7 @@ export const ReportsTab = () => {
 
   useEffect(() => {
     fetchReportData();
-  }, [selectedUnit, selectedSegment, selectedSeries]);
+  }, [selectedUnit, selectedSegment, selectedSeries, isCentralUser, profile?.unit_id]);
 
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
@@ -153,6 +153,20 @@ export const ReportsTab = () => {
     if (isCentralUser) return true;
     return unit.id === profile.unit_id;
   });
+
+  /** Unidades cujo bloco «Por turma» pode ser exibido (Central vê todas; demais só a própria). */
+  const getAllowedUnitIdsForChart = (): string[] | null => {
+    if (selectedUnit !== 'all') {
+      return [selectedUnit];
+    }
+    if (isCentralUser) {
+      return null;
+    }
+    if (profile?.unit_id) {
+      return [profile.unit_id];
+    }
+    return visibleUnits.map((u) => u.id);
+  };
 
   // Guardar as próximas datas de prova por unidade para alinhar contagem e lista
   const [nextExamDatesByUnit, setNextExamDatesByUnit] = useState<Record<string, string>>({});
@@ -258,8 +272,9 @@ export const ReportsTab = () => {
       .from('classes')
       .select('id, name, unit_id, series_id, series:series_id(id, name, level, ordenar)');
 
-    if (filterByUnit) {
-      classesQuery = classesQuery.eq('unit_id', selectedUnit);
+    const allowedUnitIds = getAllowedUnitIdsForChart();
+    if (allowedUnitIds && allowedUnitIds.length > 0) {
+      classesQuery = classesQuery.in('unit_id', allowedUnitIds);
     }
     classesQuery = applySeriesFilterToClassesQuery(classesQuery);
 
@@ -276,8 +291,13 @@ export const ReportsTab = () => {
     }
 
     if (allClasses) {
+      const allowedSet =
+        allowedUnitIds && allowedUnitIds.length > 0 ? new Set(allowedUnitIds) : null;
       const visibleClassRows = allClasses
-        .filter((row) => row.series)
+        .filter(
+          (row) =>
+            row.series && (!allowedSet || allowedSet.has(row.unit_id))
+        )
         .map((row) => ({
           id: row.id,
           name: row.name,
