@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 
 const menuButtonClass =
-  'text-white/90 hover:bg-white/10 hover:text-white data-[active=true]:bg-[#ffac1a] data-[active=true]:text-white data-[active=true]:font-semibold data-[active=true]:shadow-sm rounded-lg';
+  'rounded-lg text-white/90 transition-colors hover:!bg-[#ffac1a]/75 hover:!text-white focus-visible:!bg-[#ffac1a]/75 focus-visible:!text-white focus-visible:!ring-[#ffac1a]/40 active:!bg-[#ffac1a]/90 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-sm';
 
 type NavItem = {
   id: string;
