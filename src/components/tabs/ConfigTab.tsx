@@ -13,6 +13,7 @@ import { ExamDateManagement } from '@/components/management/ExamDateManagement';
 import { StudentImport } from '@/components/management/StudentImport';
 import { EnrollmentImport } from '@/components/management/EnrollmentImport';
 import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
+import { EmailAutomationManagement } from '@/components/management/EmailAutomationManagement';
 
 export const ConfigTab = () => {
   const isMounted = useRef<boolean>(true);
@@ -64,6 +65,7 @@ export const ConfigTab = () => {
             <TabsTrigger value="import" className="min-w-max px-3 py-2 text-sm">Importação</TabsTrigger>
             <TabsTrigger value="enrollment" className="min-w-max px-3 py-2 text-sm">Matrículas</TabsTrigger>
             <TabsTrigger value="contact-lists" className="min-w-max px-3 py-2 text-sm">Listas de Contato</TabsTrigger>
+            <TabsTrigger value="emails" className="min-w-max px-3 py-2 text-sm">E-mails</TabsTrigger>
           </TabsList>
         </div>
 
@@ -185,6 +187,20 @@ export const ConfigTab = () => {
 
         <TabsContent value="contact-lists">
           <ContactLists />
+        </TabsContent>
+
+        <TabsContent value="emails">
+          <Card>
+            <CardHeader>
+              <CardTitle>Automação de E-mails</CardTitle>
+              <CardDescription>
+                Configure integração com Google Workspace, templates HTML e acompanhe a fila de envios
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EmailAutomationManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -182,6 +182,189 @@ export type Database = {
           },
         ]
       }
+      email_integrations: {
+        Row: {
+          id: string
+          unit_id: string | null
+          sender_email: string
+          sender_name: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          unit_id?: string | null
+          sender_email: string
+          sender_name?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          unit_id?: string | null
+          sender_email?: string
+          sender_name?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_integrations_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_queue: {
+        Row: {
+          id: string
+          student_id: string | null
+          appointment_id: string | null
+          unit_id: string | null
+          template_id: string | null
+          trigger_type: Database["public"]["Enums"]["email_trigger_type"]
+          to_email: string
+          to_name: string | null
+          subject: string
+          html_body: string
+          status: Database["public"]["Enums"]["email_queue_status"]
+          scheduled_for: string
+          idempotency_key: string
+          provider_message_id: string | null
+          error_message: string | null
+          attempts: number
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id?: string | null
+          appointment_id?: string | null
+          unit_id?: string | null
+          template_id?: string | null
+          trigger_type: Database["public"]["Enums"]["email_trigger_type"]
+          to_email: string
+          to_name?: string | null
+          subject: string
+          html_body: string
+          status?: Database["public"]["Enums"]["email_queue_status"]
+          scheduled_for?: string
+          idempotency_key: string
+          provider_message_id?: string | null
+          error_message?: string | null
+          attempts?: number
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string | null
+          appointment_id?: string | null
+          unit_id?: string | null
+          template_id?: string | null
+          trigger_type?: Database["public"]["Enums"]["email_trigger_type"]
+          to_email?: string
+          to_name?: string | null
+          subject?: string
+          html_body?: string
+          status?: Database["public"]["Enums"]["email_queue_status"]
+          scheduled_for?: string
+          idempotency_key?: string
+          provider_message_id?: string | null
+          error_message?: string | null
+          attempts?: number
+          sent_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_queue_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_queue_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_queue_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_queue_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          id: string
+          unit_id: string | null
+          trigger_type: Database["public"]["Enums"]["email_trigger_type"]
+          name: string
+          subject: string
+          html_body: string
+          is_active: boolean
+          send_offset_days: number
+          send_at_hour: number
+          send_at_minute: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          unit_id?: string | null
+          trigger_type: Database["public"]["Enums"]["email_trigger_type"]
+          name: string
+          subject: string
+          html_body: string
+          is_active?: boolean
+          send_offset_days?: number
+          send_at_hour?: number
+          send_at_minute?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          unit_id?: string | null
+          trigger_type?: Database["public"]["Enums"]["email_trigger_type"]
+          name?: string
+          subject?: string
+          html_body?: string
+          is_active?: boolean
+          send_offset_days?: number
+          send_at_hour?: number
+          send_at_minute?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviewer_availability: {
         Row: {
           created_at: string
@@ -833,6 +1016,17 @@ export type Database = {
         | "confirmacao_prova"
         | "convidar_ausentes"
         | "followup_pos_atendimento"
+      email_trigger_type:
+        | "student_registered"
+        | "appointment_scheduled"
+        | "appointment_reminder_same_day"
+        | "exam_reminder_1_day_before"
+      email_queue_status:
+        | "pending"
+        | "sending"
+        | "sent"
+        | "failed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1002,6 +1196,19 @@ export const Constants = {
         "confirmacao_prova",
         "convidar_ausentes",
         "followup_pos_atendimento",
+      ],
+      email_trigger_type: [
+        "student_registered",
+        "appointment_scheduled",
+        "appointment_reminder_same_day",
+        "exam_reminder_1_day_before",
+      ],
+      email_queue_status: [
+        "pending",
+        "sending",
+        "sent",
+        "failed",
+        "cancelled",
       ],
     },
   },
