@@ -145,7 +145,7 @@ serve(async (req) => {
     // Check if profile already exists
     const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, name')
+      .select('id, email, name, ativo')
       .eq('email', email.toLowerCase().trim())
       .maybeSingle()
 
@@ -171,9 +171,17 @@ serve(async (req) => {
 
     // If profile exists, user is fully created
     if (existingProfile) {
-      console.log(`User already exists - returning 409 error`)
+      const isInactive = existingProfile.ativo === false
+      const errorMessage = isInactive
+        ? `Este e-mail já pertence ao usuário "${existingProfile.name}", que está inativo. Reative-o na lista de usuários em vez de criar um novo cadastro.`
+        : 'Este e-mail já está cadastrado na base de usuários.'
+
+      console.log(`User already exists - returning 409 error (${isInactive ? 'inactive' : 'active'})`)
       return new Response(
-        JSON.stringify({ error: 'User with this email already exists' }),
+        JSON.stringify({
+          error: errorMessage,
+          code: isInactive ? 'email_inactive_user' : 'email_already_exists',
+        }),
         {
           status: 409,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -196,13 +204,21 @@ serve(async (req) => {
 
     if (createError) {
       console.error('Error creating user:', createError.message, createError)
+      const isDuplicateEmail =
+        createError.message?.toLowerCase().includes('already been registered') ||
+        createError.message?.toLowerCase().includes('already exists') ||
+        createError.code === 'email_exists'
+
       return new Response(
         JSON.stringify({
-          error: 'Failed to create user: ' + createError.message,
+          error: isDuplicateEmail
+            ? 'Este e-mail já está cadastrado na base de usuários.'
+            : 'Failed to create user: ' + createError.message,
+          code: isDuplicateEmail ? 'email_already_exists' : 'create_user_failed',
           details: createError.code || 'unknown_error'
         }),
         {
-          status: 500,
+          status: isDuplicateEmail ? 409 : 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )

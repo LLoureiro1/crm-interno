@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { sanitizeName, sanitizeEmail } from '@/utils/sanitization';
+import { getUserInviteErrorMessage } from '@/utils/authErrorMessages';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'> & {
@@ -97,6 +98,23 @@ export const UserManagement = () => {
         if (error) throw error;
         toast.success('Usuário atualizado com sucesso!');
       } else {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, name, email, ativo')
+          .eq('email', sanitizedEmail)
+          .maybeSingle();
+
+        if (existingProfile) {
+          if (existingProfile.ativo === false) {
+            toast.error(
+              `Este e-mail já pertence ao usuário "${existingProfile.name}", que está inativo. Reative-o na lista de usuários em vez de criar um novo cadastro.`,
+            );
+          } else {
+            toast.error('Este e-mail já está cadastrado na base de usuários.');
+          }
+          return;
+        }
+
         // Criar novo usuário usando Edge Function
         const { data, error } = await supabase.functions.invoke('create-user-invite', {
           body: {
@@ -107,8 +125,8 @@ export const UserManagement = () => {
           }
         });
 
-        if (error) {
-          throw new Error(error.message || 'Erro ao criar usuário');
+        if (error || data?.error) {
+          throw new Error(getUserInviteErrorMessage(error, data));
         }
 
         if (data?.invite_error) {
@@ -123,7 +141,10 @@ export const UserManagement = () => {
       fetchUsers();
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
-      toast.error('Erro ao salvar usuário');
+      const message = error instanceof Error
+        ? error.message
+        : 'Erro ao salvar usuário';
+      toast.error(message);
     } finally {
       setLoading(false);
     }

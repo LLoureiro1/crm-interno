@@ -50,3 +50,80 @@ export function getAuthErrorMessage(
     ? 'Não foi possível entrar. Tente novamente ou use "Esqueci minha senha".'
     : 'Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.';
 }
+
+type UserInviteErrorData = {
+  error?: string;
+  code?: string;
+  details?: string;
+} | null;
+
+function extractInvokeErrorData(
+  error: unknown,
+  data?: UserInviteErrorData,
+): UserInviteErrorData {
+  if (data?.error || data?.code) {
+    return data;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return data ?? null;
+  }
+
+  const err = error as Record<string, unknown>;
+
+  if (err.context && typeof err.context === 'object') {
+    const context = err.context as Record<string, unknown>;
+    if (typeof context.error === 'string' || typeof context.code === 'string') {
+      return context as UserInviteErrorData;
+    }
+  }
+
+  if (err.data && typeof err.data === 'object') {
+    return err.data as UserInviteErrorData;
+  }
+
+  return data ?? null;
+}
+
+/**
+ * Converte erros da Edge Function create-user-invite em mensagens claras em português.
+ */
+export function getUserInviteErrorMessage(
+  error: { message?: string } | null | undefined,
+  data?: UserInviteErrorData,
+): string {
+  const payload = extractInvokeErrorData(error, data);
+  const apiError = payload?.error?.trim() ?? '';
+  const combined = `${apiError} ${payload?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
+
+  if (
+    payload?.code === 'email_inactive_user' ||
+    combined.includes('inativo') ||
+    combined.includes('email_inactive_user')
+  ) {
+    return apiError ||
+      'Este e-mail já está cadastrado, mas o usuário está inativo. Reative-o na lista de usuários em vez de criar um novo cadastro.';
+  }
+
+  if (
+    payload?.code === 'email_already_exists' ||
+    combined.includes('already exists') ||
+    combined.includes('já existe') ||
+    combined.includes('já está cadastrado') ||
+    combined.includes('already been registered') ||
+    combined.includes('duplicate') ||
+    combined.includes('409')
+  ) {
+    return apiError || 'Este e-mail já está cadastrado na base de usuários.';
+  }
+
+  if (apiError) {
+    return apiError;
+  }
+
+  if (error?.message && !error.message.toLowerCase().includes('non-2xx')) {
+    return error.message;
+  }
+
+  return 'Não foi possível criar o usuário. Tente novamente.';
+}
