@@ -821,8 +821,7 @@ async function sendEmailViaAppsScriptWebhook(params: {
 }
 
 /**
- * Google Apps Script responde 302 no /exec; alguns runtimes convertem o follow-up em GET
- * e o JSON do POST se perde. Reenviamos o POST manualmente para a URL de redirect.
+ * Envia POST ao Web App do Google Apps Script.
  * Fallback: application/x-www-form-urlencoded com campo "payload".
  */
 async function postToAppsScriptWebhook(
@@ -831,7 +830,7 @@ async function postToAppsScriptWebhook(
 ): Promise<Response> {
   const jsonBody = JSON.stringify(body);
 
-  let response = await fetchWithManualRedirect(requestUrl, {
+  let response = await fetchGoogleAppsScriptPost(requestUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: jsonBody,
@@ -844,7 +843,7 @@ async function postToAppsScriptWebhook(
   const formBody = new URLSearchParams();
   formBody.set("payload", jsonBody);
 
-  response = await fetchWithManualRedirect(requestUrl, {
+  response = await fetchGoogleAppsScriptPost(requestUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: formBody.toString(),
@@ -853,20 +852,27 @@ async function postToAppsScriptWebhook(
   return response;
 }
 
-async function fetchWithManualRedirect(
+/**
+ * Google Apps Script executa doPost no POST /exec e responde 302 para uma URL
+ * googleusercontent.com que só aceita GET (retorna o JSON de saída).
+ * Re-POST na URL de redirect causa HTTP 405 embora o e-mail já tenha sido enviado.
+ */
+async function fetchGoogleAppsScriptPost(
   url: string,
   init: RequestInit,
 ): Promise<Response> {
-  let response = await fetch(url, { ...init, redirect: "manual" });
+  const response = await fetch(url, { ...init, redirect: "manual" });
 
-  if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get("Location");
-    if (location) {
-      response = await fetch(location, init);
-    }
+  if (response.status < 300 || response.status >= 400) {
+    return response;
   }
 
-  return response;
+  const location = response.headers.get("Location");
+  if (!location) {
+    return response;
+  }
+
+  return fetch(location, { method: "GET", redirect: "follow" });
 }
 
 function extractAppsScriptError(rawResponse: unknown): string | null {
