@@ -188,6 +188,7 @@ export type Database = {
           unit_id: string | null
           sender_email: string
           sender_name: string
+          webhook_url: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -197,6 +198,7 @@ export type Database = {
           unit_id?: string | null
           sender_email: string
           sender_name?: string
+          webhook_url?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -206,6 +208,7 @@ export type Database = {
           unit_id?: string | null
           sender_email?: string
           sender_name?: string
+          webhook_url?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string

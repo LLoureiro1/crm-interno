@@ -16,7 +16,10 @@ import { Mail, Save } from 'lucide-react';
 type EmailTriggerType = Enums<'email_trigger_type'>;
 type EmailQueueStatus = Enums<'email_queue_status'>;
 type EmailIntegration = Tables<'email_integrations'>;
-type EmailIntegrationForm = Pick<EmailIntegration, 'unit_id' | 'sender_email' | 'sender_name' | 'is_active'> & {
+type EmailIntegrationForm = Pick<
+  EmailIntegration,
+  'unit_id' | 'sender_email' | 'sender_name' | 'webhook_url' | 'is_active'
+> & {
   id?: string;
   created_at?: string;
   updated_at?: string;
@@ -96,6 +99,7 @@ export const EmailAutomationManagement = () => {
     unit_id: null,
     sender_email: '',
     sender_name: '',
+    webhook_url: '',
     is_active: true,
   });
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -215,12 +219,18 @@ export const EmailAutomationManagement = () => {
     ]);
 
     setIntegration(
-      integrationData ?? {
-        unit_id: unitFilter,
-        sender_email: '',
-        sender_name: '',
-        is_active: true,
-      },
+      integrationData
+        ? {
+            ...integrationData,
+            webhook_url: integrationData.webhook_url ?? '',
+          }
+        : {
+            unit_id: unitFilter,
+            sender_email: '',
+            sender_name: '',
+            webhook_url: '',
+            is_active: true,
+          },
     );
     setTemplates(templatesData ?? []);
   };
@@ -237,6 +247,7 @@ export const EmailAutomationManagement = () => {
         unit_id: unitFilter,
         sender_email: integration.sender_email.trim(),
         sender_name: integration.sender_name.trim(),
+        webhook_url: integration.webhook_url?.trim() || null,
         is_active: integration.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -337,6 +348,31 @@ export const EmailAutomationManagement = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          Os e-mails são enviados via <strong>Google Apps Script (Web App)</strong>.
+          O CRM monta o HTML e envia para o webhook do Workspace, que registra na planilha e dispara o e-mail.
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="webhook_url">URL do Web App (Google Apps Script)</Label>
+            <Input
+              id="webhook_url"
+              type="url"
+              placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+              value={integration.webhook_url ?? ''}
+              onChange={(event) =>
+                setIntegration((prev) => ({ ...prev, webhook_url: event.target.value }))
+              }
+            />
+            <p className="text-xs text-gray-500">
+              Deixe em branco para usar a URL padrão configurada no secret{' '}
+              <code>GOOGLE_APPS_SCRIPT_WEBHOOK_URL</code> do Supabase.
+              O token de segurança fica no secret <code>GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN</code>.
+            </p>
           </div>
         </div>
 

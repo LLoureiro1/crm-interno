@@ -2,11 +2,6 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  getGmailAccessToken,
-  sendGmailHtmlEmail,
-  type GoogleServiceAccount,
-} from "../_shared/gmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +47,7 @@ interface EmailTemplate {
 interface EmailIntegration {
   sender_email: string;
   sender_name: string;
+  webhook_url: string | null;
   is_active: boolean;
 }
 
@@ -320,10 +316,11 @@ async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
 }
 
 async function processQueue(supabase: ReturnType<typeof createClient>) {
-  const serviceAccount = getServiceAccount();
-  if (!serviceAccount) {
-    console.warn("GOOGLE_SERVICE_ACCOUNT_JSON não configurado");
-    return { sent: 0, failed: 0, skipped: true };
+  const defaultWebhookToken = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN") ?? "";
+  const defaultWebhookUrl = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_URL") ?? "";
+
+  if (!defaultWebhookToken && !defaultWebhookUrl) {
+    console.warn("GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN/URL não configurados");
   }
 
   const { data: pendingEmails, error } = await supabase
@@ -360,24 +357,45 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
       continue;
     }
 
+    const webhookUrl = integration.webhook_url || defaultWebhookUrl;
+    const webhookToken = defaultWebhookToken;
+
+    if (!webhookUrl || !webhookToken) {
+      await supabase
+        .from("email_queue")
+        .update({
+          status: "failed",
+          error_message:
+            "Webhook do Google Apps Script não configurado (URL ou token ausente)",
+          attempts: (item.attempts ?? 0) + 1,
+        })
+        .eq("id", item.id);
+      failed += 1;
+      continue;
+    }
+
     await supabase
       .from("email_queue")
       .update({ status: "sending", attempts: (item.attempts ?? 0) + 1 })
       .eq("id", item.id);
 
     try {
-      const accessToken = await getGmailAccessToken(
-        serviceAccount,
-        integration.sender_email,
-      );
+      const record = await buildAppsScriptRecord(supabase, item);
 
-      const messageId = await sendGmailHtmlEmail({
-        accessToken,
-        fromEmail: integration.sender_email,
-        fromName: integration.sender_name,
-        toEmail: item.to_email,
-        subject: item.subject,
-        htmlBody: item.html_body,
+      const { messageId } = await sendEmailViaAppsScriptWebhook({
+        webhookUrl,
+        token: webhookToken,
+        payload: {
+          event: String(item.trigger_type),
+          trigger_type: String(item.trigger_type),
+          to_email: item.to_email,
+          to_name: item.to_name ?? "",
+          subject: item.subject,
+          html_body: item.html_body,
+          from_email: integration.sender_email,
+          from_name: integration.sender_name,
+          record,
+        },
       });
 
       await supabase
@@ -534,7 +552,7 @@ async function resolveIntegration(
   if (unitId) {
     const { data: unitIntegration } = await supabase
       .from("email_integrations")
-      .select("sender_email, sender_name, is_active")
+      .select("sender_email, sender_name, webhook_url, is_active")
       .eq("unit_id", unitId)
       .eq("is_active", true)
       .maybeSingle();
@@ -546,7 +564,7 @@ async function resolveIntegration(
 
   const { data: defaultIntegration } = await supabase
     .from("email_integrations")
-    .select("sender_email, sender_name, is_active")
+    .select("sender_email, sender_name, webhook_url, is_active")
     .is("unit_id", null)
     .eq("is_active", true)
     .maybeSingle();
@@ -554,26 +572,138 @@ async function resolveIntegration(
   return defaultIntegration;
 }
 
+async function buildAppsScriptRecord(
+  supabase: ReturnType<typeof createClient>,
+  item: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const record: Record<string, unknown> = {
+    queue_id: item.id,
+    student_id: item.student_id,
+    appointment_id: item.appointment_id,
+    unit_id: item.unit_id,
+    template_id: item.template_id,
+    trigger_type: item.trigger_type,
+    idempotency_key: item.idempotency_key,
+    scheduled_for: item.scheduled_for,
+    to_email: item.to_email,
+    to_name: item.to_name,
+  };
+
+  if (item.student_id) {
+    const { data: student } = await supabase
+      .from("students")
+      .select(
+        "id, student_name, email, phone, responsible_name, tracking_code, status, exam_date, exam_time, interview_date, unit_id, class_id",
+      )
+      .eq("id", String(item.student_id))
+      .maybeSingle();
+
+    if (student) {
+      record.id = student.id;
+      record.student_id = student.id;
+      record.student_name = student.student_name;
+      record.nome = student.student_name;
+      record.email = student.email;
+      record.email_lead = student.email;
+      record.phone = student.phone;
+      record.telefone = student.phone;
+      record.responsible_name = student.responsible_name;
+      record.tracking_code = student.tracking_code;
+      record.status = student.status;
+      record.exam_date = student.exam_date;
+      record.exam_time = formatTime(String(student.exam_time ?? ""));
+      record.interview_date = student.interview_date;
+
+      if (!item.unit_id && student.unit_id) {
+        record.unit_id = student.unit_id;
+      }
+    }
+  }
+
+  if (item.appointment_id) {
+    const { data: appointment } = await supabase
+      .from("appointments")
+      .select("id, appointment_date, appointment_time, status, formato_entrevista")
+      .eq("id", String(item.appointment_id))
+      .maybeSingle();
+
+    if (appointment) {
+      record.appointment_id = appointment.id;
+      record.appointment_date = appointment.appointment_date;
+      record.appointment_time = formatTime(appointment.appointment_time);
+      record.data_visita = buildVisitDateTime(
+        appointment.appointment_date,
+        appointment.appointment_time,
+      );
+      record.data_agendamento = record.data_visita;
+      record.appointment_status = appointment.status;
+      record.formato_entrevista = appointment.formato_entrevista;
+    }
+  }
+
+  const unitId = record.unit_id ? String(record.unit_id) : null;
+  if (unitId) {
+    const { data: unit } = await supabase
+      .from("units")
+      .select("id, name, phone, city, address")
+      .eq("id", unitId)
+      .maybeSingle();
+
+    if (unit) {
+      record.unit_name = unit.name;
+      record.unidade = unit.name;
+      record.unit_phone = unit.phone;
+      record.unit_city = unit.city;
+      record.unit_address = unit.address;
+    }
+  }
+
+  if (!record.data_visita && record.interview_date) {
+    record.data_visita = String(record.interview_date);
+    record.data_agendamento = record.data_visita;
+  }
+
+  if (!record.data_visita && record.exam_date) {
+    record.data_visita = buildVisitDateTime(
+      String(record.exam_date),
+      String(record.exam_time ?? "09:00"),
+    );
+    record.data_agendamento = record.data_visita;
+  }
+
+  // Garante dados mínimos mesmo se a consulta ao students falhar
+  if (!record.student_name && item.to_name) {
+    record.student_name = item.to_name;
+    record.nome = item.to_name;
+  }
+  if (!record.email && item.to_email) {
+    record.email = item.to_email;
+  }
+  if (!record.id && item.student_id) {
+    record.id = item.student_id;
+  }
+
+  // Aliases alinhados à planilha institucional (NOME_LEAD, E-MAIL, etc.)
+  record.NOME_LEAD = record.student_name ?? item.to_name ?? "";
+  record.E_MAIL = record.email ?? item.to_email ?? "";
+  record.UNIDADE = record.unit_name ?? record.unidade ?? "";
+  record.DATA_VISITA = record.data_visita ?? "";
+  record.STATUS_ENVIO = item.trigger_type ?? record.trigger_type ?? "";
+
+  return record;
+}
+
+function buildVisitDateTime(dateValue: string, timeValue: string): string {
+  if (!dateValue) return "";
+  const time = formatTime(timeValue || "09:00");
+  return `${dateValue}T${time}:00`;
+}
+
 function renderTemplate(template: string, context: TemplateContext): string {
   return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, key: string) => {
     const value = context[key as keyof TemplateContext];
     return value ?? "";
   });
-}
-
-function getServiceAccount(): GoogleServiceAccount | null {
-  const raw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed.client_email || !parsed.private_key) {
-      return null;
-    }
-    return parsed as GoogleServiceAccount;
-  } catch {
-    return null;
-  }
 }
 
 function buildScheduledTimestamp(
@@ -600,6 +730,166 @@ function formatDate(value: string): string {
 function formatTime(value: string): string {
   if (!value) return "";
   return value.slice(0, 5);
+}
+
+interface AppsScriptWebhookPayload {
+  token: string;
+  event: string;
+  trigger_type: string;
+  to_email: string;
+  to_name: string;
+  subject: string;
+  html_body: string;
+  from_email: string;
+  from_name: string;
+  record: Record<string, unknown>;
+}
+
+function buildAppsScriptWebhookUrl(baseUrl: string, token: string): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+async function sendEmailViaAppsScriptWebhook(params: {
+  webhookUrl: string;
+  token: string;
+  payload: Omit<AppsScriptWebhookPayload, "token">;
+}): Promise<{ messageId: string }> {
+  const requestUrl = buildAppsScriptWebhookUrl(params.webhookUrl, params.token);
+  const body: AppsScriptWebhookPayload = {
+    token: params.token,
+    ...params.payload,
+  };
+
+  console.log("Apps Script webhook:", {
+    to_email: body.to_email,
+    to_name: body.to_name,
+    trigger_type: body.trigger_type,
+    subject: body.subject?.slice(0, 80),
+    record_email: body.record?.email,
+    record_name: body.record?.student_name,
+  });
+
+  const response = await postToAppsScriptWebhook(requestUrl, body);
+
+  let rawResponse: unknown = null;
+  const responseText = await response.text();
+
+  if (responseText) {
+    try {
+      rawResponse = JSON.parse(responseText);
+    } catch {
+      rawResponse = responseText;
+    }
+  }
+
+  if (!response.ok) {
+    const errorMessage = extractAppsScriptError(rawResponse) ||
+      `Webhook Apps Script retornou HTTP ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  if (typeof rawResponse === "string" || !rawResponse) {
+    throw new Error(
+      "Resposta inválida do Apps Script (provável redirect sem body JSON). Reimplante o Web App e confira a URL.",
+    );
+  }
+
+  const responseObj = rawResponse as Record<string, unknown>;
+  const expectsEmail = Boolean(body.subject && body.html_body);
+
+  if (expectsEmail) {
+    if (responseObj.email_sent === false) {
+      const emailError = typeof responseObj.email_error === "string"
+        ? responseObj.email_error
+        : "Apps Script não enviou o e-mail (email_sent=false)";
+      throw new Error(emailError);
+    }
+
+    if (responseObj.lead_email === "Não informado") {
+      throw new Error(
+        "Apps Script recebeu payload sem e-mail — reimplante o Web App com o script atualizado",
+      );
+    }
+  }
+
+  const messageId = extractAppsScriptMessageId(rawResponse) ||
+    `apps-script-${crypto.randomUUID()}`;
+
+  return { messageId };
+}
+
+/**
+ * Google Apps Script responde 302 no /exec; alguns runtimes convertem o follow-up em GET
+ * e o JSON do POST se perde. Reenviamos o POST manualmente para a URL de redirect.
+ * Fallback: application/x-www-form-urlencoded com campo "payload".
+ */
+async function postToAppsScriptWebhook(
+  requestUrl: string,
+  body: AppsScriptWebhookPayload,
+): Promise<Response> {
+  const jsonBody = JSON.stringify(body);
+
+  let response = await fetchWithManualRedirect(requestUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: jsonBody,
+  });
+
+  if (response.ok) {
+    return response;
+  }
+
+  const formBody = new URLSearchParams();
+  formBody.set("payload", jsonBody);
+
+  response = await fetchWithManualRedirect(requestUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formBody.toString(),
+  });
+
+  return response;
+}
+
+async function fetchWithManualRedirect(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  let response = await fetch(url, { ...init, redirect: "manual" });
+
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("Location");
+    if (location) {
+      response = await fetch(location, init);
+    }
+  }
+
+  return response;
+}
+
+function extractAppsScriptError(rawResponse: unknown): string | null {
+  if (!rawResponse || typeof rawResponse !== "object") return null;
+
+  const response = rawResponse as Record<string, unknown>;
+  if (typeof response.error === "string") return response.error;
+  if (typeof response.message === "string" && response.success === false) {
+    return response.message;
+  }
+
+  return null;
+}
+
+function extractAppsScriptMessageId(rawResponse: unknown): string | null {
+  if (!rawResponse || typeof rawResponse !== "object") return null;
+
+  const response = rawResponse as Record<string, unknown>;
+  if (typeof response.message_id === "string") return response.message_id;
+  if (typeof response.messageId === "string") return response.messageId;
+  if (typeof response.id === "string") return response.id;
+
+  return null;
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {

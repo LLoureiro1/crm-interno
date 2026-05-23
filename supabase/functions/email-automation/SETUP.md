@@ -1,6 +1,16 @@
-# Integração de E-mails com Google Workspace
+# Integração de E-mails com Google Workspace (Apps Script)
 
-Esta função envia e-mails transacionais HTML via **Gmail API** usando uma **Service Account** com delegação em todo o domínio (Domain-Wide Delegation).
+Esta função integra o CRM (Supabase) com o **Google Apps Script Web App** preparado no Workspace institucional.
+
+O CRM continua responsável por:
+- Detectar eventos (inscrição, agendamento, lembretes)
+- Renderizar templates HTML
+- Enfileirar envios em `email_queue`
+
+O **Google Workspace** continua responsável por:
+- Receber o webhook (POST)
+- Registrar na planilha de controle
+- Disparar o e-mail via `GmailApp`
 
 ## Eventos suportados
 
@@ -11,109 +21,147 @@ Esta função envia e-mails transacionais HTML via **Gmail API** usando uma **Se
 | `appointment_reminder_same_day` | Cron diário — atendimentos do dia |
 | `exam_reminder_1_day_before` | Cron diário — provas de amanhã |
 
-## 1. Configurar Google Cloud + Workspace
+## 1. Google Workspace (lado do desenvolvedor)
 
-### 1.1 Criar projeto no Google Cloud
-
-1. Acesse [Google Cloud Console](https://console.cloud.google.com/).
-2. Crie um projeto (ou use um existente).
-3. Ative a **Gmail API**: APIs & Services → Library → Gmail API → Enable.
-
-### 1.2 Criar Service Account
-
-1. IAM & Admin → Service Accounts → Create Service Account.
-2. Anote o e-mail gerado (`...@...gserviceaccount.com`).
-3. Crie uma chave JSON e baixe o arquivo.
-
-### 1.3 Delegação em todo o domínio (Domain-Wide Delegation)
-
-1. Na Service Account, copie o **Client ID** (numérico).
-2. No [Admin Console do Google Workspace](https://admin.google.com/):
-   - Security → Access and data control → API controls
-   - Domain-wide delegation → Add new
-   - Client ID: cole o ID da service account
-   - OAuth Scopes: `https://www.googleapis.com/auth/gmail.send`
-3. Confirme.
-
-> O remetente (`sender_email` na tabela `email_integrations`) deve ser um usuário real do Workspace (ex.: `noreply@escola.com.br`). A service account envia **em nome** desse usuário.
+1. Planilha Google criada como fila/log de envios
+2. Apps Script com `doPost(e)` — veja `apps-script-webhook.example.gs`
+3. Implantar como **Web App**:
+   - Executar como: conta institucional do Workspace
+   - Quem tem acesso: qualquer pessoa
+4. Token de segurança via `?token=SENHA` na URL **e** no body JSON
 
 ## 2. Secrets no Supabase
 
 ```bash
-npx supabase secrets set GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...@....iam.gserviceaccount.com",...}'
+npx supabase secrets set GOOGLE_APPS_SCRIPT_WEBHOOK_URL='https://script.google.com/macros/s/AKfycb.../exec'
+npx supabase secrets set GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN='SENHA_DEFINIDA'
 ```
 
-> Cole o JSON completo da chave em uma única linha ou use o painel do Supabase (Edge Functions → Secrets).
+Opcional: URL por unidade em **Configurações → E-mails → URL do Web App**.
 
-## 3. Deploy da função
+## 3. Deploy
 
-```bash
-npx supabase functions deploy email-automation
-```
-
-No `config.toml`, `verify_jwt = false` — a função é chamada por triggers/cron com service role.
-
-## 4. Aplicar migration e cron
+**Opção A — CLI (recomendado):**
 
 ```bash
 npx supabase db push
+npx supabase functions deploy email-automation
 ```
 
-Depois execute `setup-email-cron-job.sql` no SQL Editor para agendar lembretes diários às 7h.
+**Opção B — Painel Supabase:**
 
-## 5. Configurar remetente e templates
+Cole o conteúdo de `index.ts` em um único arquivo na função `email-automation`.
 
-No painel do CRM: **Configurações → E-mails**
+> O painel só aceita arquivos criados manualmente na UI. Todo o código está em um único `index.ts` — não é necessário arquivo auxiliar.
 
-- **Integração:** defina `sender_email` e `sender_name` por unidade (ou padrão global).
-- **Templates:** edite assunto e HTML. Use variáveis:
-  - `{{student_name}}`, `{{responsible_name}}`, `{{email}}`
-  - `{{tracking_code}}`, `{{status}}`, `{{class_name}}`
-  - `{{unit_name}}`, `{{unit_address}}`, `{{unit_city}}`, `{{unit_phone}}`
-  - `{{appointment_date}}`, `{{appointment_time}}`
-  - `{{exam_date}}`, `{{exam_time}}`
+Execute `setup-email-cron-job.sql` no SQL Editor para lembretes diários.
 
-## 6. Fluxo técnico
+## 4. Payload enviado ao Apps Script
+
+```json
+{
+  "token": "SENHA_DEFINIDA",
+  "event": "student_registered",
+  "trigger_type": "student_registered",
+  "to_email": "lead@email.com",
+  "to_name": "Maria Silva",
+  "subject": "Inscrição confirmada - Unidade Centro",
+  "html_body": "<div>...</div>",
+  "from_email": "noreply@escola.com.br",
+  "from_name": "Escola Exemplo",
+  "record": {
+    "id": "uuid-students",
+    "student_id": "uuid-students",
+    "student_name": "Maria Silva",
+    "nome": "Maria Silva",
+    "email": "maria@email.com",
+    "phone": "(11) 99999-9999",
+    "appointment_date": "2026-05-22",
+    "appointment_time": "14:30",
+    "data_visita": "2026-05-22T14:30:00",
+    "data_agendamento": "2026-05-22T14:30:00",
+    "unit_name": "Unidade Centro",
+    "unidade": "Unidade Centro",
+    "trigger_type": "appointment_scheduled",
+    "tracking_code": "ABC12345",
+    "status": "atendimento_agendado",
+    "queue_id": "uuid-fila",
+    "idempotency_key": "appointment_scheduled:..."
+  }
+}
+```
+
+## Mapeamento CRM → Planilha Google (aba "Dados")
+
+| Coluna planilha | Campo Supabase |
+|-----------------|----------------|
+| ID Aluno | `students.id` |
+| Nome | `students.student_name` |
+| E-mail | `students.email` |
+| Telefone | `students.phone` |
+| Data Atendimento | `appointments.appointment_date` + `appointment_time` |
+| Unidade | `units.name` |
+| Evento | `trigger_type` (ex.: `appointment_scheduled`) |
+| Status 7d / 2d / Dia / 30m | Régua no Apps Script (`enviarLembretesAutomaticos`) |
+| Envio Imediato | E-mail HTML do CRM na hora do evento |
+
+### Tabelas e eventos
+
+| Evento (`trigger_type`) | Tabela origem | Campos principais |
+|-------------------------|---------------|-------------------|
+| `student_registered` | `students` | student_name, email, phone, tracking_code, unit_id |
+| `appointment_scheduled` | `appointments` + `students` | appointment_date, appointment_time, student_name, email |
+| `appointment_reminder_same_day` | cron + `appointments` | data do atendimento no dia |
+| `exam_reminder_1_day_before` | cron + `students.exam_date` | data/hora da prova |
+
+Copie o script de `apps-script-webhook.example.gs` para o Google Apps Script do Workspace.
+Configure `TOKEN_SEGURANCA` igual ao secret `GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN`.
+
+Resposta esperada do Apps Script:
+
+```json
+{
+  "success": true,
+  "message_id": "uuid-ou-id-do-envio"
+}
+```
+
+## 5. Fluxo técnico
 
 ```
 INSERT students/appointments
         ↓
 Trigger PostgreSQL (pg_net)
         ↓
-Edge Function email-automation (webhook)
+Edge Function email-automation
         ↓
-email_queue (pending)
+email_queue (pending) + render template
         ↓
-Gmail API → envio HTML
+POST → Google Apps Script Web App
+        ↓
+Planilha + GmailApp.sendEmail()
         ↓
 email_queue (sent/failed)
 ```
 
-Cron diário (`setup-email-cron-job.sql`):
-- Enfileira lembretes de prova/atendimento
-- Processa fila pendente
+## 6. Configurar no CRM
 
-## 7. Monitoramento
+**Configurações → E-mails**
 
-Consulte a fila no admin ou via SQL:
-
-```sql
-SELECT trigger_type, to_email, status, scheduled_for, sent_at, error_message
-FROM email_queue
-ORDER BY created_at DESC
-LIMIT 50;
-```
-
-## Resend vs Google Workspace
-
-- **Resend** (`resend-sync`): continua sincronizando contatos para marketing.
-- **Google Workspace** (`email-automation`): e-mails transacionais HTML com remetente `@seudominio.com`.
+- **URL do Web App:** endpoint do Apps Script (ou use secret global)
+- **Remetente:** e-mail/nome repassados ao Google para o envio
+- **Templates:** HTML editável com variáveis `{{student_name}}`, etc.
 
 ## Troubleshooting
 
 | Erro | Solução |
 |------|---------|
-| `Integração de e-mail inativa` | Cadastre remetente em Configurações → E-mails |
-| `invalid_grant` / `unauthorized_client` | Verifique Domain-Wide Delegation e scope `gmail.send` |
-| `Mail service not enabled` | Usuário remetente deve existir no Workspace |
-| E-mail duplicado | Idempotency key evita reenvio; registro ignorado silenciosamente |
+| `Webhook do Google Apps Script não configurado` | Configure URL (CRM ou secret) e token no Supabase |
+| `Unauthorized` no Apps Script | Token divergente entre Supabase e script |
+| E-mail não chega | Verifique "Executar como" no deploy do Web App |
+| Duplicata | `idempotency_key` evita reenvio na fila do CRM |
+
+## Resend vs Workspace
+
+- **Resend** (`resend-sync`): marketing/lista de contatos
+- **Apps Script** (`email-automation`): transacional via Workspace institucional

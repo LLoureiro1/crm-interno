@@ -194,7 +194,7 @@ export const ConfigTab = () => {
             <CardHeader>
               <CardTitle>Automação de E-mails</CardTitle>
               <CardDescription>
-                Configure integração com Google Workspace, templates HTML e acompanhe a fila de envios
+                Configure webhook do Google Apps Script, templates HTML e acompanhe a fila de envios
               </CardDescription>
             </CardHeader>
             <CardContent>
