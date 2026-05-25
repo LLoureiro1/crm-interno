@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { LoginForm } from '@/components/LoginForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
   const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
-  const { profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [student, setStudent] = useState<Student | null>(null);
   const [interviewers, setInterviewers] = useState<Profile[]>([]);
@@ -229,7 +230,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   });
   const [birthDateDisplay, setBirthDateDisplay] = useState<string>('');
 
-  const canUpdateToMatriculado = true;
+  const canUpdateToMatriculado = profile?.profile === 'admin';
   const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
   const canEditPersonalData = !!profile; // todos os perfis autenticados podem editar
   
@@ -1116,6 +1117,21 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       const config = statusMap[status] || { label: status, variant: 'outline' as const };
       return <Badge variant={config.variant}>{config.label}</Badge>;
     };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm />;
+  }
 
   if (!student) {
     return (

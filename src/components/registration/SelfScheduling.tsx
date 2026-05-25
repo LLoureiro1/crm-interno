@@ -22,9 +22,7 @@ interface SelfSchedulingProps {
   fallback?: React.ReactNode;
 }
 
-type Availability = Tables<'interviewer_availability'> & {
-  profiles: Tables<'profiles'>;
-};
+type Availability = Tables<'interviewer_availability'>;
 
 export const SelfScheduling = ({
   unitId,
@@ -169,10 +167,7 @@ export const SelfScheduling = ({
       // if we can't do it easily in PostgREST without complex filters
       const { data, error } = await supabase
         .from('interviewer_availability')
-        .select(`
-          *,
-          profiles!interviewer_availability_interviewer_id_fkey(*)
-        `)
+        .select('*')
         .gte('date', today)
         .order('date', { ascending: true });
 

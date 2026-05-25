@@ -58,6 +58,7 @@ export const RegistrationForm = () => {
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [preSelectedUnit, setPreSelectedUnit] = useState<Unit | null>(null);
   const [isUnitLocked, setIsUnitLocked] = useState(false);
+  const [websiteHoneypot, setWebsiteHoneypot] = useState('');
 
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
   const { hasSources, loading: sourcesLoading, error: sourcesError } = useRegistrationSources(formData.unitId);
@@ -309,6 +310,7 @@ export const RegistrationForm = () => {
           exam_date_id: nextExam?.id ?? null,
           exam_date: nextExam?.exam_date ?? null,
           additional_phones: validAdditionalPhones,
+          website: websiteHoneypot,
         },
       });
 
@@ -423,6 +425,16 @@ export const RegistrationForm = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <input
+              type="text"
+              name="website"
+              value={websiteHoneypot}
+              onChange={(e) => setWebsiteHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="absolute left-[-9999px] h-0 w-0 opacity-0 pointer-events-none"
+            />
             <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
               <p>Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção para a inscrição do próximo.</p>
             </div>

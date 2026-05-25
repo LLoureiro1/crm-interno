@@ -960,7 +960,13 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_interviewer_profiles: {
+        Row: {
+          id: string
+          name: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_student_code: {

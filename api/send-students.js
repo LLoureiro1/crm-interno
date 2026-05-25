@@ -8,13 +8,27 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// ============================
-// CONFIGURAÇÃO DOS FILTROS
-// ============================
 const STATUS_PERMITIDOS = ["nenhum_agendamento", "faltou_atendimento"];
 const UNITS_SLUGS = ["central"];
 
+function isAuthorized(req) {
+  const cronSecret =
+    process.env.CRON_SECRET || process.env.SUPABASE_WEBHOOK_SECRET;
+  if (!cronSecret) return false;
+
+  const auth = req.headers?.authorization || req.headers?.Authorization;
+  return auth === `Bearer ${cronSecret}`;
+}
+
 export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   try {
     await sendEmails();
     return res.status(200).json({ ok: true });
@@ -25,7 +39,6 @@ export default async function handler(req, res) {
 }
 
 async function sendEmails() {
-  // 1️⃣ Buscar unidades pelos slugs
   const { data: units, error: unitsError } = await supabase
     .from("units")
     .select("id, slug")
@@ -43,7 +56,6 @@ async function sendEmails() {
 
   const unitIds = units.map(u => u.id);
 
-  // 2️⃣ Buscar students filtrando por status + unidade
   const { data: students, error: studentsError } = await supabase
     .from("students")
     .select("id, name, email, status, unit_id")
@@ -62,7 +74,6 @@ async function sendEmails() {
 
   console.log(`Total de estudantes encontrados: ${students.length}`);
 
-  // 3️⃣ Enviar emails
   for (const student of students) {
     if (!student.email) {
       console.log(`Student ${student.id} sem email, ignorado.`);
