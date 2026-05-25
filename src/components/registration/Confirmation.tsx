@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { getCurrentDate } from '@/utils/dateUtils';
 import { SelfScheduling } from './SelfScheduling';
 import { APP_CONFIG } from '@/config/appConfig';
+import { getRegistrationToken } from '@/utils/registrationToken';
 
 
 const Confirmation: React.FC = () => {
@@ -19,6 +20,8 @@ const Confirmation: React.FC = () => {
   const hasExam = state?.hasExam;
   const studentId = state?.studentId;
   const unitIdState = state?.unitId;
+  const registrationToken = state?.registrationToken
+    || (studentId ? getRegistrationToken(studentId) : null);
 
   const [examDetails, setExamDetails] = useState<Tables<'exam_dates'> & { units: Tables<'units'> } | null>(null);
   const [unit, setUnit] = useState<Tables<'units'> | null>(null);
@@ -170,13 +173,14 @@ const Confirmation: React.FC = () => {
                 </div>
               </div>
             ) : (
-              studentId && (classId || unitIdState) && unit && (
+              studentId && (classId || unitIdState) && unit && registrationToken && (
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold text-left mb-2">Próximo Passo: Agendar seu horário de atendimento</h3>
                   <SelfScheduling
                     unitId={unit.id}
                     classId={classId || ''}
                     studentId={studentId}
+                    registrationToken={registrationToken}
                     unitName={unit.name}
                     unitAddress={unit.address}
                     onSuccess={setAppointmentConfirmed}
@@ -200,7 +204,7 @@ const Confirmation: React.FC = () => {
           )}
 
           {/* Show fallback if data is missing or if logic falls through (though SelfScheduling handles fallback) */}
-          {!hasExam && !appointmentConfirmed && (!studentId || !classId || !unit) && fallbackContent}
+          {!hasExam && !appointmentConfirmed && (!studentId || !classId || !unit || !registrationToken) && fallbackContent}
 
           <Button onClick={() => navigate('/inscricao')} className="mt-6">
             Inscrever Outro Aluno
@@ -208,7 +212,7 @@ const Confirmation: React.FC = () => {
 
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {!hasExam && !appointmentConfirmed && studentId && (classId || unitIdState) && unit && hasAvailabilities ? (
+              {!hasExam && !appointmentConfirmed && studentId && (classId || unitIdState) && unit && registrationToken && hasAvailabilities ? (
                 "💬 Nenhuma das opções de horário apresentadas te atende? Clique no botão abaixo e fale diretamente com nossa equipe pelo WhatsApp:"
               ) : (
                 "💬 Quer falar com a gente agora mesmo? Clique no botão abaixo e fale diretamente com nossa equipe pelo WhatsApp:"

@@ -15,6 +15,7 @@ import { useTrackingCode } from '@/hooks/useTrackingCode';
 import { validateForm, convertDateToISO } from '@/utils/registrationValidation';
 import { getCurrentDate } from '@/utils/dateUtils';
 import { sanitizeRegistrationData } from '@/utils/sanitization';
+import { storeRegistrationToken } from '@/utils/registrationToken';
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import type { Tables } from '@/integrations/supabase/types';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -282,68 +283,52 @@ export const RegistrationForm = () => {
 
       const allowSourceFallback = hasSources && (!!sourcesError || sourcesLoading);
 
-      const studentData = {
-        student_name: sanitizedFormData.studentName,
-        responsible_name: sanitizedFormData.responsibleName,
-        birth_date: null, // Campo removido do formulário
-        phone: sanitizedFormData.phone,
-        email: sanitizedFormData.email,
-        city: null, // Campo removido do formulário
-        neighborhood: sanitizedFormData.neighborhood,
-        origin_school: '', // Campo removido - sempre vazio
-        class_id: sanitizedFormData.classId,
-        unit_id: sanitizedFormData.unitId,
-        registration_source_id: hasSources && !allowSourceFallback && sanitizedFormData.registrationSourceId
-          ? sanitizedFormData.registrationSourceId
-          : null,
-        tracking_code: activeTrackingCode, // Código de rastreamento capturado da URL
-        status: selectedClass?.has_exam ? 'nao_confirmado' as const : 'nenhum_agendamento' as const,
-        // Garantir persistência dos campos de exame no insert
-        exam_date_id: nextExam?.id ?? null,
-        exam_date: nextExam?.exam_date ?? null
-      };
+      const validAdditionalPhones = (sanitizedFormData.additionalPhones || []).filter(phone => {
+        if (!phone) return false;
+        const digitsOnly = phone.replace(/\D/g, '');
+        return digitsOnly.length === 10 || digitsOnly.length === 11;
+      });
 
-      const { data: studentResult, error } = await supabase
-        .from('students')
-        .insert(studentData)
-        .select('id')
-        .single();
+      const { data: registerResult, error } = await supabase.rpc('register_student', {
+        p_payload: {
+          student_name: sanitizedFormData.studentName,
+          responsible_name: sanitizedFormData.responsibleName,
+          birth_date: null,
+          phone: sanitizedFormData.phone,
+          email: sanitizedFormData.email,
+          city: null,
+          neighborhood: sanitizedFormData.neighborhood,
+          origin_school: '',
+          class_id: sanitizedFormData.classId,
+          unit_id: sanitizedFormData.unitId,
+          registration_source_id: hasSources && !allowSourceFallback && sanitizedFormData.registrationSourceId
+            ? sanitizedFormData.registrationSourceId
+            : null,
+          tracking_code: activeTrackingCode,
+          status: selectedClass?.has_exam ? 'nao_confirmado' : 'nenhum_agendamento',
+          exam_date_id: nextExam?.id ?? null,
+          exam_date: nextExam?.exam_date ?? null,
+          additional_phones: validAdditionalPhones,
+        },
+      });
 
       if (error) throw error;
 
-      // Inserir telefones adicionais na tabela student_phones
-      if (sanitizedFormData.additionalPhones && sanitizedFormData.additionalPhones.length > 0) {
-        const validAdditionalPhones = sanitizedFormData.additionalPhones.filter(phone => {
-          if (!phone) return false;
-          const digitsOnly = phone.replace(/\D/g, '');
-          return digitsOnly.length === 10 || digitsOnly.length === 11;
-        });
-
-        if (validAdditionalPhones.length > 0) {
-          const phoneInserts = validAdditionalPhones.map(phone => ({
-            student_id: studentResult.id,
-            phone_number: phone
-          }));
-
-          const { error: phoneError } = await supabase
-            .from('student_phones')
-            .insert(phoneInserts);
-
-          if (phoneError) {
-            console.error('Erro ao inserir telefones adicionais:', phoneError);
-            // Não falha a inscrição se houver erro nos telefones adicionais
-          }
-        }
+      const result = registerResult as { success?: boolean; id?: string; registration_token?: string; error?: string };
+      if (!result?.success || !result.id || !result.registration_token) {
+        throw new Error(result?.error || 'Erro ao registrar inscrição');
       }
+
+      storeRegistrationToken(result.id, result.registration_token);
 
       toast.success('Inscrição realizada com sucesso!');
 
-      // Redirecionar para a tela de confirmação
       navigate('/confirmacao', {
         state: {
           classId: formData.classId,
           unitId: formData.unitId,
-          studentId: studentResult.id,
+          studentId: result.id,
+          registrationToken: result.registration_token,
           hasExam: selectedClass?.has_exam
         }
       });

@@ -14,6 +14,7 @@ interface SelfSchedulingProps {
   unitId: string;
   classId: string;
   studentId: string;
+  registrationToken: string;
   onSuccess: (appointment: any) => void;
   onAvailabilitiesLoaded?: (hasAvailabilities: boolean) => void;
   unitAddress?: string;
@@ -29,6 +30,7 @@ export const SelfScheduling = ({
   unitId,
   classId,
   studentId,
+  registrationToken,
   onSuccess,
   onAvailabilitiesLoaded,
   unitAddress,
@@ -46,7 +48,7 @@ export const SelfScheduling = ({
 
   useEffect(() => {
     checkExistingAppointment();
-  }, [studentId]);
+  }, [studentId, registrationToken]);
 
   useEffect(() => {
     if (!hasExistingAppointment) {
@@ -57,11 +59,10 @@ export const SelfScheduling = ({
   const checkExistingAppointment = async () => {
     setCheckingAppointment(true);
     try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('id, appointment_date, appointment_time, status')
-        .eq('student_id', studentId)
-        .limit(1);
+      const { data, error } = await supabase.rpc('get_my_appointment', {
+        p_student_id: studentId,
+        p_registration_token: registrationToken,
+      });
 
       if (error) {
         console.error('Erro ao verificar agendamento existente:', error);
@@ -69,9 +70,20 @@ export const SelfScheduling = ({
         return;
       }
 
-      if (data && data.length > 0) {
+      const result = data as {
+        success?: boolean;
+        has_appointment?: boolean;
+        error?: string;
+      };
+
+      if (!result?.success) {
+        console.error('Token inválido ao verificar agendamento:', result?.error);
+        setHasExistingAppointment(false);
+        return;
+      }
+
+      if (result.has_appointment) {
         setHasExistingAppointment(true);
-        // Se já tem agendamento, não precisa carregar disponibilidades
         setLoading(false);
       } else {
         setHasExistingAppointment(false);
@@ -108,11 +120,10 @@ export const SelfScheduling = ({
       }
 
       try {
-        const { data, error } = await supabase
-          .from('appointments')
-          .select('interviewer_id, appointment_time')
-          .eq('appointment_date', dateStr)
-          .in('interviewer_id', interviewerIds);
+        const { data, error } = await supabase.rpc('get_occupied_slots', {
+          p_date: dateStr,
+          p_interviewer_ids: interviewerIds,
+        });
 
         if (error) {
           console.error('Erro ao buscar agendamentos existentes:', error);
@@ -124,10 +135,9 @@ export const SelfScheduling = ({
 
         console.log('🗓️ Agendamentos encontrados para a data:', data?.length);
 
-        (data || []).forEach((appt: any) => {
+        (data || []).forEach((appt: { interviewer_id: string; appointment_time: string }) => {
           if (!appt.interviewer_id || !appt.appointment_time) return;
 
-          // Normalizar horário para HH:mm (banco pode retornar HH:mm:ss)
           const time = appt.appointment_time.substring(0, 5);
 
           const existing = map[time] || [];
@@ -283,28 +293,28 @@ export const SelfScheduling = ({
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-      // 2. Verificar novamente se já existe agendamento (prevenir race condition)
-      const { data: existingCheck, error: checkError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('student_id', studentId)
-        .limit(1);
+      // Verificação final via RPC (inclui validação de token e race condition)
+      const { data: existingCheck, error: checkError } = await supabase.rpc('get_my_appointment', {
+        p_student_id: studentId,
+        p_registration_token: registrationToken,
+      });
 
       if (checkError) throw checkError;
 
-      if (existingCheck && existingCheck.length > 0) {
+      const checkResult = existingCheck as { success?: boolean; has_appointment?: boolean };
+      if (checkResult?.has_appointment) {
         toast.error('Você já possui um agendamento. Não é possível criar outro.');
         setHasExistingAppointment(true);
         return;
       }
 
-      // Call RPC function for secure public scheduling (handles permissions for anon users)
       console.log('🔄 Iniciando agendamento via RPC...');
       const { data: result, error: rpcError } = await supabase.rpc('public_schedule_interview', {
         p_student_id: studentId,
         p_interviewer_id: randomInterviewerId,
         p_date: dateStr,
         p_time: selectedSlot.time,
+        p_registration_token: registrationToken,
         p_comments: `Agendamento realizado via auto-agendamento. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`
       });
 

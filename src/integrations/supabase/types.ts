@@ -647,6 +647,7 @@ export type Database = {
           student_name: string
           tag: string | null
           tracking_code: string | null
+          registration_token: string
           ano_letivo: string | null
           unit_id: string
           updated_at: string
@@ -679,6 +680,7 @@ export type Database = {
           student_name: string
           tag?: string | null
           tracking_code?: string | null
+          registration_token?: string
           ano_letivo?: string | null
           unit_id: string
           updated_at?: string
@@ -711,6 +713,7 @@ export type Database = {
           student_name?: string
           tag?: string | null
           tracking_code?: string | null
+          registration_token?: string
           ano_letivo?: string | null
           unit_id?: string
           updated_at?: string
@@ -969,12 +972,34 @@ export type Database = {
         Args: { p_list_id: string }
         Returns: undefined
       },
+      register_student: {
+        Args: { p_payload: Json }
+        Returns: Json
+      },
+      get_occupied_slots: {
+        Args: {
+          p_date: string
+          p_interviewer_ids: string[]
+        }
+        Returns: {
+          interviewer_id: string
+          appointment_time: string
+        }[]
+      },
+      get_my_appointment: {
+        Args: {
+          p_student_id: string
+          p_registration_token: string
+        }
+        Returns: Json
+      },
       public_schedule_interview: {
         Args: {
           p_student_id: string
           p_interviewer_id: string
           p_date: string
           p_time: string
+          p_registration_token: string
           p_comments?: string
         }
         Returns: Json
