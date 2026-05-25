@@ -1,5 +1,5 @@
 -- Cron diário para lembretes de e-mail e processamento da fila
--- Pré-requisito: execute setup-email-webhook-auth.sql (tabela system_internal_config)
+-- Pré-requisito: setup-email-webhook-auth.sql + Verify JWT desligado em email-automation
 -- Execute no SQL Editor do Supabase após db push e deploy da função email-automation
 
 SELECT cron.unschedule('email-automation-daily')
@@ -15,8 +15,7 @@ SELECT cron.schedule(
     url := 'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/email-automation',
     headers := public.get_email_automation_auth_headers(),
     body := '{"source":"cron"}'::jsonb
-  )
-  WHERE public.get_email_automation_auth_headers() IS NOT NULL;
+  );
   $$
 );
 

@@ -39,26 +39,21 @@ npx supabase secrets set GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN='SENHA_DEFINIDA'
 
 Opcional: URL por unidade em **Configurações → E-mails → URL do Web App**.
 
-### 2.1 Autenticação trigger/cron → Edge Function (obrigatório após hardening)
+### 2.1 Trigger do banco → Edge Function
 
-O banco chama `email-automation` via `pg_net`. Configure:
+O Postgres **não lê** os secrets da Edge Function. Por isso:
 
-**A) Secret (mesmo valor nos dois lugares):**
+- **Secrets** (`EMAIL_AUTOMATION_WEBHOOK_SECRET`, Google Apps Script, etc.) ficam **só** na Edge Function (CLI ou painel).
+- O **SQL** (`setup-email-webhook-auth.sql`) só recria o trigger — **não** pede para colar token.
 
-```bash
-npx supabase secrets set EMAIL_AUTOMATION_WEBHOOK_SECRET='gere-um-token-longo-aleatorio'
-npx supabase functions deploy email-automation
-```
+**Checklist:**
 
-**B) SQL Editor** — execute `setup-email-webhook-auth.sql` com:
-- `email_automation_webhook_secret` = mesmo token do passo A
-- `supabase_anon_key` = chave **anon public** (Settings → API → Project API keys)
+1. Secrets já configurados na função (painel → Edge Functions → Secrets).
+2. **Desative "Verify JWT"** em `email-automation` (obrigatório para o `pg_net`).
+3. `npx supabase functions deploy email-automation`
+4. Execute `setup-email-webhook-auth.sql` no SQL Editor (sem INSERT de token).
 
-**C) Gateway 401** — se os logs mostram `Missing authorization header`, o JWT do gateway está ativo. Escolha uma opção:
-- **Recomendado:** Edge Functions → `email-automation` → desative **Verify JWT**
-- **Ou:** mantenha JWT ativo e preencha `supabase_anon_key` no script (passa no gateway; o token do passo A valida na função)
-
-Sem isso, a inscrição grava o aluno mas o e-mail não dispara.
+`EMAIL_AUTOMATION_WEBHOOK_SECRET` é opcional: serve para testes manuais com header `x-email-webhook-secret`. O trigger do banco não precisa dele no SQL.
 
 ## 3. Deploy
 

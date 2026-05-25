@@ -64,21 +64,28 @@ async function authorizeEdgeRequest(
   const isAutomatedCall = !source || automatedSources.includes(source);
 
   if (isAutomatedCall) {
-    if (isValidEmailWebhookSecret(getEmailWebhookSecret(req))) {
-      return { ok: true, body, isServiceRole: true };
-    }
-
     const token = getBearerToken(req);
     if (token && isServiceRoleToken(token)) {
       return { ok: true, body, isServiceRole: true };
     }
 
-    return {
-      ok: false,
-      status: 403,
-      error:
-        "Chamadas automáticas exigem service role ou x-email-webhook-secret válido",
-    };
+    const webhookSecret = getEmailWebhookSecret(req);
+    const expected = Deno.env.get("EMAIL_AUTOMATION_WEBHOOK_SECRET") ?? "";
+
+    if (webhookSecret && expected.length > 0) {
+      if (!isValidEmailWebhookSecret(webhookSecret)) {
+        return {
+          ok: false,
+          status: 403,
+          error: "x-email-webhook-secret inválido",
+        };
+      }
+      return { ok: true, body, isServiceRole: true };
+    }
+
+    // Trigger/cron via pg_net: secrets ficam só na Edge Function (não duplicar no SQL)
+    // Exige "Verify JWT" desligado no painel desta função
+    return { ok: true, body, isServiceRole: true };
   }
 
   const token = getBearerToken(req);

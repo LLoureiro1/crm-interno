@@ -10,7 +10,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.email-automation]
-# Chamadas do trigger/cron usam service role ou x-email-webhook-secret (ver migration 20260525200000)
+# Trigger/cron (pg_net) não enviam JWT; secrets ficam só na Edge Function
 verify_jwt = false
 
 [functions.resend-sync]

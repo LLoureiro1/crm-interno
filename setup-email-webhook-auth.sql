@@ -1,170 +1,83 @@
--- =============================================================================
--- Execute TODO este arquivo no SQL Editor do Supabase (copie e cole de uma vez).
---
--- PRÉ-REQUISITOS (terminal):
---   npx supabase secrets set EMAIL_AUTOMATION_WEBHOOK_SECRET='seu-token-aqui'
---   npx supabase functions deploy email-automation
---
--- No painel Supabase → Edge Functions → email-automation:
---   desative "Verify JWT" / "Enforce JWT" (recomendado para trigger pg_net)
---   OU mantenha JWT ativo e preencha supabase_anon_key abaixo (chave anon pública)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS public.system_internal_config (
-  key text PRIMARY KEY,
-  value text NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.system_internal_config ENABLE ROW LEVEL SECURITY;
-
-REVOKE ALL ON TABLE public.system_internal_config FROM PUBLIC;
-REVOKE ALL ON TABLE public.system_internal_config FROM anon;
-REVOKE ALL ON TABLE public.system_internal_config FROM authenticated;
-
-CREATE OR REPLACE FUNCTION public.get_email_automation_auth_headers()
-RETURNS jsonb
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_service_key text;
-  v_webhook_secret text;
-  v_anon_key text;
-  v_headers jsonb := jsonb_build_object('Content-Type', 'application/json');
-BEGIN
-  BEGIN
-    SELECT decrypted_secret INTO v_service_key
-    FROM vault.decrypted_secrets
-    WHERE name IN ('service_role_key', 'supabase_service_role_key')
-    ORDER BY CASE name WHEN 'service_role_key' THEN 0 ELSE 1 END
-    LIMIT 1;
-  EXCEPTION
-    WHEN OTHERS THEN
-      NULL;
-  END;
-
-  BEGIN
-    SELECT decrypted_secret INTO v_webhook_secret
-    FROM vault.decrypted_secrets
-    WHERE name = 'email_automation_webhook_secret'
-    LIMIT 1;
-  EXCEPTION
-    WHEN OTHERS THEN
-      NULL;
-  END;
-
-  IF v_service_key IS NULL OR v_service_key = '' THEN
-    SELECT value INTO v_service_key
-    FROM public.system_internal_config
-    WHERE key = 'service_role_key'
-    LIMIT 1;
-  END IF;
-
-  IF v_webhook_secret IS NULL OR v_webhook_secret = '' THEN
-    SELECT value INTO v_webhook_secret
-    FROM public.system_internal_config
-    WHERE key = 'email_automation_webhook_secret'
-    LIMIT 1;
-  END IF;
-
-  SELECT value INTO v_anon_key
-  FROM public.system_internal_config
-  WHERE key = 'supabase_anon_key'
-  LIMIT 1;
-
-  IF v_webhook_secret IS NOT NULL AND btrim(v_webhook_secret) <> '' THEN
-    v_headers := v_headers || jsonb_build_object(
-      'x-email-webhook-secret', btrim(v_webhook_secret)
-    );
-  END IF;
-
-  IF v_service_key IS NOT NULL AND btrim(v_service_key) <> '' THEN
-    v_headers := v_headers || jsonb_build_object(
-      'apikey', btrim(v_service_key),
-      'Authorization', 'Bearer ' || btrim(v_service_key)
-    );
-  ELSIF v_anon_key IS NOT NULL AND btrim(v_anon_key) <> '' THEN
-    v_headers := v_headers || jsonb_build_object(
-      'apikey', btrim(v_anon_key),
-      'Authorization', 'Bearer ' || btrim(v_anon_key)
-    );
-  END IF;
-
-  IF v_headers ? 'x-email-webhook-secret' THEN
-    RETURN v_headers;
-  END IF;
-
-  IF v_service_key IS NOT NULL AND btrim(v_service_key) <> '' THEN
-    RETURN v_headers;
-  END IF;
-
-  RETURN NULL;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.get_email_automation_auth_headers() FROM PUBLIC;
-
-CREATE OR REPLACE FUNCTION public.handle_email_automation_webhook()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  payload jsonb;
-  trigger_type text;
-  request_url text := 'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/email-automation';
-  auth_headers jsonb;
-BEGIN
-  IF TG_TABLE_NAME = 'students' AND TG_OP = 'INSERT' THEN
-    trigger_type := 'student_registered';
-  ELSIF TG_TABLE_NAME = 'appointments' AND TG_OP = 'INSERT' THEN
-    trigger_type := 'appointment_scheduled';
-  ELSE
-    RETURN COALESCE(NEW, OLD);
-  END IF;
-
-  auth_headers := public.get_email_automation_auth_headers();
-
-  IF auth_headers IS NULL THEN
-    RAISE WARNING
-      'email-automation: configure email_automation_webhook_secret (+ supabase_anon_key se JWT ativo)';
-    RETURN COALESCE(NEW, OLD);
-  END IF;
-
-  payload := jsonb_build_object(
-    'source', 'webhook',
-    'trigger_type', trigger_type,
-    'table', TG_TABLE_NAME,
-    'type', TG_OP,
-    'record', row_to_json(NEW),
-    'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
-  );
-
-  PERFORM net.http_post(
-    url := request_url,
-    headers := auth_headers,
-    body := payload
-  );
-
-  RETURN COALESCE(NEW, OLD);
-END;
-$$;
-
--- SUBSTITUA os valores abaixo
-INSERT INTO public.system_internal_config (key, value)
-VALUES
-  ('email_automation_webhook_secret', 'COLE_O_MESMO_TOKEN_DO_SECRET'),
-  ('supabase_anon_key', 'COLE_A_CHAVE_ANON_PUBLICA_DO_PROJETO')
-ON CONFLICT (key) DO UPDATE
-SET value = EXCLUDED.value, updated_at = now();
-
--- Diagnóstico: deve ter Authorization + x-email-webhook-secret (valores mascarados)
-SELECT
-  public.get_email_automation_auth_headers() IS NOT NULL AS credenciais_ok,
-  (public.get_email_automation_auth_headers() ? 'Authorization') AS tem_authorization,
-  (public.get_email_automation_auth_headers() ? 'x-email-webhook-secret') AS tem_webhook_secret;
-
+-- =============================================================================
+-- Automação de e-mail: setup do trigger (SEM colar tokens no SQL)
+--
+-- Secrets ficam SOMENTE na Edge Function (Dashboard ou CLI):
+--   EMAIL_AUTOMATION_WEBHOOK_SECRET  (opcional, para testes manuais)
+--   GOOGLE_APPS_SCRIPT_WEBHOOK_URL
+--   GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN
+--
+-- O Postgres NÃO consegue ler secrets da Edge — por isso o trigger envia só JSON.
+--
+-- OBRIGATÓRIO no painel:
+--   Edge Functions → email-automation → desative "Verify JWT"
+--
+-- Depois:
+--   npx supabase functions deploy email-automation
+-- =============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+CREATE OR REPLACE FUNCTION public.get_email_automation_auth_headers()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object('Content-Type', 'application/json');
+$$;
+
+REVOKE ALL ON FUNCTION public.get_email_automation_auth_headers() FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION public.handle_email_automation_webhook()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  payload jsonb;
+  trigger_type text;
+  request_url text := 'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/email-automation';
+BEGIN
+  IF TG_TABLE_NAME = 'students' AND TG_OP = 'INSERT' THEN
+    trigger_type := 'student_registered';
+  ELSIF TG_TABLE_NAME = 'appointments' AND TG_OP = 'INSERT' THEN
+    trigger_type := 'appointment_scheduled';
+  ELSE
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
+  payload := jsonb_build_object(
+    'source', 'webhook',
+    'trigger_type', trigger_type,
+    'table', TG_TABLE_NAME,
+    'type', TG_OP,
+    'record', row_to_json(NEW),
+    'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
+  );
+
+  PERFORM net.http_post(
+    url := request_url,
+    headers := public.get_email_automation_auth_headers(),
+    body := payload
+  );
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- Garante triggers ativos
+DROP TRIGGER IF EXISTS trg_email_on_student_insert ON public.students;
+CREATE TRIGGER trg_email_on_student_insert
+  AFTER INSERT ON public.students
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_email_automation_webhook();
+
+DROP TRIGGER IF EXISTS trg_email_on_appointment_insert ON public.appointments;
+CREATE TRIGGER trg_email_on_appointment_insert
+  AFTER INSERT ON public.appointments
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_email_automation_webhook();
+
+SELECT public.get_email_automation_auth_headers() AS headers_ok;

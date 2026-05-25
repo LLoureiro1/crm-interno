@@ -65,7 +65,10 @@ BEGIN
       'apikey', btrim(v_service_key),
       'Authorization', 'Bearer ' || btrim(v_service_key)
     );
-  ELSIF v_anon_key IS NOT NULL AND btrim(v_anon_key) <> '' THEN
+  ELSIF v_anon_key IS NOT NULL
+    AND btrim(v_anon_key) <> ''
+    AND btrim(v_anon_key) LIKE 'eyJ%'
+    AND btrim(v_anon_key) NOT LIKE 'COLE_%' THEN
     v_headers := v_headers || jsonb_build_object(
       'apikey', btrim(v_anon_key),
       'Authorization', 'Bearer ' || btrim(v_anon_key)
