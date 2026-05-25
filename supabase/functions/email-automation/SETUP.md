@@ -39,6 +39,20 @@ npx supabase secrets set GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN='SENHA_DEFINIDA'
 
 Opcional: URL por unidade em **Configurações → E-mails → URL do Web App**.
 
+### 2.1 Autenticação trigger/cron → Edge Function (obrigatório após hardening)
+
+O banco chama `email-automation` via `pg_net`. Configure o **mesmo token** nos dois lugares:
+
+```bash
+npx supabase secrets set EMAIL_AUTOMATION_WEBHOOK_SECRET='gere-um-token-longo-aleatorio'
+```
+
+No **SQL Editor**, execute o arquivo `setup-email-webhook-auth.sql` na raiz do projeto (substitua o token). No Supabase hospedado **não use** `ALTER DATABASE ... app.settings.*` — retorna erro `42501 permission denied`.
+
+O script grava o token em `system_internal_config` (tabela interna, inacessível pela API). Alternativa: `vault.create_secret()` com o mesmo nome `email_automation_webhook_secret`.
+
+Sem isso, a inscrição grava o aluno mas o e-mail de boas-vindas não dispara (o trigger registra um WARNING nos logs).
+
 ## 3. Deploy
 
 **Opção A — CLI (recomendado):**

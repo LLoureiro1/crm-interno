@@ -10,7 +10,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.email-automation]
-verify_jwt = true
+# Chamadas do trigger/cron usam service role ou x-email-webhook-secret (ver migration 20260525200000)
+verify_jwt = false
 
 [functions.resend-sync]
 verify_jwt = true

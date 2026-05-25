@@ -44,30 +44,50 @@ function jsonError(error: string, status: number): Response {
   });
 }
 
+function getEmailWebhookSecret(req: Request): string | null {
+  const secret = req.headers.get("x-email-webhook-secret");
+  return secret?.trim() ? secret.trim() : null;
+}
+
+function isValidEmailWebhookSecret(secret: string | null): boolean {
+  const expected = Deno.env.get("EMAIL_AUTOMATION_WEBHOOK_SECRET") ?? "";
+  return expected.length > 0 && secret === expected;
+}
+
 async function authorizeEdgeRequest(
   req: Request,
   body: Record<string, unknown>,
   options: { staffProfiles?: string[]; automatedSources?: string[] } = {},
 ): Promise<AuthResult> {
+  const automatedSources = options.automatedSources ?? ["cron", "webhook"];
+  const source = typeof body.source === "string" ? body.source : undefined;
+  const isAutomatedCall = !source || automatedSources.includes(source);
+
+  if (isAutomatedCall) {
+    if (isValidEmailWebhookSecret(getEmailWebhookSecret(req))) {
+      return { ok: true, body, isServiceRole: true };
+    }
+
+    const token = getBearerToken(req);
+    if (token && isServiceRoleToken(token)) {
+      return { ok: true, body, isServiceRole: true };
+    }
+
+    return {
+      ok: false,
+      status: 403,
+      error:
+        "Chamadas automáticas exigem service role ou x-email-webhook-secret válido",
+    };
+  }
+
   const token = getBearerToken(req);
   if (!token) {
     return { ok: false, status: 401, error: "Authorization required" };
   }
 
-  const automatedSources = options.automatedSources ?? ["cron", "webhook"];
-  const source = typeof body.source === "string" ? body.source : undefined;
-  const isAutomatedCall = !source || automatedSources.includes(source);
-
   if (isServiceRoleToken(token)) {
     return { ok: true, body, isServiceRole: true };
-  }
-
-  if (isAutomatedCall) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Chamadas automáticas exigem service role",
-    };
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
