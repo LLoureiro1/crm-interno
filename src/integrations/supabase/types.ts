@@ -967,8 +967,42 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_directory: {
+        Row: {
+          ativo: boolean
+          id: string
+          name: string
+          profile: Database["public"]["Enums"]["user_profile"]
+          unit_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      assert_strong_password: {
+        Args: { p_password: string }
+        Returns: undefined
+      },
+      list_users_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          email: string
+          unit_id: string | null
+          profile: Database["public"]["Enums"]["user_profile"]
+          ativo: boolean
+          created_at: string
+        }[]
+      },
       generate_student_code: {
         Args: Record<PropertyKey, never>
         Returns: string

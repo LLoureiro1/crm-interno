@@ -36,25 +36,59 @@ export const UserManagement = () => {
   });
 
   useEffect(() => {
-    fetchUsers();
-    fetchUnits();
-  }, []);
+    if (profile?.profile !== 'admin') return;
+
+    const load = async () => {
+      const [unitsResult, usersResult] = await Promise.all([
+        supabase.from('units').select('*').order('name'),
+        supabase.rpc('list_users_for_admin'),
+      ]);
+
+      if (unitsResult.error) {
+        toast.error('Erro ao carregar unidades');
+      } else {
+        setUnits(unitsResult.data || []);
+      }
+
+      if (usersResult.error) {
+        console.error('Erro ao carregar usuários:', usersResult.error);
+        toast.error('Erro ao carregar usuários');
+        return;
+      }
+
+      const unitMap = new Map((unitsResult.data || []).map((u) => [u.id, u.name]));
+      setUsers(
+        (usersResult.data || []).map((user) => ({
+          ...user,
+          units: user.unit_id
+            ? { name: unitMap.get(user.unit_id) || '' }
+            : undefined,
+        }))
+      );
+    };
+
+    load();
+  }, [profile?.profile]);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        units (name)
-      `)
-      .order('name');
+    const { data, error } = await supabase.rpc('list_users_for_admin');
 
     if (error) {
+      console.error('Erro ao carregar usuários:', error);
       toast.error('Erro ao carregar usuários');
       return;
     }
 
-    setUsers(data || []);
+    const unitMap = new Map(units.map((u) => [u.id, u.name]));
+
+    setUsers(
+      (data || []).map((user) => ({
+        ...user,
+        units: user.unit_id
+          ? { name: unitMap.get(user.unit_id) || '' }
+          : undefined,
+      }))
+    );
   };
 
   const fetchUnits = async () => {

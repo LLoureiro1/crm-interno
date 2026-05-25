@@ -138,7 +138,7 @@ const ContactLists = () => {
 
   const fetchAssignableProfiles = async () => {
     const { data } = await supabase
-      .from('profiles')
+      .from('staff_directory')
       .select('id, name, profile, unit_id, ativo, units(name)')
       .in('profile', ['entrevistador', 'direcao', 'admin'])
       .eq('ativo', true)

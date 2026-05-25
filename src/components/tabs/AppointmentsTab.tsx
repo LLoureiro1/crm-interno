@@ -1,5 +1,5 @@
 
-import { AppointmentCalendar } from '@/components/appointments/AppointmentCalendar';
+import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Calendar } from 'lucide-react';

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { validateStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_TEXT } from '@/utils/passwordPolicy';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -65,8 +66,9 @@ const ResetPassword = () => {
     e.preventDefault();
 
     // Validações
-    if (password.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+    const passwordError = validateStrongPassword(password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -78,6 +80,11 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
+      const { error: policyError } = await supabase.rpc('assert_strong_password', {
+        p_password: password,
+      });
+      if (policyError) throw policyError;
+
       // Atualizar a senha do usuário
       const { error } = await supabase.auth.updateUser({
         password: password
@@ -166,7 +173,7 @@ const ResetPassword = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite sua nova senha"
                   required
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LENGTH}
                   className="pr-10"
                 />
                 <Button
@@ -184,7 +191,7 @@ const ResetPassword = () => {
                 </Button>
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                A senha deve ter pelo menos 6 caracteres
+                {PASSWORD_REQUIREMENTS_TEXT}
               </p>
             </div>
 
@@ -198,7 +205,7 @@ const ResetPassword = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirme sua nova senha"
                   required
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LENGTH}
                   className="pr-10"
                 />
                 <Button

@@ -338,7 +338,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
       // Construir query de entrevistadores: apenas ativos e perfis elegíveis
       let interviewersQuery = supabase
-        .from('profiles')
+        .from('staff_directory')
         .select('*')
         .in('profile', ['entrevistador', 'direcao', 'admin'])
         .eq('ativo', true);

@@ -38,7 +38,7 @@ interface AppointmentCalendarProps {
   onDateSelect?: (date: string) => void;
 }
 
-export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) => {
+export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) {
   // Inicializa com a data atual
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
@@ -152,7 +152,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
 
       // Construir query de entrevistadores: apenas ativos, roles elegíveis
       let interviewersQuery = supabase
-        .from('profiles')
+        .from('staff_directory')
         .select('*')
         .in('profile', ['entrevistador', 'direcao', 'admin'])
         .eq('ativo', true);
@@ -220,7 +220,7 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
               units(*)
             )
           ),
-          profiles!appointments_interviewer_id_fkey(*)
+          profiles!appointments_interviewer_id_fkey(name)
         `)
         .eq('appointment_date', dateStr)
         .order('appointment_time');
@@ -988,4 +988,6 @@ export const AppointmentCalendar = ({ onDateSelect }: AppointmentCalendarProps) 
       </Dialog>
     </div>
   );
-};
+}
+
+export default AppointmentCalendar;

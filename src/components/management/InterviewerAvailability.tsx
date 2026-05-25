@@ -68,7 +68,7 @@ export const InterviewerAvailability = () => {
   const filterAvailableUnitsByInterviewer = async (interviewerId: string, allUnits: Unit[]) => {
     // Buscar o perfil do entrevistador selecionado
     const { data: interviewerProfile } = await supabase
-      .from('profiles')
+      .from('staff_directory')
       .select('unit_id')
       .eq('id', interviewerId)
       .single();
@@ -127,7 +127,7 @@ export const InterviewerAvailability = () => {
       .from('interviewer_availability')
       .select(`
         *,
-        profiles!interviewer_availability_interviewer_id_fkey(*),
+        profiles!interviewer_availability_interviewer_id_fkey(name),
         units(*)
       `)
       .order('date', { ascending: true });
@@ -142,7 +142,7 @@ export const InterviewerAvailability = () => {
 
   const fetchInterviewers = async () => {
     const { data } = await supabase
-      .from('profiles')
+      .from('staff_directory')
       .select('*')
       .in('profile', ['entrevistador', 'direcao', 'admin'])
       .eq('ativo', true)
