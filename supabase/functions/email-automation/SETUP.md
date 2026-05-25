@@ -41,17 +41,24 @@ Opcional: URL por unidade em **Configurações → E-mails → URL do Web App**.
 
 ### 2.1 Autenticação trigger/cron → Edge Function (obrigatório após hardening)
 
-O banco chama `email-automation` via `pg_net`. Configure o **mesmo token** nos dois lugares:
+O banco chama `email-automation` via `pg_net`. Configure:
+
+**A) Secret (mesmo valor nos dois lugares):**
 
 ```bash
 npx supabase secrets set EMAIL_AUTOMATION_WEBHOOK_SECRET='gere-um-token-longo-aleatorio'
+npx supabase functions deploy email-automation
 ```
 
-No **SQL Editor**, execute o arquivo `setup-email-webhook-auth.sql` na raiz do projeto (substitua o token). No Supabase hospedado **não use** `ALTER DATABASE ... app.settings.*` — retorna erro `42501 permission denied`.
+**B) SQL Editor** — execute `setup-email-webhook-auth.sql` com:
+- `email_automation_webhook_secret` = mesmo token do passo A
+- `supabase_anon_key` = chave **anon public** (Settings → API → Project API keys)
 
-O script grava o token em `system_internal_config` (tabela interna, inacessível pela API). Alternativa: `vault.create_secret()` com o mesmo nome `email_automation_webhook_secret`.
+**C) Gateway 401** — se os logs mostram `Missing authorization header`, o JWT do gateway está ativo. Escolha uma opção:
+- **Recomendado:** Edge Functions → `email-automation` → desative **Verify JWT**
+- **Ou:** mantenha JWT ativo e preencha `supabase_anon_key` no script (passa no gateway; o token do passo A valida na função)
 
-Sem isso, a inscrição grava o aluno mas o e-mail de boas-vindas não dispara (o trigger registra um WARNING nos logs).
+Sem isso, a inscrição grava o aluno mas o e-mail não dispara.
 
 ## 3. Deploy
 
