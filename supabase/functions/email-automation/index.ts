@@ -9,6 +9,103 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+type AuthResult =
+  | { ok: true; body: Record<string, unknown>; isServiceRole: boolean; userId?: string }
+  | { ok: false; status: number; error: string };
+
+function getBearerToken(req: Request): string | null {
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  return auth.slice(7).trim();
+}
+
+function isServiceRoleToken(token: string): boolean {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return serviceKey.length > 0 && token === serviceKey;
+}
+
+async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
+  try {
+    const text = await req.text();
+    if (!text.trim()) return {};
+    const parsed = JSON.parse(text);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function jsonError(error: string, status: number): Response {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function authorizeEdgeRequest(
+  req: Request,
+  body: Record<string, unknown>,
+  options: { staffProfiles?: string[]; automatedSources?: string[] } = {},
+): Promise<AuthResult> {
+  const token = getBearerToken(req);
+  if (!token) {
+    return { ok: false, status: 401, error: "Authorization required" };
+  }
+
+  const automatedSources = options.automatedSources ?? ["cron", "webhook"];
+  const source = typeof body.source === "string" ? body.source : undefined;
+  const isAutomatedCall = !source || automatedSources.includes(source);
+
+  if (isServiceRoleToken(token)) {
+    return { ok: true, body, isServiceRole: true };
+  }
+
+  if (isAutomatedCall) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Chamadas automáticas exigem service role",
+    };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  const supabaseUser = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseUser.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, status: 401, error: "Sessão inválida" };
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  const staffProfiles = options.staffProfiles ?? ["admin", "direcao"];
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("profile, ativo")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.ativo) {
+    return { ok: false, status: 403, error: "Usuário inativo ou sem perfil" };
+  }
+
+  if (!staffProfiles.includes(profile.profile)) {
+    return { ok: false, status: 403, error: "Permissão insuficiente" };
+  }
+
+  return { ok: true, body, isServiceRole: false, userId: user.id };
+}
+
 type EmailTriggerType =
   | "student_registered"
   | "appointment_scheduled"
@@ -57,13 +154,22 @@ serve(async (req) => {
   }
 
   try {
+    const body = await parseJsonBody(req);
+    const auth = await authorizeEdgeRequest(req, body, {
+      staffProfiles: ["admin"],
+      automatedSources: ["cron", "webhook", "process_queue"],
+    });
+
+    if (!auth.ok) {
+      return jsonError(auth.error, auth.status);
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const body = await req.json();
-    const source = body.source as string | undefined;
+    const source = auth.body.source as string | undefined;
 
     if (source === "cron") {
       const reminders = await scheduleReminders(supabase);
@@ -72,7 +178,7 @@ serve(async (req) => {
     }
 
     if (source === "webhook") {
-      const queued = await handleWebhook(supabase, body);
+      const queued = await handleWebhook(supabase, auth.body);
       const processed = await processQueue(supabase);
       return jsonResponse({ success: true, queued, processed });
     }

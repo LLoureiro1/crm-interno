@@ -1,24 +1,25 @@
 -- Script para configurar execução automática diária da função update-student-statuses
+-- Pré-requisito: ALTER DATABASE postgres SET app.settings.service_role_key = 'sua-service-role-key';
 -- Execute este script no painel do Supabase (SQL Editor)
 
 -- Verificar se a extensão pg_cron está habilitada
 SELECT * FROM pg_extension WHERE extname = 'pg_cron';
 
--- Se não estiver habilitada, habilitar (requer privilégios de superusuário)
--- CREATE EXTENSION IF NOT EXISTS pg_cron;
-
 -- Remover cron job existente se houver
 SELECT cron.unschedule('update-student-statuses-daily');
 
--- Criar novo cron job para executar diariamente às 8h da manhã
+-- Criar novo cron job para executar diariamente às 3h UTC
 SELECT cron.schedule(
   'update-student-statuses-daily',
-  '0 8 * * *', -- Todo dia às 8h (formato: minuto hora dia mês dia_da_semana)
+  '0 3 * * *',
   $$
   SELECT net.http_post(
     url := 'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/update-student-statuses',
-    headers := '{"Authorization": "Bearer ' || current_setting('app.settings.service_role_key') || '", "Content-Type": "application/json"}'::jsonb,
-    body := '{"source": "cron"}'::jsonb
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || COALESCE(nullif(current_setting('app.settings.service_role_key', true), ''), ''),
+      'Content-Type', 'application/json'
+    ),
+    body := '{"source":"cron"}'::jsonb
   );
   $$
 );

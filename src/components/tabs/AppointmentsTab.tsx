@@ -9,7 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 export const AppointmentsTab = () => {
   const handleCheckMissedInterviews = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('check-missed-interviews');
+      const { data, error } = await supabase.functions.invoke('check-missed-interviews', {
+        body: { source: 'manual' },
+      });
       
       if (error) throw error;
       
