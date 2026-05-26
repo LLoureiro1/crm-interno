@@ -1,4 +1,6 @@
 
+import { isSameDay } from 'date-fns';
+
 // Utility functions for date formatting and parsing
 export const formatDateForDisplay = (dateString: string | null | undefined): string => {
   // Verificar se a data é válida antes de processar
@@ -48,3 +50,24 @@ export const dateToLocalString = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
+/** Horários no dia atual anteriores ao momento de referência não podem ser agendados. */
+export function isAppointmentSlotAvailableForDate(
+  slotTime: string,
+  selectedDate: Date,
+  referenceDate: Date = new Date()
+): boolean {
+  if (!isSameDay(selectedDate, referenceDate)) {
+    return true;
+  }
+
+  const normalizedTime = slotTime.substring(0, 5);
+  const [hours, minutes] = normalizedTime.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return false;
+  }
+
+  const slotMinutes = hours * 60 + minutes;
+  const nowMinutes = referenceDate.getHours() * 60 + referenceDate.getMinutes();
+  return slotMinutes >= nowMinutes;
+}

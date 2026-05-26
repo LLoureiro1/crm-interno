@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { format, parseISO, isSameDay, addMinutes, isBefore, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Tables } from '@/integrations/supabase/types';
+import { isAppointmentSlotAvailableForDate } from '@/utils/dateUtils';
 
 interface SelfSchedulingProps {
   unitId: string;
@@ -264,7 +265,8 @@ export const SelfScheduling = ({
 
         return { time, interviewers: availableInterviewers };
       })
-      .filter(slot => slot.interviewers.length > 0);
+      .filter(slot => slot.interviewers.length > 0)
+      .filter(slot => isAppointmentSlotAvailableForDate(slot.time, date));
 
     return slotsWithAvailability.sort((a, b) => a.time.localeCompare(b.time));
   };
@@ -278,6 +280,11 @@ export const SelfScheduling = ({
 
   const handleBooking = async () => {
     if (!selectedDate || !selectedSlot) return;
+
+    if (!isAppointmentSlotAvailableForDate(selectedSlot.time, selectedDate)) {
+      toast.error('Este horário já passou. Escolha outro horário disponível.');
+      return;
+    }
 
     setBookingLoading(true);
     try {

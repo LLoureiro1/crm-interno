@@ -13,6 +13,7 @@ import { format, parseISO, isSameDay, addMinutes, isBefore, startOfToday } from 
 import { ptBR } from 'date-fns/locale';
 import { Loader2, Calendar as CalendarIcon, Clock, User, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isAppointmentSlotAvailableForDate } from '@/utils/dateUtils';
 
 interface ManualSchedulingModalProps {
   open: boolean;
@@ -192,10 +193,16 @@ export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }
     return Array.from(slotsMap.entries())
       .map(([time, interviewers]) => ({ time, interviewers }))
       .filter(slot => slot.interviewers.length > 0)
+      .filter(slot => isAppointmentSlotAvailableForDate(slot.time, date))
       .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const handleBooking = async (date: Date, time: string, interviewerId: string) => {
+    if (!isAppointmentSlotAvailableForDate(time, date)) {
+      toast.error('Este horário já passou. Escolha outro horário disponível.');
+      return;
+    }
+
     setBookingLoading(true);
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
