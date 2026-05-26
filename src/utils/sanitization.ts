@@ -199,6 +199,7 @@ export const sanitizeRegistrationData = (data: any) => {
     ...data,
     studentName: sanitizeName(data.studentName || ''),
     responsibleName: sanitizeName(data.responsibleName || ''),
+    responsibleCpf: (data.responsibleCpf || '').replace(/\D/g, '').slice(0, 11),
     email: sanitizeEmail(data.email || ''),
     phone: sanitizePhone(data.phone || ''),
     cityName: sanitizePlainText(data.cityName || ''),

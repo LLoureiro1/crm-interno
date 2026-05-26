@@ -643,6 +643,7 @@ export type Database = {
           phone: string
           portuguese_grade: number | null
           responsible_name: string
+          responsible_cpf: string | null
           status: Database["public"]["Enums"]["student_status"]
           student_name: string
           tag: string | null
@@ -676,6 +677,7 @@ export type Database = {
           phone: string
           portuguese_grade?: number | null
           responsible_name: string
+          responsible_cpf?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_name: string
           tag?: string | null
@@ -709,6 +711,7 @@ export type Database = {
           phone?: string
           portuguese_grade?: number | null
           responsible_name?: string
+          responsible_cpf?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_name?: string
           tag?: string | null

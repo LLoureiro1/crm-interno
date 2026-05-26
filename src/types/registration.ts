@@ -2,6 +2,7 @@
 export interface RegistrationFormData {
   studentName: string;
   responsibleName: string;
+  responsibleCpf: string;
   birthDate: string;
   phone: string; // Telefone principal (vai para tabela students)
   additionalPhones: string[]; // Telefones extras (vão para tabela student_phones)
