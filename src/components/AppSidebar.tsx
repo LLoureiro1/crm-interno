@@ -189,16 +189,17 @@ export function AppSidebar() {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={toggleSidebar}
-            className="hidden h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white md:flex"
-            title={state === 'expanded' ? 'Recolher menu' : 'Expandir menu'}
+            className="hidden w-full justify-start text-white/70 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 md:flex"
+            title={state === 'expanded' ? 'Recolher Menu' : 'Expandir menu'}
           >
             {state === 'expanded' ? (
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 shrink-0" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 shrink-0" />
             )}
+            <span className="group-data-[collapsible=icon]:hidden">Recolher Menu</span>
           </Button>
         </div>
       </SidebarFooter>
