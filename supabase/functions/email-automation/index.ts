@@ -206,7 +206,19 @@ serve(async (req) => {
 
     if (source === "webhook") {
       const queued = await handleWebhook(supabase, auth.body);
+      if (
+        queued && typeof queued === "object" && "skipped" in queued &&
+        queued.skipped
+      ) {
+        console.warn(
+          "email-automation webhook skipped:",
+          (queued as { reason?: string }).reason ?? queued,
+        );
+      }
       const processed = await processQueue(supabase);
+      if (processed.failed > 0) {
+        console.warn("email-automation fila com falhas:", processed);
+      }
       return jsonResponse({ success: true, queued, processed });
     }
 
@@ -253,9 +265,13 @@ async function queueStudentEmail(
   record: Record<string, unknown>,
 ) {
   const studentId = String(record.id);
-  const email = String(record.email ?? "");
+  const email = String(record.email ?? "").trim();
   if (!email) {
-    return { skipped: true, reason: "aluno sem e-mail" };
+    return {
+      skipped: true,
+      reason:
+        "aluno sem e-mail cadastrado — inclua o e-mail na inscrição/ficha do aluno",
+    };
   }
 
   const context = await buildStudentContext(supabase, studentId, record);
@@ -265,8 +281,12 @@ async function queueStudentEmail(
     context.unit_id ?? null,
   );
 
-  if (!template?.is_active) {
-    return { skipped: true, reason: "template inativo ou ausente" };
+  if (!template) {
+    return {
+      skipped: true,
+      reason:
+        `nenhum template ativo para ${triggerType} (verifique Configurações → E-mails)`,
+    };
   }
 
   const idempotencyKey = `${triggerType}:${studentId}:${context.status ?? "none"}`;
@@ -284,26 +304,154 @@ async function queueStudentEmail(
   });
 }
 
+/** Colunas reais de students (exam_time fica em exam_dates, não em students) */
+const STUDENT_EMAIL_SELECT =
+  "id, student_name, email, unit_id, status, tracking_code, exam_date, exam_date_id, class_id";
+
+type StudentEmailRow = {
+  id: string;
+  student_name: string;
+  email: string;
+  unit_id: string | null;
+  status: string;
+  tracking_code: string | null;
+  exam_date: string | null;
+  exam_date_id?: string | null;
+  class_id: string | null;
+};
+
+async function resolveExamTime(
+  supabase: ReturnType<typeof createClient>,
+  record: Record<string, unknown>,
+): Promise<string> {
+  const examDateId = record.exam_date_id
+    ? String(record.exam_date_id)
+    : null;
+  if (!examDateId) return "";
+
+  const { data } = await supabase
+    .from("exam_dates")
+    .select("exam_time")
+    .eq("id", examDateId)
+    .maybeSingle();
+
+  return data?.exam_time ? formatTime(String(data.exam_time)) : "";
+}
+
+function normalizeStudentRow(
+  row: StudentEmailRow | StudentEmailRow[] | null | undefined,
+): StudentEmailRow | null {
+  if (!row) return null;
+  return Array.isArray(row) ? row[0] ?? null : row;
+}
+
+async function loadStudentForAppointment(
+  supabase: ReturnType<typeof createClient>,
+  appointmentId: string,
+  studentIdFromRecord: string | null,
+): Promise<
+  | { student: StudentEmailRow; appointmentDate: string; appointmentTime: string }
+  | { skipped: true; reason: string }
+> {
+  const { data: appointmentRow, error: aptError } = await supabase
+    .from("appointments")
+    .select(`
+      appointment_date,
+      appointment_time,
+      student_id,
+      students (
+        ${STUDENT_EMAIL_SELECT}
+      )
+    `)
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  if (aptError) {
+    console.warn("queueAppointmentEmail:", aptError.message);
+  }
+
+  let student = normalizeStudentRow(
+    appointmentRow?.students as StudentEmailRow | StudentEmailRow[] | null,
+  );
+
+  const studentId = student?.id ??
+    studentIdFromRecord ??
+    (appointmentRow?.student_id ? String(appointmentRow.student_id) : null);
+
+  if (!student && studentId) {
+    const { data: directStudent, error: studentError } = await supabase
+      .from("students")
+      .select(STUDENT_EMAIL_SELECT)
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError) {
+      console.warn("queueAppointmentEmail student:", studentError.message);
+    }
+    student = directStudent as StudentEmailRow | null;
+  }
+
+  if (!student) {
+    return {
+      skipped: true,
+      reason: `aluno não encontrado para o agendamento (student_id=${studentId ?? "ausente"})`,
+    };
+  }
+
+  const email = String(student.email ?? "").trim();
+  if (!email) {
+    return {
+      skipped: true,
+      reason:
+        "aluno sem e-mail cadastrado — inclua o e-mail na ficha do aluno para receber confirmação",
+    };
+  }
+
+  return {
+    student: { ...student, email },
+    appointmentDate: String(
+      appointmentRow?.appointment_date ?? "",
+    ),
+    appointmentTime: String(
+      appointmentRow?.appointment_time ?? "",
+    ),
+  };
+}
+
 async function queueAppointmentEmail(
   supabase: ReturnType<typeof createClient>,
   record: Record<string, unknown>,
 ) {
-  const appointmentId = String(record.id);
-  const studentId = String(record.student_id);
-
-  const { data: student, error } = await supabase
-    .from("students")
-    .select("id, student_name, email, unit_id, status, tracking_code, exam_date, exam_time, class_id")
-    .eq("id", studentId)
-    .single();
-
-  if (error || !student?.email) {
-    return { skipped: true, reason: "aluno não encontrado ou sem e-mail" };
+  const appointmentId = String(record.id ?? "");
+  if (!appointmentId || appointmentId === "undefined") {
+    return { skipped: true, reason: "id do agendamento ausente no webhook" };
   }
 
+  const studentIdFromRecord = record.student_id != null &&
+      String(record.student_id) !== "null"
+    ? String(record.student_id)
+    : null;
+
+  const loaded = await loadStudentForAppointment(
+    supabase,
+    appointmentId,
+    studentIdFromRecord,
+  );
+
+  if ("skipped" in loaded) {
+    return loaded;
+  }
+
+  const { student, appointmentDate, appointmentTime } = loaded;
+  const studentId = student.id;
+
   const context = await buildStudentContext(supabase, studentId, student);
-  context.appointment_date = formatDate(String(record.appointment_date ?? ""));
-  context.appointment_time = formatTime(String(record.appointment_time ?? ""));
+  context.appointment_date = formatDate(
+    appointmentDate || String(record.appointment_date ?? ""),
+  );
+  context.appointment_time = formatTime(
+    appointmentTime || String(record.appointment_time ?? ""),
+  );
 
   const template = await resolveTemplate(
     supabase,
@@ -311,8 +459,12 @@ async function queueAppointmentEmail(
     context.unit_id ?? null,
   );
 
-  if (!template?.is_active) {
-    return { skipped: true, reason: "template inativo ou ausente" };
+  if (!template) {
+    return {
+      skipped: true,
+      reason:
+        "nenhum template ativo para appointment_scheduled (verifique Configurações → E-mails)",
+    };
   }
 
   const idempotencyKey = `appointment_scheduled:${appointmentId}`;
@@ -350,15 +502,7 @@ async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
       appointment_time,
       status,
       students (
-        id,
-        student_name,
-        email,
-        unit_id,
-        status,
-        tracking_code,
-        exam_date,
-        exam_time,
-        class_id
+        ${STUDENT_EMAIL_SELECT}
       )
     `)
     .eq("appointment_date", todayStr)
@@ -404,7 +548,7 @@ async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
 
   const { data: studentsWithExamTomorrow } = await supabase
     .from("students")
-    .select("id, student_name, email, unit_id, status, tracking_code, exam_date, exam_time, class_id")
+    .select(STUDENT_EMAIL_SELECT)
     .eq("exam_date", tomorrowStr)
     .not("email", "is", null);
 
@@ -616,9 +760,11 @@ async function buildStudentContext(
     tracking_code: String(record.tracking_code ?? ""),
     status: String(record.status ?? ""),
     exam_date: formatDate(String(record.exam_date ?? "")),
-    exam_time: formatTime(String(record.exam_time ?? "")),
+    exam_time: "",
     unit_id: record.unit_id ? String(record.unit_id) : null,
   };
+
+  context.exam_time = await resolveExamTime(supabase, record);
 
   if (context.unit_id) {
     const { data: unit } = await supabase
@@ -663,7 +809,7 @@ async function resolveTemplate(
       .eq("unit_id", unitId)
       .maybeSingle();
 
-    if (unitTemplate) {
+    if (unitTemplate?.is_active) {
       return unitTemplate as EmailTemplate;
     }
   }
@@ -675,7 +821,11 @@ async function resolveTemplate(
     .is("unit_id", null)
     .maybeSingle();
 
-  return (defaultTemplate as EmailTemplate | null) ?? null;
+  if (defaultTemplate?.is_active) {
+    return defaultTemplate as EmailTemplate;
+  }
+
+  return null;
 }
 
 async function resolveIntegration(
@@ -726,7 +876,7 @@ async function buildAppsScriptRecord(
     const { data: student } = await supabase
       .from("students")
       .select(
-        "id, student_name, email, phone, responsible_name, tracking_code, status, exam_date, exam_time, interview_date, unit_id, class_id",
+        `${STUDENT_EMAIL_SELECT}, phone, responsible_name, interview_date`,
       )
       .eq("id", String(item.student_id))
       .maybeSingle();
@@ -744,7 +894,10 @@ async function buildAppsScriptRecord(
       record.tracking_code = student.tracking_code;
       record.status = student.status;
       record.exam_date = student.exam_date;
-      record.exam_time = formatTime(String(student.exam_time ?? ""));
+      record.exam_time = await resolveExamTime(
+        supabase,
+        student as Record<string, unknown>,
+      );
       record.interview_date = student.interview_date;
 
       if (!item.unit_id && student.unit_id) {
