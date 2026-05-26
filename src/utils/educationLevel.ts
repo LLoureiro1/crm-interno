@@ -53,3 +53,59 @@ export function getClassIdsForSeriesFilter(
   }
   return null;
 }
+
+function normalizeImportText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Rótulo exibido em filtros: "Educação Infantil - Infantil I" */
+export function getSeriesImportLabel(series: Pick<Tables<'series'>, 'name' | 'level'>): string {
+  return `${getSegmentLabel(series.level)} - ${series.name}`;
+}
+
+/** Encontra série pelo nome da planilha (aceita nome simples ou "Segmento - Série"). */
+export function findSeriesByImportLabel<T extends Pick<Tables<'series'>, 'id' | 'name' | 'level'>>(
+  importLabel: string,
+  allSeries: T[]
+): T | undefined {
+  const normalized = normalizeImportText(importLabel);
+  if (!normalized) return undefined;
+
+  const byDisplayLabel = allSeries.find(
+    (series) => normalizeImportText(getSeriesImportLabel(series)) === normalized
+  );
+  if (byDisplayLabel) return byDisplayLabel;
+
+  const byExactName = allSeries.find(
+    (series) => normalizeImportText(series.name) === normalized
+  );
+  if (byExactName) return byExactName;
+
+  if (importLabel.includes(' - ')) {
+    const seriesNamePart = importLabel.split(' - ').pop()?.trim() ?? '';
+    const bySuffix = allSeries.find(
+      (series) => normalizeImportText(series.name) === normalizeImportText(seriesNamePart)
+    );
+    if (bySuffix) return bySuffix;
+  }
+
+  return allSeries.find((series) => {
+    const seriesName = normalizeImportText(series.name);
+    return normalized.includes(seriesName) || seriesName.includes(normalized);
+  });
+}
+
+/** Encontra unidade pelo nome da planilha (comparação normalizada). */
+export function findUnitByImportLabel<T extends Pick<Tables<'units'>, 'id' | 'name'>>(
+  importLabel: string,
+  allUnits: T[]
+): T | undefined {
+  const normalized = normalizeImportText(importLabel);
+  if (!normalized) return undefined;
+
+  return allUnits.find((unit) => normalizeImportText(unit.name) === normalized);
+}

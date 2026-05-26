@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { Upload, FileSpreadsheet, AlertCircle, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getCurrentDate } from '@/utils/dateUtils';
+import { findSeriesByImportLabel, findUnitByImportLabel } from '@/utils/educationLevel';
+import type { Tables } from '@/integrations/supabase/types';
 
 interface ClassData {
   name: string;
@@ -100,6 +102,26 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
       let errorCount = 0;
       const uploadErrors: string[] = [];
 
+      const { data: allSeries, error: allSeriesError } = await supabase
+        .from('series')
+        .select('id, name, level');
+
+      if (allSeriesError || !allSeries?.length) {
+        toast.error('Erro ao carregar séries do sistema');
+        setLoading(false);
+        return;
+      }
+
+      const { data: allUnits, error: allUnitsError } = await supabase
+        .from('units')
+        .select('id, name');
+
+      if (allUnitsError || !allUnits?.length) {
+        toast.error('Erro ao carregar unidades do sistema');
+        setLoading(false);
+        return;
+      }
+
       for (const classData of classesToCreate) {
         if (!classData.name || !classData.series || !classData.unit) {
           errorCount++;
@@ -108,26 +130,19 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
         }
 
         try {
-          // Buscar IDs das séries e unidades
-          const { data: seriesData, error: seriesError } = await supabase
-            .from('series')
-            .select('id, name')
-            .ilike('name', `%${classData.series}%`)
-            .single();
+          const seriesData = findSeriesByImportLabel(classData.series, allSeries as Tables<'series'>[]);
 
-          if (seriesError || !seriesData) {
+          if (!seriesData) {
             errorCount++;
-            uploadErrors.push(`Série não encontrada: ${classData.series}`);
+            uploadErrors.push(
+              `Série não encontrada: ${classData.series}. Use "Infantil I" ou "Educação Infantil - Infantil I".`
+            );
             continue;
           }
 
-          const { data: unitData, error: unitError } = await supabase
-            .from('units')
-            .select('id, name')
-            .ilike('name', `%${classData.unit}%`)
-            .single();
+          const unitData = findUnitByImportLabel(classData.unit, allUnits as Tables<'units'>[]);
 
-          if (unitError || !unitData) {
+          if (!unitData) {
             errorCount++;
             uploadErrors.push(`Unidade não encontrada: ${classData.unit}`);
             continue;
@@ -233,8 +248,8 @@ export const ClassUpload = ({ onUploadSuccess }: ClassUploadProps) => {
               A planilha deve conter as colunas:
               <ul className="list-disc list-inside mt-2">
                 <li><strong>Nome</strong>: Nome da turma</li>
-                <li><strong>Série</strong>: Nome da série (Deve estar igual ao nome da série no sistema)</li>
-                <li><strong>Unidade</strong>: Nome da unidade (Deve estar igual ao nome da unidade no sistema)</li>
+                <li><strong>Série</strong>: Nome da série ou formato &quot;Segmento - Série&quot; (ex.: Educação Infantil - Infantil I)</li>
+                <li><strong>Unidade</strong>: Nome da unidade (igual ao cadastrado no sistema)</li>
                 <li><strong>Anuidade</strong>: Valor da anuidade</li>
                 <li><strong>Parcelas</strong>: Número de parcelas</li>
                 <li><strong>Material Anual</strong>: Valor do material anual</li>
