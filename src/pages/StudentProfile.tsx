@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatCpf, stripCpf, isValidCpf } from '@/utils/cpf';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -97,6 +98,9 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   // Relações por telefone
   const [relatedByPhone, setRelatedByPhone] = useState<{ id: string; student_name: string }[]>([]);
   const [loadingRelatedByPhone, setLoadingRelatedByPhone] = useState(false);
+
+  // Relações por CPF do responsável
+  const [relatedByResponsibleCpf, setRelatedByResponsibleCpf] = useState<{ id: string; student_name: string }[]>([]);
 
   useEffect(() => {
     const fetchRelatedByPhone = async () => {
@@ -167,6 +171,41 @@ type ContactAttempt = Tables<'contact_attempts'> & {
     fetchRelatedByPhone();
   }, [student?.id, student?.phone]);
 
+  useEffect(() => {
+    const fetchRelatedByResponsibleCpf = async () => {
+      if (!student?.id || !student.responsible_cpf) {
+        setRelatedByResponsibleCpf([]);
+        return;
+      }
+
+      const cpfDigits = stripCpf(student.responsible_cpf);
+      if (cpfDigits.length !== 11) {
+        setRelatedByResponsibleCpf([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('students')
+          .select('id, student_name, status')
+          .eq('responsible_cpf', cpfDigits)
+          .neq('id', student.id)
+          .neq('status', 'cadastro_invalido');
+
+        if (error) throw error;
+
+        setRelatedByResponsibleCpf(
+          (data || []).map((s) => ({ id: s.id, student_name: s.student_name }))
+        );
+      } catch (error) {
+        console.error('Erro ao buscar relações por CPF do responsável:', error);
+        setRelatedByResponsibleCpf([]);
+      }
+    };
+
+    fetchRelatedByResponsibleCpf();
+  }, [student?.id, student?.responsible_cpf]);
+
   // Helpers e estrutura para histórico unificado
   const channelLabel = (ch?: Enums<'contact_channel'> | null) =>
     ch === 'phone' ? 'Ligação' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : ch === 'in_person' ? 'Presencial' : '';
@@ -221,6 +260,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const [editingPersonalData, setEditingPersonalData] = useState({
     student_name: '',
     responsible_name: '',
+    responsible_cpf: '',
     birth_date: '',
     phone: '',
     email: '',
@@ -1017,12 +1057,19 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const handleUpdatePersonalData = async () => {
     if (!student) return;
 
+    const cpfDigits = stripCpf(editingPersonalData.responsible_cpf);
+    if (cpfDigits && !isValidCpf(cpfDigits)) {
+      toast.error('CPF do responsável inválido');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('students')
         .update({
           student_name: editingPersonalData.student_name,
           responsible_name: editingPersonalData.responsible_name,
+          responsible_cpf: cpfDigits || null,
           birth_date: editingPersonalData.birth_date,
           phone: editingPersonalData.phone,
           email: editingPersonalData.email,
@@ -1060,6 +1107,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       setEditingPersonalData({
         student_name: student.student_name,
         responsible_name: student.responsible_name,
+        responsible_cpf: student.responsible_cpf ? formatCpf(student.responsible_cpf) : '',
         birth_date: student.birth_date,
         phone: student.phone,
         email: student.email,
@@ -1088,6 +1136,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
     setEditingPersonalData({
       student_name: '',
       responsible_name: '',
+      responsible_cpf: '',
       birth_date: '',
       phone: '',
       email: '',
@@ -1296,6 +1345,20 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         />
                       </div>
                       <div>
+                        <Label htmlFor="responsible_cpf">CPF do Responsável</Label>
+                        <Input
+                          id="responsible_cpf"
+                          value={editingPersonalData.responsible_cpf}
+                          placeholder="000.000.000-00"
+                          inputMode="numeric"
+                          maxLength={14}
+                          onChange={(e) => setEditingPersonalData(prev => ({
+                            ...prev,
+                            responsible_cpf: formatCpf(e.target.value)
+                          }))}
+                        />
+                      </div>
+                      <div>
                         <Label htmlFor="phone">Telefone</Label>
                         <Input
                           id="phone"
@@ -1382,6 +1445,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <span className="font-medium">Data de Nascimento:</span>
                       <p>{formatDateForDisplay(student.birth_date)}</p>
                     </div>
+                    <div>
+                      <span className="font-medium">CPF do Responsável:</span>
+                      <p>{student.responsible_cpf ? formatCpf(student.responsible_cpf) : 'Não informado'}</p>
+                    </div>
                     <div className="sm:col-span-2">
                       <StudentPhoneManager 
                         studentId={student.id}
@@ -1405,6 +1472,22 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     <div>
                       <span className="font-medium">Escola de Origem:</span>
                       <p>{student.origin_school}</p>
+                    </div>
+                  </div>
+                )}
+                {relatedByResponsibleCpf.length > 0 && (
+                  <div className="mt-3 p-2 bg-gray-50 rounded border border-gray-200 text-xs">
+                    <p className="text-gray-600">Este cadastro possui o mesmo CPF do responsável em comum com:</p>
+                    <div className="mt-1 space-y-1">
+                      {relatedByResponsibleCpf.map((s) => (
+                        <a
+                          key={s.id}
+                          href={`/student/${s.id}`}
+                          className="block text-blue-600 hover:underline"
+                        >
+                          {s.student_name}
+                        </a>
+                      ))}
                     </div>
                   </div>
                 )}
