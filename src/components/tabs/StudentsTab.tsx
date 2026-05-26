@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
+import { loadStudentsListFilters, saveStudentsListFilters } from '@/utils/studentsListFilters';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -32,27 +33,33 @@ type ExamDate = Tables<'exam_dates'> & {
 export const StudentsTab = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const cachedFiltersRef = useRef(loadStudentsListFilters());
+  const cachedFilters = cachedFiltersRef.current;
+  const skipPageResetRef = useRef(!!cachedFilters);
+
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [examDates, setExamDates] = useState<ExamDate[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [unitFilter, setUnitFilter] = useState<string[]>([]);
-  const [segmentFilter, setSegmentFilter] = useState<string[]>([]);
-  const [seriesFilter, setSeriesFilter] = useState<string[]>([]);
-  const [examDateFilter, setExamDateFilter] = useState<string[]>([]);
-  const [academicYearFilter, setAcademicYearFilter] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState(cachedFilters?.searchTerm ?? '');
+  const [statusFilter, setStatusFilter] = useState<string[]>(cachedFilters?.statusFilter ?? []);
+  const [unitFilter, setUnitFilter] = useState<string[]>(cachedFilters?.unitFilter ?? []);
+  const [segmentFilter, setSegmentFilter] = useState<string[]>(cachedFilters?.segmentFilter ?? []);
+  const [seriesFilter, setSeriesFilter] = useState<string[]>(cachedFilters?.seriesFilter ?? []);
+  const [examDateFilter, setExamDateFilter] = useState<string[]>(cachedFilters?.examDateFilter ?? []);
+  const [academicYearFilter, setAcademicYearFilter] = useState<string[]>(cachedFilters?.academicYearFilter ?? []);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>(cachedFilters?.sortOrder ?? 'desc');
+  const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>(
+    cachedFilters?.contactAttemptsFilter ?? 'all'
+  );
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
 
   // Estados para paginação
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(cachedFilters?.currentPage ?? 1);
   const itemsPerPage = 50;
 
   // Função para calcular o ano letivo atual
@@ -79,8 +86,48 @@ export const StudentsTab = () => {
 
   useEffect(() => {
     filterStudents();
-    setCurrentPage(1); // Reset para primeira página quando filtros mudarem
   }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter, contactCounts]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredStudents.length, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter]);
+
+  useEffect(() => {
+    saveStudentsListFilters({
+      searchTerm,
+      statusFilter,
+      unitFilter,
+      segmentFilter,
+      seriesFilter,
+      examDateFilter,
+      academicYearFilter,
+      sortOrder,
+      contactAttemptsFilter,
+      currentPage,
+    });
+  }, [
+    searchTerm,
+    statusFilter,
+    unitFilter,
+    segmentFilter,
+    seriesFilter,
+    examDateFilter,
+    academicYearFilter,
+    sortOrder,
+    contactAttemptsFilter,
+    currentPage,
+  ]);
 
   const availableSegments = useMemo(
     () => sortSegments(series.map((s) => s.level)),
@@ -195,6 +242,10 @@ export const StudentsTab = () => {
 
     const years = Array.from(new Set(data.map(item => item.ano_letivo))).filter(Boolean) as string[];
     setAvailableAcademicYears(years);
+
+    if (cachedFiltersRef.current?.academicYearFilter?.length) {
+      return;
+    }
 
     // Definir o ano letivo atual como padrão
     const currentAcademicYear = getCurrentAcademicYear();
@@ -393,8 +444,18 @@ export const StudentsTab = () => {
   };
 
   const handleOpenStudentPage = (studentId: string) => {
-    console.log('studentId:', studentId);
-    console.log('Navigating to:', `/student/${studentId}`);
+    saveStudentsListFilters({
+      searchTerm,
+      statusFilter,
+      unitFilter,
+      segmentFilter,
+      seriesFilter,
+      examDateFilter,
+      academicYearFilter,
+      sortOrder,
+      contactAttemptsFilter,
+      currentPage,
+    });
     navigate(`/student/${studentId}`);
   };
 
