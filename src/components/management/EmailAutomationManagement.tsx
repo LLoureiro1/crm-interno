@@ -648,8 +648,10 @@ export const EmailAutomationManagement = () => {
                           {new Date(item.opened_at).toLocaleString('pt-BR', {
                             day: '2-digit',
                             month: '2-digit',
+                            year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
+                            second: '2-digit',
                           })}
                         </span>
                         {item.opened_count && item.opened_count > 1 && (
