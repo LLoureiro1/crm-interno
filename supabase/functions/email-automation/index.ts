@@ -180,6 +180,36 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Handle tracking pixel (GET request)
+  const url = new URL(req.url);
+  const source = url.searchParams.get("source");
+
+  if (req.method === "GET" && source === "tracking") {
+    const emailId = url.searchParams.get("id");
+    if (emailId) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+      await handleTracking(supabase, emailId);
+    }
+
+    // Return 1x1 transparent GIF
+    const pixel = Uint8Array.from(
+      atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"),
+      (c) => c.charCodeAt(0),
+    );
+    return new Response(pixel, {
+      headers: {
+        "Content-Type": "image/gif",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        ...corsHeaders,
+      },
+    });
+  }
+
   try {
     const body = await parseJsonBody(req);
     const auth = await authorizeEdgeRequest(req, body, {
@@ -721,10 +751,26 @@ async function insertQueueItem(
     scheduledFor: string;
   },
 ) {
+  const emailId = crypto.randomUUID();
   const subject = renderTemplate(params.template.subject, params.context);
-  const htmlBody = renderTemplate(params.template.html_body, params.context);
+  let htmlBody = renderTemplate(params.template.html_body, params.context);
+
+  // Add tracking pixel
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const projectRef = supabaseUrl.split(".")[0].split("//")[1];
+  const trackingUrl =
+    `https://${projectRef}.supabase.co/functions/v1/email-automation?source=tracking&id=${emailId}`;
+  const pixelHtml =
+    `<img src="${trackingUrl}" width="1" height="1" style="display:none !important;" />`;
+
+  if (htmlBody.includes("</body>")) {
+    htmlBody = htmlBody.replace("</body>", `${pixelHtml}</body>`);
+  } else {
+    htmlBody += pixelHtml;
+  }
 
   const { error } = await supabase.from("email_queue").insert({
+    id: emailId,
     student_id: params.studentId,
     appointment_id: params.appointmentId ?? null,
     unit_id: params.unitId,
@@ -1189,4 +1235,51 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function handleTracking(
+  supabase: ReturnType<typeof createClient>,
+  emailId: string,
+) {
+  try {
+    // 1. Buscar informações do e-mail
+    const { data: email, error: fetchError } = await supabase
+      .from("email_queue")
+      .select("student_id, trigger_type, subject, opened_at")
+      .eq("id", emailId)
+      .maybeSingle();
+
+    if (fetchError || !email) {
+      console.warn("handleTracking: e-mail não encontrado", emailId);
+      return;
+    }
+
+    // 2. Atualizar opened_at e opened_count
+    const { error: updateError } = await supabase.rpc("increment_email_open", {
+      email_id: emailId,
+    });
+
+    if (updateError) {
+      // Fallback se a RPC não existir
+      await supabase
+        .from("email_queue")
+        .update({
+          opened_at: email.opened_at || new Date().toISOString(),
+          opened_count: 1, // Simples fallback
+        })
+        .eq("id", emailId);
+    }
+
+    // 3. Registrar interação se for a primeira abertura
+    if (!email.opened_at && email.student_id) {
+      const triggerLabel = String(email.trigger_type).replace(/_/g, " ");
+      await supabase.from("student_interactions").insert({
+        student_id: email.student_id,
+        interaction_type: "email_opened",
+        comments: `E-mail aberto: "${email.subject}" (Evento: ${triggerLabel})`,
+      });
+    }
+  } catch (err) {
+    console.error("handleTracking error:", err);
+  }
 }

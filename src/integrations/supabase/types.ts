@@ -242,6 +242,8 @@ export type Database = {
           error_message: string | null
           attempts: number
           sent_at: string | null
+          opened_at: string | null
+          opened_count: number
           created_at: string
         }
         Insert: {
@@ -262,6 +264,8 @@ export type Database = {
           error_message?: string | null
           attempts?: number
           sent_at?: string | null
+          opened_at?: string | null
+          opened_count?: number
           created_at?: string
         }
         Update: {
@@ -282,6 +286,8 @@ export type Database = {
           error_message?: string | null
           attempts?: number
           sent_at?: string | null
+          opened_at?: string | null
+          opened_count?: number
           created_at?: string
         }
         Relationships: [

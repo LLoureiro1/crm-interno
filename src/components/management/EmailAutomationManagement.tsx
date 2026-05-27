@@ -27,7 +27,17 @@ type EmailIntegrationForm = Pick<
 type EmailTemplate = Tables<'email_templates'>;
 type EmailQueueItem = Pick<
   Tables<'email_queue'>,
-  'id' | 'trigger_type' | 'to_email' | 'subject' | 'status' | 'scheduled_for' | 'sent_at' | 'error_message' | 'created_at'
+  | 'id'
+  | 'trigger_type'
+  | 'to_email'
+  | 'subject'
+  | 'status'
+  | 'scheduled_for'
+  | 'sent_at'
+  | 'error_message'
+  | 'created_at'
+  | 'opened_at'
+  | 'opened_count'
 >;
 
 interface Unit {
@@ -186,7 +196,9 @@ export const EmailAutomationManagement = () => {
         supabase.from('units').select('id, name').order('name'),
         supabase
           .from('email_queue')
-          .select('id, trigger_type, to_email, subject, status, scheduled_for, sent_at, error_message, created_at')
+          .select(
+            'id, trigger_type, to_email, subject, status, scheduled_for, sent_at, error_message, created_at, opened_at, opened_count',
+          )
           .order('created_at', { ascending: false })
           .limit(30),
       ]);
@@ -598,14 +610,15 @@ export const EmailAutomationManagement = () => {
               <TableHead>Destinatário</TableHead>
               <TableHead>Assunto</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Agendado</TableHead>
+              <TableHead>Aberto em</TableHead>
+              <TableHead>Envio</TableHead>
               <TableHead>Erro</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {queueItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-500">
+                <TableCell colSpan={7} className="text-center text-gray-500">
                   Nenhum e-mail na fila ainda.
                 </TableCell>
               </TableRow>
@@ -614,11 +627,40 @@ export const EmailAutomationManagement = () => {
                 <TableRow key={item.id}>
                   <TableCell>{TRIGGER_LABELS[item.trigger_type]}</TableCell>
                   <TableCell>{item.to_email}</TableCell>
-                  <TableCell className="max-w-[240px] truncate">{item.subject}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{item.subject}</TableCell>
                   <TableCell>
-                    <Badge variant={item.status === 'sent' ? 'default' : item.status === 'failed' ? 'destructive' : 'secondary'}>
+                    <Badge
+                      variant={
+                        item.status === 'sent'
+                          ? 'default'
+                          : item.status === 'failed'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                    >
                       {STATUS_LABELS[item.status]}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {item.opened_at ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-green-600">
+                          {new Date(item.opened_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {item.opened_count && item.opened_count > 1 && (
+                          <span className="text-[10px] text-gray-400">
+                            {item.opened_count} aberturas
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell>{new Date(item.scheduled_for).toLocaleString('pt-BR')}</TableCell>
                   <TableCell className="max-w-[200px] truncate text-red-600">
