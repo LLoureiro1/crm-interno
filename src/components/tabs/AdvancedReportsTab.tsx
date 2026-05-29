@@ -184,7 +184,15 @@ export const AdvancedReportsTab = () => {
 
   // Estados para novas métricas solicitadas
   const [averageEnrollmentTimeDays, setAverageEnrollmentTimeDays] = useState(0);
-  const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
+  const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; reason_key: string; count: number; percentage: number }>>([]);
+
+  // Dialog genérico reutilizável (desistências, origens, tracking)
+  const [genericStudentsDialog, setGenericStudentsDialog] = useState<{
+    open: boolean;
+    title: string;
+    loading: boolean;
+    students: Array<{ id: string; student_name: string; responsible_name: string | null; phone: string | null; status: string; class_name: string; unit_name: string }>;
+  }>({ open: false, title: '', loading: false, students: [] });
   const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
   const [isCentralUser, setIsCentralUser] = useState(false);
 
@@ -407,6 +415,107 @@ export const AdvancedReportsTab = () => {
   };
 
 
+  // Busca alunos desistentes por motivo
+  const fetchStudentsForDropoutReason = async (reasonKey: string, reasonLabel: string) => {
+    setGenericStudentsDialog({ open: true, title: `Desistentes — ${reasonLabel}`, loading: true, students: [] });
+    try {
+      let q = supabase
+        .from('students')
+        .select('id, student_name, responsible_name, phone, status, classes(name, units(name))')
+        .eq('status', 'desistente');
+      if (reasonKey === 'outro') {
+        q = q.or('dropout_reason.is.null,dropout_reason.eq.outro') as any;
+      } else {
+        q = q.eq('dropout_reason', reasonKey as any);
+      }
+      q = applyFilters(q as any) as any;
+      const { data, error } = await q;
+      if (error) throw error;
+      const students = ((data || []) as any[]).map((s: any) => ({
+        id: s.id,
+        student_name: s.student_name || '—',
+        responsible_name: s.responsible_name || null,
+        phone: s.phone || null,
+        status: s.status,
+        class_name: s.classes?.name || '—',
+        unit_name: s.classes?.units?.name || '—',
+      }));
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students }));
+    } catch (err) {
+      console.error('Erro ao buscar desistentes por motivo:', err);
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students: [] }));
+    }
+  };
+
+  // Busca alunos por origem de inscrição (source_label)
+  const fetchStudentsForSource = async (sourceLabel: string, mode: 'all' | 'enrolled') => {
+    const modeLabel = mode === 'all' ? 'Inscrições' : 'Matriculados';
+    setGenericStudentsDialog({ open: true, title: `${sourceLabel} — ${modeLabel}`, loading: true, students: [] });
+    try {
+      let q = (supabase as any)
+        .from('students')
+        .select(`id, student_name, responsible_name, phone, status,
+          classes(name, units(name)),
+          unit_registration_source_associations!students_registration_source_id_fkey(
+            custom_label,
+            global_registration_sources!inner(source_label)
+          )`)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      if (mode === 'enrolled') q = q.eq('status', 'matriculado');
+      q = applyFilters(q);
+      const { data, error } = await q;
+      if (error) throw error;
+      const filtered = ((data || []) as any[]).filter((s: any) => {
+        const label = s.unit_registration_source_associations?.custom_label ||
+          s.unit_registration_source_associations?.global_registration_sources?.source_label || '';
+        return label === sourceLabel;
+      });
+      const students = filtered.map((s: any) => ({
+        id: s.id,
+        student_name: s.student_name || '—',
+        responsible_name: s.responsible_name || null,
+        phone: s.phone || null,
+        status: s.status,
+        class_name: s.classes?.name || '—',
+        unit_name: s.classes?.units?.name || '—',
+      }));
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students }));
+    } catch (err) {
+      console.error('Erro ao buscar alunos por origem:', err);
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students: [] }));
+    }
+  };
+
+  // Busca alunos por tracking code
+  const fetchStudentsForTrackingCode = async (trackingCode: string, mode: 'all' | 'enrolled') => {
+    const modeLabel = mode === 'all' ? 'Cadastros' : 'Matriculados';
+    setGenericStudentsDialog({ open: true, title: `Código ${trackingCode} — ${modeLabel}`, loading: true, students: [] });
+    try {
+      let q = supabase
+        .from('students')
+        .select('id, student_name, responsible_name, phone, status, classes(name, units(name))')
+        .eq('tracking_code', trackingCode)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+      if (mode === 'enrolled') q = q.eq('status', 'matriculado');
+      q = applyFilters(q as any) as any;
+      const { data, error } = await q;
+      if (error) throw error;
+      const students = ((data || []) as any[]).map((s: any) => ({
+        id: s.id,
+        student_name: s.student_name || '—',
+        responsible_name: s.responsible_name || null,
+        phone: s.phone || null,
+        status: s.status,
+        class_name: s.classes?.name || '—',
+        unit_name: s.classes?.units?.name || '—',
+      }));
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students }));
+    } catch (err) {
+      console.error('Erro ao buscar alunos por tracking code:', err);
+      setGenericStudentsDialog(prev => ({ ...prev, loading: false, students: [] }));
+    }
+  };
+
   // Função para aplicar filtros nas queries
   const applyFilters = (query: any) => {
     // Sempre filtrar por ano letivo atual
@@ -547,6 +656,7 @@ export const AdvancedReportsTab = () => {
       const stats = Array.from(counts.entries())
         .map(([reason, count]) => ({
           reason: labelMap[reason] || reason,
+          reason_key: reason,
           count,
           percentage: total > 0 ? (count / total) * 100 : 0,
         }))
@@ -1583,10 +1693,14 @@ export const AdvancedReportsTab = () => {
           {dropoutReasonStats.length > 0 ? (
             <div className="space-y-3">
               {dropoutReasonStats.map((item) => (
-                <div key={item.reason} className="border rounded-lg p-3">
+                <div
+                  key={item.reason}
+                  className="border rounded-lg p-3 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all"
+                  onClick={() => fetchStudentsForDropoutReason(item.reason_key, item.reason)}
+                >
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{item.reason}</span>
-                    <span className="text-sm text-gray-600">{item.count} ({item.percentage.toFixed(1)}%)</span>
+                    <span className="text-sm text-blue-600 font-semibold">{item.count} alunos ({item.percentage.toFixed(1)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div
@@ -1745,13 +1859,22 @@ export const AdvancedReportsTab = () => {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-900">{source.source_label}</h4>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <span className="text-sm text-gray-600">
-                                {source.total_students} inscrições ({source.percentage.toFixed(1)}%)
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                {source.enrolled_students} matriculados
-                              </span>
+                            <div className="flex items-center gap-3 mt-1">
+                              <button
+                                onClick={() => fetchStudentsForSource(source.source_label, 'all')}
+                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                              >
+                                <Users className="h-3.5 w-3.5" />
+                                <span>{source.total_students} inscrições</span>
+                              </button>
+                              <span className="text-gray-300">•</span>
+                              <button
+                                onClick={() => fetchStudentsForSource(source.source_label, 'enrolled')}
+                                className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span>{source.enrolled_students} matriculados</span>
+                              </button>
                             </div>
                           </div>
                           <div className="text-right">
@@ -1844,8 +1967,22 @@ export const AdvancedReportsTab = () => {
                             <h4 className="font-medium text-gray-900">
                               Código: {source.tracking_code}
                             </h4>
-                            <div className="text-sm text-gray-600 mt-1">
-                              {source.total_students} cadastros • {source.enrolled_students} matriculados
+                            <div className="flex items-center gap-3 mt-1">
+                              <button
+                                onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'all')}
+                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                              >
+                                <Users className="h-3.5 w-3.5" />
+                                <span>{source.total_students} cadastros</span>
+                              </button>
+                              <span className="text-gray-300">•</span>
+                              <button
+                                onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'enrolled')}
+                                className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span>{source.enrolled_students} matriculados</span>
+                              </button>
                             </div>
                           </div>
                           <div className="text-right">
@@ -1894,6 +2031,53 @@ export const AdvancedReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog genérico compartilhado (desistências / origens / tracking) */}
+      <Dialog open={genericStudentsDialog.open} onOpenChange={(open) => setGenericStudentsDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{genericStudentsDialog.title}</DialogTitle>
+          </DialogHeader>
+          {genericStudentsDialog.loading ? (
+            <div className="flex items-center justify-center py-10 text-gray-500">Carregando...</div>
+          ) : genericStudentsDialog.students.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">Nenhum aluno encontrado.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome do Aluno</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Turma</TableHead>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {genericStudentsDialog.students.map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      <Link
+                        to={`/student/${student.id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        onClick={() => setGenericStudentsDialog(prev => ({ ...prev, open: false }))}
+                      >
+                        {student.student_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{student.responsible_name || '—'}</TableCell>
+                    <TableCell>{student.phone || '—'}</TableCell>
+                    <TableCell>{student.class_name}</TableCell>
+                    <TableCell>{student.unit_name}</TableCell>
+                    <TableCell>{student.status}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
