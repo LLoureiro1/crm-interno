@@ -1347,7 +1347,14 @@ async function handleTracking(
 
     // 3. Registrar interação se for a primeira abertura
     if (!email.opened_at && email.student_id) {
-      const triggerLabel = String(email.trigger_type).replace(/_/g, " ");
+      const labels: Record<string, string> = {
+        student_registered: 'Nova inscrição',
+        appointment_scheduled: 'Agendamento confirmado',
+        appointment_reminder_same_day: 'Lembrete no dia do atendimento',
+        exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
+        attended_over_a_week_ago: 'Atendido há mais de uma semana'
+      };
+      const triggerLabel = labels[email.trigger_type] || String(email.trigger_type).replace(/_/g, " ");
       await supabase.from("student_interactions").insert({
         student_id: email.student_id,
         interaction_type: "email_opened",
