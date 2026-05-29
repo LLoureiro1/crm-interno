@@ -4,12 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RefreshCw, Users, CheckCircle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { toPng } from 'html-to-image';
 import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
 import {
   getClassIdsForSeriesFilter,
   getSegmentLabel,
@@ -173,6 +176,7 @@ export const AdvancedReportsTab = () => {
   const [examAttendanceStats, setExamAttendanceStats] = useState<Array<{
     exam_date: string;
     unit_name: string;
+    unit_id: string;
     registered: number;
     attended: number;
     attendance_rate: number;
@@ -183,6 +187,14 @@ export const AdvancedReportsTab = () => {
   const [dropoutReasonStats, setDropoutReasonStats] = useState<Array<{ reason: string; count: number; percentage: number }>>([]);
   const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
   const [isCentralUser, setIsCentralUser] = useState(false);
+
+  // Estados do dialog de alunos por prova
+  const [examStudentsDialog, setExamStudentsDialog] = useState<{
+    open: boolean;
+    title: string;
+    loading: boolean;
+    students: Array<{ id: string; student_name: string; responsible_name: string | null; phone: string | null; status: string; class_name: string; unit_name: string }>;
+  }>({ open: false, title: '', loading: false, students: [] });
 
   useEffect(() => {
     const checkCentral = async () => {
@@ -333,6 +345,7 @@ export const AdvancedReportsTab = () => {
         return {
           exam_date: ed.exam_date,
           unit_name: ed.units?.name || 'Unidade',
+          unit_id: ed.unit_id,
           registered: agg.registered,
           attended: agg.attended,
           attendance_rate: rate,
@@ -346,6 +359,50 @@ export const AdvancedReportsTab = () => {
     } catch (error) {
       console.error('Erro ao calcular presença em provas:', error);
       setExamAttendanceStats([]);
+    }
+  };
+
+  // Função para buscar alunos de uma prova específica (inscritos ou comparecimentos)
+  const fetchStudentsForExam = async (
+    examDate: string,
+    unitId: string,
+    unitName: string,
+    mode: 'registered' | 'attended'
+  ) => {
+    const modeLabel = mode === 'registered' ? 'Inscritos' : 'Comparecimentos';
+    const dateLabel = new Date(examDate + 'T00:00:00').toLocaleDateString('pt-BR');
+    setExamStudentsDialog({ open: true, title: `${modeLabel} — ${dateLabel} • ${unitName}`, loading: true, students: [] });
+
+    try {
+      let q = supabase
+        .from('students')
+        .select('id, student_name, responsible_name, phone, status, classes(name, units(name))')
+        .eq('exam_date', examDate)
+        .eq('unit_id', unitId)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      // Para comparecimentos: filtrar apenas quem tem nota lançada (heurística de presença)
+      if (mode === 'attended') {
+        q = q.not('final_grade', 'is', null) as any;
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const students = ((data || []) as any[]).map((s: any) => ({
+        id: s.id,
+        student_name: s.student_name || '—',
+        responsible_name: s.responsible_name || null,
+        phone: s.phone || null,
+        status: s.status,
+        class_name: s.classes?.name || '—',
+        unit_name: s.classes?.units?.name || unitName,
+      }));
+
+      setExamStudentsDialog(prev => ({ ...prev, loading: false, students }));
+    } catch (err) {
+      console.error('Erro ao buscar alunos da prova:', err);
+      setExamStudentsDialog(prev => ({ ...prev, loading: false, students: [] }));
     }
   };
 
@@ -1387,8 +1444,22 @@ export const AdvancedReportsTab = () => {
                       <div className="font-medium">
                         {new Date(item.exam_date + 'T00:00:00').toLocaleDateString('pt-BR')} • {item.unit_name}
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        {item.registered} inscritos • {item.attended} comparecimentos
+                      <div className="flex items-center gap-3 mt-1">
+                        <button
+                          onClick={() => fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'registered')}
+                          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          <span>{item.registered} inscritos</span>
+                        </button>
+                        <span className="text-gray-300">•</span>
+                        <button
+                          onClick={() => fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'attended')}
+                          className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors cursor-pointer"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          <span>{item.attended} comparecimentos</span>
+                        </button>
                       </div>
                     </div>
                     <div className={`text-lg font-semibold ${item.attendance_rate >= 70 ? 'text-green-600' : item.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
@@ -1410,6 +1481,53 @@ export const AdvancedReportsTab = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog: lista de alunos inscritos/comparecimentos por prova */}
+      <Dialog open={examStudentsDialog.open} onOpenChange={(open) => setExamStudentsDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{examStudentsDialog.title}</DialogTitle>
+          </DialogHeader>
+          {examStudentsDialog.loading ? (
+            <div className="flex items-center justify-center py-10 text-gray-500">Carregando...</div>
+          ) : examStudentsDialog.students.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">Nenhum aluno encontrado.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome do Aluno</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Turma</TableHead>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {examStudentsDialog.students.map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      <Link
+                        to={`/student/${student.id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        onClick={() => setExamStudentsDialog(prev => ({ ...prev, open: false }))}
+                      >
+                        {student.student_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{student.responsible_name || '—'}</TableCell>
+                    <TableCell>{student.phone || '—'}</TableCell>
+                    <TableCell>{student.class_name}</TableCell>
+                    <TableCell>{student.unit_name}</TableCell>
+                    <TableCell>{student.status}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Tempo médio entre cadastro e matrícula */}
       <Card>
