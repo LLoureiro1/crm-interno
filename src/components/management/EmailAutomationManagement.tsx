@@ -50,6 +50,7 @@ const TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   appointment_scheduled: 'Agendamento confirmado',
   appointment_reminder_same_day: 'Lembrete no dia do atendimento',
   exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
+  attended_over_a_week_ago: 'Atendido há mais de uma semana',
 };
 
 const STATUS_LABELS: Record<EmailQueueStatus, string> = {
@@ -495,42 +496,44 @@ export const EmailAutomationManagement = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>
-            <Input
-              id="send_at_hour"
-              type="number"
-              min={0}
-              max={23}
-              value={templateForm.send_at_hour}
-              onChange={(event) =>
-                setTemplateForm((prev) => ({
-                  ...prev,
-                  send_at_hour: Number(event.target.value),
-                }))
-              }
-            />
-            <p className="text-xs text-gray-500">Horário de Brasília (UTC-3). Ex.: 8 = envio às 8h no Brasil.</p>
-          </div>
+        {selectedTrigger !== 'student_registered' && selectedTrigger !== 'appointment_scheduled' && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>
+              <Input
+                id="send_at_hour"
+                type="number"
+                min={0}
+                max={23}
+                value={templateForm.send_at_hour}
+                onChange={(event) =>
+                  setTemplateForm((prev) => ({
+                    ...prev,
+                    send_at_hour: Number(event.target.value),
+                  }))
+                }
+              />
+              <p className="text-xs text-gray-500">Horário de Brasília (UTC-3). Ex.: 8 = envio às 8h no Brasil.</p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="send_at_minute">Minuto</Label>
-            <Input
-              id="send_at_minute"
-              type="number"
-              min={0}
-              max={59}
-              value={templateForm.send_at_minute}
-              onChange={(event) =>
-                setTemplateForm((prev) => ({
-                  ...prev,
-                  send_at_minute: Number(event.target.value),
-                }))
-              }
-            />
+            <div className="space-y-2">
+              <Label htmlFor="send_at_minute">Minuto</Label>
+              <Input
+                id="send_at_minute"
+                type="number"
+                min={0}
+                max={59}
+                value={templateForm.send_at_minute}
+                onChange={(event) =>
+                  setTemplateForm((prev) => ({
+                    ...prev,
+                    send_at_minute: Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
