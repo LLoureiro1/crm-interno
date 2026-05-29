@@ -1,38 +1,82 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, Plus, Trash2, Check } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Calendar, Clock, Plus, Trash2, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-type InterviewerAvailability = Tables<'interviewer_availability'> & {
-  unit_id: string | null;
-  class_ids: string[] | null;
+type SpecificAvailability = Tables<'interviewer_availability'> & {
+  class_ids?: string[] | null;
   profiles: Tables<'profiles'>;
   units: Tables<'units'> | null;
 };
+
+interface RecurrentAvailability {
+  id: string;
+  interviewer_id: string;
+  unit_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  class_ids: string[] | null;
+  created_at: string;
+  profiles?: Tables<'profiles'>;
+  units?: Tables<'units'> | null;
+}
+
+interface AvailabilityExclusion {
+  id: string;
+  unit_id: string | null;
+  interviewer_id: string | null;
+  exclusion_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  created_at: string;
+  profiles?: Tables<'profiles'> | null;
+  units?: Tables<'units'> | null;
+}
 
 type Unit = Tables<'units'>;
 type Class = Tables<'classes'> & {
   series: Tables<'series'>;
 };
 
+const WEEKDAYS = [
+  { value: 0, label: 'Domingo' },
+  { value: 1, label: 'Segunda-feira' },
+  { value: 2, label: 'Terça-feira' },
+  { value: 3, label: 'Quarta-feira' },
+  { value: 4, label: 'Quinta-feira' },
+  { value: 5, label: 'Sexta-feira' },
+  { value: 6, label: 'Sábado' }
+];
+
 export const InterviewerAvailability = () => {
-  const [availabilities, setAvailabilities] = useState<InterviewerAvailability[]>([]);
-  const [interviewers, setInterviewers] = useState<Tables<'profiles'>[]>([]);
+  const [activeTab, setActiveTab] = useState<'specific' | 'recurrent' | 'exclusions'>('specific');
+  
+  // Data States
+  const [availabilities, setAvailabilities] = useState<SpecificAvailability[]>([]);
+  const [recurrentAvailabilities, setRecurrentAvailabilities] = useState<RecurrentAvailability[]>([]);
+  const [exclusions, setExclusions] = useState<AvailabilityExclusion[]>([]);
+  
+  const [interviewers, setInterviewers] = useState<any[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+
+  // Form toggles
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({
+
+  // Form states
+  const [specificFormData, setSpecificFormData] = useState({
     interviewerId: '',
     date: '',
     startTime: '',
@@ -41,103 +85,45 @@ export const InterviewerAvailability = () => {
     classIds: [] as string[]
   });
 
+  const [recurrentFormData, setRecurrentFormData] = useState({
+    interviewerId: '',
+    dayOfWeek: '',
+    startTime: '',
+    endTime: '',
+    unitId: '',
+    classIds: [] as string[]
+  });
+
+  const [exclusionFormData, setExclusionFormData] = useState({
+    unitId: 'all', // 'all' map to null
+    interviewerId: 'all', // 'all' map to null
+    exclusionDate: '',
+    startTime: '',
+    endTime: '',
+    allDay: true
+  });
+
   useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
     fetchAvailabilities();
+    fetchRecurrentAvailabilities();
+    fetchExclusions();
     fetchInterviewers();
     fetchUnits();
     fetchClasses();
-  }, []);
-
-  useEffect(() => {
-    if (formData.interviewerId && units.length > 0) {
-      filterAvailableUnitsByInterviewer(formData.interviewerId, units);
-    } else if (!formData.interviewerId) {
-      // Se não há entrevistador selecionado, limpar unidades disponíveis
-      setAvailableUnits([]);
-      setFormData(prev => ({ ...prev, unitId: '', classIds: [] }));
-    }
-  }, [formData.interviewerId, units]);
+  };
 
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
-    if (data) {
-      setUnits(data);
-    }
-  };
-
-  const filterAvailableUnitsByInterviewer = async (interviewerId: string, allUnits: Unit[]) => {
-    // Buscar o perfil do entrevistador selecionado
-    const { data: interviewerProfile } = await supabase
-      .from('staff_directory')
-      .select('unit_id')
-      .eq('id', interviewerId)
-      .single();
-
-    if (!interviewerProfile?.unit_id) {
-      // Se o entrevistador não tem unidade vinculada, mostrar todas
-      setAvailableUnits(allUnits);
-      return;
-    }
-
-    // Buscar a unidade do entrevistador para verificar o slug
-    const { data: interviewerUnit } = await supabase
-      .from('units')
-      .select('slug')
-      .eq('id', interviewerProfile.unit_id)
-      .single();
-
-    const interviewerUnitSlug = (interviewerUnit as any)?.slug as string | undefined;
-
-    if (interviewerUnitSlug === 'central') {
-      // Se é central, pode ver todas as unidades
-      setAvailableUnits(allUnits);
-      // Limpar seleção de unidade e turmas ao mudar para central (múltiplas opções)
-      setFormData(prev => {
-        const currentUnitId = prev.unitId;
-        // Se a unidade atual não está mais disponível ou não há seleção, limpar
-        if (!currentUnitId || !allUnits.some(u => u.id === currentUnitId)) {
-          return { ...prev, unitId: '', classIds: [] };
-        }
-        return prev;
-      });
-    } else {
-      // Caso contrário, só pode ver a unidade do entrevistador
-      const filtered = allUnits.filter(u => u.id === interviewerProfile.unit_id);
-      setAvailableUnits(filtered);
-      // Auto-selecionar a unidade se só houver uma opção
-      if (filtered.length === 1) {
-        setFormData(prev => ({ ...prev, unitId: filtered[0].id, classIds: [] }));
-      } else {
-        // Limpar seleção se não houver unidades disponíveis
-        setFormData(prev => ({ ...prev, unitId: '', classIds: [] }));
-      }
-    }
+    if (data) setUnits(data);
   };
 
   const fetchClasses = async () => {
-    const { data } = await supabase
-      .from('classes')
-      .select('*, series(*)')
-      .order('name');
+    const { data } = await supabase.from('classes').select('*, series(*)').order('name');
     if (data) setClasses(data);
-  };
-
-  const fetchAvailabilities = async () => {
-    const { data, error } = await supabase
-      .from('interviewer_availability')
-      .select(`
-        *,
-        profiles!interviewer_availability_interviewer_id_fkey(name),
-        units(*)
-      `)
-      .order('date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching availabilities:', error);
-      return;
-    }
-
-    setAvailabilities((data as unknown as InterviewerAvailability[]) || []);
   };
 
   const fetchInterviewers = async () => {
@@ -149,7 +135,6 @@ export const InterviewerAvailability = () => {
       .neq('profile', 'padrao');
 
     if (data) {
-      // Ordenar entrevistadores alfabeticamente por nome
       const sorted = [...data].sort((a, b) => {
         const nameA = a.name?.toLowerCase() || '';
         const nameB = b.name?.toLowerCase() || '';
@@ -159,35 +144,35 @@ export const InterviewerAvailability = () => {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  // 1) Specific Availabilities Operations
+  const fetchAvailabilities = async () => {
+    const { data, error } = await supabase
+      .from('interviewer_availability')
+      .select(`
+        *,
+        profiles!interviewer_availability_interviewer_id_fkey(name),
+        units(*)
+      `)
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching specific availabilities:', error);
+      return;
+    }
+    setAvailabilities((data as unknown as SpecificAvailability[]) || []);
   };
 
-  const handleClassToggle = (classId: string) => {
-    setFormData(prev => {
-      const current = prev.classIds;
-      if (current.includes(classId)) {
-        return { ...prev, classIds: current.filter(id => id !== classId) };
-      } else {
-        return { ...prev, classIds: [...current, classId] };
-      }
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSpecificSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.interviewerId || !formData.date || !formData.startTime || !formData.endTime || !formData.unitId) {
+    if (!specificFormData.interviewerId || !specificFormData.date || !specificFormData.startTime || !specificFormData.endTime || !specificFormData.unitId) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
-
-    if (formData.date < getCurrentDate()) {
+    if (specificFormData.date < getCurrentDate()) {
       toast.error('A data não pode ser no passado');
       return;
     }
-
-    if (formData.startTime >= formData.endTime) {
+    if (specificFormData.startTime >= specificFormData.endTime) {
       toast.error('Horário de início deve ser anterior ao horário de fim');
       return;
     }
@@ -196,18 +181,17 @@ export const InterviewerAvailability = () => {
       const { error } = await supabase
         .from('interviewer_availability')
         .insert({
-          interviewer_id: formData.interviewerId,
-          date: formData.date,
-          start_time: formData.startTime,
-          end_time: formData.endTime,
-          unit_id: formData.unitId,
-          class_ids: formData.classIds.length > 0 ? formData.classIds : null
+          interviewer_id: specificFormData.interviewerId,
+          date: specificFormData.date,
+          start_time: specificFormData.startTime,
+          end_time: specificFormData.endTime,
+          unit_id: specificFormData.unitId,
+          class_ids: specificFormData.classIds.length > 0 ? specificFormData.classIds : null
         } as any);
 
       if (error) throw error;
-
-      toast.success('Disponibilidade adicionada com sucesso');
-      setFormData({
+      toast.success('Disponibilidade avulsa adicionada com sucesso');
+      setSpecificFormData({
         interviewerId: '',
         date: '',
         startTime: '',
@@ -218,12 +202,12 @@ export const InterviewerAvailability = () => {
       setShowAddForm(false);
       fetchAvailabilities();
     } catch (error) {
-      console.error('Error adding availability:', error);
-      toast.error('Erro ao adicionar disponibilidade');
+      console.error('Error adding specific availability:', error);
+      toast.error('Erro ao adicionar disponibilidade avulsa');
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleSpecificDelete = async (id: string) => {
     try {
       const { error } = await supabase
         .from('interviewer_availability')
@@ -231,221 +215,678 @@ export const InterviewerAvailability = () => {
         .eq('id', id);
 
       if (error) throw error;
-
-      toast.success('Disponibilidade removida com sucesso');
+      toast.success('Disponibilidade avulsa removida com sucesso');
       fetchAvailabilities();
     } catch (error) {
-      console.error('Error deleting availability:', error);
-      toast.error('Erro ao remover disponibilidade');
+      console.error('Error deleting specific availability:', error);
+      toast.error('Erro ao remover disponibilidade avulsa');
+    }
+  };
+
+  // 2) Recurrent Availabilities Operations
+  const fetchRecurrentAvailabilities = async () => {
+    const { data, error } = await supabase
+      .from('interviewer_recurrent_availability' as any)
+      .select(`
+        *,
+        profiles:interviewer_id(name),
+        units:unit_id(*)
+      `)
+      .order('day_of_week', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching recurrent availabilities:', error);
+      return;
+    }
+    setRecurrentAvailabilities((data as unknown as RecurrentAvailability[]) || []);
+  };
+
+  const handleRecurrentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recurrentFormData.interviewerId || recurrentFormData.dayOfWeek === '' || !recurrentFormData.startTime || !recurrentFormData.endTime || !recurrentFormData.unitId) {
+      toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+    if (recurrentFormData.startTime >= recurrentFormData.endTime) {
+      toast.error('Horário de início deve ser anterior ao horário de fim');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('interviewer_recurrent_availability' as any)
+        .insert({
+          interviewer_id: recurrentFormData.interviewerId,
+          day_of_week: parseInt(recurrentFormData.dayOfWeek),
+          start_time: recurrentFormData.startTime,
+          end_time: recurrentFormData.endTime,
+          unit_id: recurrentFormData.unitId,
+          class_ids: recurrentFormData.classIds.length > 0 ? recurrentFormData.classIds : null
+        });
+
+      if (error) throw error;
+      toast.success('Disponibilidade recorrente adicionada com sucesso');
+      setRecurrentFormData({
+        interviewerId: '',
+        dayOfWeek: '',
+        startTime: '',
+        endTime: '',
+        unitId: '',
+        classIds: []
+      });
+      setShowAddForm(false);
+      fetchRecurrentAvailabilities();
+    } catch (error) {
+      console.error('Error adding recurrent availability:', error);
+      toast.error('Erro ao adicionar disponibilidade recorrente. Verifique se executou a migração SQL.');
+    }
+  };
+
+  const handleRecurrentDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('interviewer_recurrent_availability' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Disponibilidade recorrente removida com sucesso');
+      fetchRecurrentAvailabilities();
+    } catch (error) {
+      console.error('Error deleting recurrent availability:', error);
+      toast.error('Erro ao remover disponibilidade recorrente');
+    }
+  };
+
+  // 3) Exclusions Operations
+  const fetchExclusions = async () => {
+    const { data, error } = await supabase
+      .from('availability_exclusions' as any)
+      .select(`
+        *,
+        profiles:interviewer_id(name),
+        units:unit_id(*)
+      `)
+      .order('exclusion_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching exclusions:', error);
+      return;
+    }
+    setExclusions((data as unknown as AvailabilityExclusion[]) || []);
+  };
+
+  const handleExclusionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!exclusionFormData.exclusionDate) {
+      toast.error('Preencha a data da exclusão');
+      return;
+    }
+    if (!exclusionFormData.allDay && (!exclusionFormData.startTime || !exclusionFormData.endTime)) {
+      toast.error('Preencha os horários de início e fim da exclusão');
+      return;
+    }
+    if (!exclusionFormData.allDay && exclusionFormData.startTime >= exclusionFormData.endTime) {
+      toast.error('Horário de início deve ser anterior ao horário de fim');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('availability_exclusions' as any)
+        .insert({
+          exclusion_date: exclusionFormData.exclusionDate,
+          unit_id: exclusionFormData.unitId === 'all' ? null : exclusionFormData.unitId,
+          interviewer_id: exclusionFormData.interviewerId === 'all' ? null : exclusionFormData.interviewerId,
+          start_time: exclusionFormData.allDay ? null : exclusionFormData.startTime,
+          end_time: exclusionFormData.allDay ? null : exclusionFormData.endTime
+        });
+
+      if (error) throw error;
+      toast.success('Exclusão de agenda adicionada com sucesso');
+      setExclusionFormData({
+        unitId: 'all',
+        interviewerId: 'all',
+        exclusionDate: '',
+        startTime: '',
+        endTime: '',
+        allDay: true
+      });
+      setShowAddForm(false);
+      fetchExclusions();
+    } catch (error) {
+      console.error('Error adding exclusion:', error);
+      toast.error('Erro ao adicionar exclusão. Verifique se executou a migração SQL e se possui acesso.');
+    }
+  };
+
+  const handleExclusionDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('availability_exclusions' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Exclusão de agenda removida com sucesso');
+      fetchExclusions();
+    } catch (error) {
+      console.error('Error deleting exclusion:', error);
+      toast.error('Erro ao remover exclusão');
+    }
+  };
+
+  // Helper unit filter
+  const filterAvailableUnits = async (interviewerId: string) => {
+    if (!interviewerId) {
+      setAvailableUnits([]);
+      return;
+    }
+    const { data: profile } = await supabase.from('staff_directory').select('unit_id').eq('id', interviewerId).single();
+    if (!profile?.unit_id) {
+      setAvailableUnits(units);
+      return;
+    }
+    const { data: unit } = await supabase.from('units').select('slug').eq('id', profile.unit_id).single();
+    if ((unit as any)?.slug === 'central') {
+      setAvailableUnits(units);
+    } else {
+      setAvailableUnits(units.filter(u => u.id === profile.unit_id));
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-orange-500 hover:bg-orange-600"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Disponibilidade
-        </Button>
-      </div>
+      <Tabs value={activeTab} onValueChange={(val) => {
+        setActiveTab(val as any);
+        setShowAddForm(false);
+      }} className="w-full">
+        <TabsList className="grid grid-cols-3 max-w-xl mb-4">
+          <TabsTrigger value="specific">Horários Avulsos</TabsTrigger>
+          <TabsTrigger value="recurrent">Horários Recorrentes</TabsTrigger>
+          <TabsTrigger value="exclusions">Bloqueios & Exclusões</TabsTrigger>
+        </TabsList>
 
-      {showAddForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Adicionar Disponibilidade</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="interviewer">Entrevistador *</Label>
-                  <Select
-                    value={formData.interviewerId}
-                    onValueChange={(value) => {
-                      handleInputChange('interviewerId', value);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o entrevistador" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      {interviewers.map((interviewer) => (
-                        <SelectItem key={interviewer.id} value={interviewer.id}>
-                          {interviewer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <div className="flex justify-between items-center mb-4">
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-orange-500 hover:bg-orange-600"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar {activeTab === 'specific' ? 'Disponibilidade Avulsa' : activeTab === 'recurrent' ? 'Disponibilidade Recorrente' : 'Bloqueio de Agenda'}
+          </Button>
+        </div>
 
-                <div>
-                  <Label htmlFor="date">Data *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => handleInputChange('date', e.target.value)}
-                    min={getCurrentDate()}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="startTime">Horário de Início *</Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => handleInputChange('startTime', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="endTime">Horário de Fim *</Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => handleInputChange('endTime', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="unit">Unidade *</Label>
-                  <Select
-                    value={formData.unitId}
-                    onValueChange={(value) => {
-                      handleInputChange('unitId', value);
-                      setFormData(prev => ({ ...prev, classIds: [] })); // Limpa turmas ao mudar unidade
-                    }}
-                    required
-                    disabled={!formData.interviewerId || availableUnits.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !formData.interviewerId
-                          ? "Selecione primeiro o entrevistador"
-                          : availableUnits.length === 0
-                            ? "Nenhuma unidade disponível"
-                            : "Selecione a unidade"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableUnits.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.unitId && (
-                  <div className="md:col-span-2">
-                    <Label className="mb-2 block">Turmas (Opcional)</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border p-4 rounded-md max-h-40 overflow-y-auto">
-                      {classes
-                        .filter(c => c.unit_id === formData.unitId)
-                        .map((cls) => (
-                          <div key={cls.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`class-${cls.id}`}
-                              checked={formData.classIds.includes(cls.id)}
-                              onCheckedChange={() => handleClassToggle(cls.id)}
-                            />
-                            <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer">
-                              {cls.name} ({cls.series?.name})
-                            </Label>
-                          </div>
-                        ))}
-                      {classes.filter(c => c.unit_id === formData.unitId).length === 0 && (
-                        <p className="text-sm text-gray-500 col-span-3">Nenhuma turma encontrada nesta unidade</p>
-                      )}
+        {/* --- TABS CONTENT: SPECIFIC --- */}
+        <TabsContent value="specific" className="space-y-6">
+          {showAddForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Adicionar Disponibilidade Avulsa</CardTitle>
+                <CardDescription>Cadastre um horário de atendimento específico para uma data única.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSpecificSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="specific_interviewer">Entrevistador *</Label>
+                      <Select
+                        value={specificFormData.interviewerId}
+                        onValueChange={(val) => {
+                          setSpecificFormData(prev => ({ ...prev, interviewerId: val, unitId: '' }));
+                          filterAvailableUnits(val);
+                        }}
+                      >
+                        <SelectTrigger id="specific_interviewer">
+                          <SelectValue placeholder="Selecione o entrevistador" />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          {interviewers.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Se nenhuma turma for selecionada, a disponibilidade valerá para todas as turmas da unidade.</p>
+
+                    <div>
+                      <Label htmlFor="specific_date">Data *</Label>
+                      <Input
+                        id="specific_date"
+                        type="date"
+                        value={specificFormData.date}
+                        min={getCurrentDate()}
+                        onChange={(e) => setSpecificFormData(prev => ({ ...prev, date: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="specific_start">Horário de Início *</Label>
+                      <Input
+                        id="specific_start"
+                        type="time"
+                        value={specificFormData.startTime}
+                        onChange={(e) => setSpecificFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="specific_end">Horário de Fim *</Label>
+                      <Input
+                        id="specific_end"
+                        type="time"
+                        value={specificFormData.endTime}
+                        onChange={(e) => setSpecificFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="specific_unit">Unidade *</Label>
+                      <Select
+                        value={specificFormData.unitId}
+                        onValueChange={(val) => setSpecificFormData(prev => ({ ...prev, unitId: val, classIds: [] }))}
+                        disabled={!specificFormData.interviewerId}
+                      >
+                        <SelectTrigger id="specific_unit">
+                          <SelectValue placeholder={specificFormData.interviewerId ? "Selecione a unidade" : "Selecione primeiro o entrevistador"} />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          {availableUnits.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {specificFormData.unitId && (
+                      <div className="md:col-span-2">
+                        <Label className="mb-2 block">Turmas (Opcional)</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border p-4 rounded-md max-h-40 overflow-y-auto bg-white">
+                          {classes.filter(c => c.unit_id === specificFormData.unitId).map((cls) => (
+                            <div key={cls.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`s-class-${cls.id}`}
+                                checked={specificFormData.classIds.includes(cls.id)}
+                                onCheckedChange={(chk) => {
+                                  setSpecificFormData(prev => ({
+                                    ...prev,
+                                    classIds: chk ? [...prev.classIds, cls.id] : prev.classIds.filter(id => id !== cls.id)
+                                  }));
+                                }}
+                              />
+                              <Label htmlFor={`s-class-${cls.id}`} className="text-sm font-normal cursor-pointer">
+                                {cls.name} ({cls.series?.name})
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  <div className="flex space-x-2">
+                    <Button type="submit" className="bg-orange-500 hover:bg-orange-600">Salvar Disponibilidade</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>Cancelar</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Disponibilidades Avulsas Cadastradas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {availabilities.length > 0 ? (
+                  availabilities.map((avail) => (
+                    <div key={avail.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <span className="font-semibold text-gray-800">{avail.profiles?.name}</span>
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Calendar className="h-4 w-4 text-orange-500" />
+                          <span>{formatDateForDisplay(avail.date)}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Clock className="h-4 w-4 text-orange-500" />
+                          <span>{formatTimeForDisplay(avail.start_time)} - {formatTimeForDisplay(avail.end_time)}</span>
+                        </div>
+                        {avail.units && (
+                          <Badge variant="secondary">{avail.units.name}</Badge>
+                        )}
+                        {(avail as any).class_ids && (avail as any).class_ids.length > 0 && (
+                          <Badge variant="outline" className="border-green-300 text-green-700 bg-green-50">{(avail as any).class_ids.length} turmas</Badge>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleSpecificDelete(avail.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-6">Nenhuma disponibilidade avulsa cadastrada.</p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              <div className="flex space-x-2">
-                <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
-                  Salvar Disponibilidade
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddForm(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Availabilities List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Disponibilidades Cadastradas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {availabilities.length > 0 ? (
-              availabilities.map((availability) => (
-                <div key={availability.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">
-                        {formatDateForDisplay(availability.date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      <span>
-                        {formatTimeForDisplay(availability.start_time)} - {formatTimeForDisplay(availability.end_time)}
-                      </span>
-                    </div>
+        {/* --- TABS CONTENT: RECURRENT --- */}
+        <TabsContent value="recurrent" className="space-y-6">
+          {showAddForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Adicionar Disponibilidade Recorrente</CardTitle>
+                <CardDescription>Cadastre horários de atendimento que se repetem automaticamente toda semana.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleRecurrentSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="text-gray-600 font-medium">
-                        {availability.profiles?.name}
-                      </span>
-                      {availability.units && (
-                        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                          {availability.units.name}
-                        </span>
-                      )}
-                      {availability.class_ids && availability.class_ids.length > 0 && (
-                        <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                          {availability.class_ids.length} turmas
-                        </span>
-                      )}
+                      <Label htmlFor="recurrent_interviewer">Entrevistador *</Label>
+                      <Select
+                        value={recurrentFormData.interviewerId}
+                        onValueChange={(val) => {
+                          setRecurrentFormData(prev => ({ ...prev, interviewerId: val, unitId: '' }));
+                          filterAvailableUnits(val);
+                        }}
+                      >
+                        <SelectTrigger id="recurrent_interviewer">
+                          <SelectValue placeholder="Selecione o entrevistador" />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          {interviewers.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    <div>
+                      <Label htmlFor="recurrent_day">Dia da Semana *</Label>
+                      <Select
+                        value={recurrentFormData.dayOfWeek}
+                        onValueChange={(val) => setRecurrentFormData(prev => ({ ...prev, dayOfWeek: val }))}
+                      >
+                        <SelectTrigger id="recurrent_day">
+                          <SelectValue placeholder="Selecione o dia da semana" />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          {WEEKDAYS.map((d) => (
+                            <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recurrent_start">Horário de Início *</Label>
+                      <Input
+                        id="recurrent_start"
+                        type="time"
+                        value={recurrentFormData.startTime}
+                        onChange={(e) => setRecurrentFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recurrent_end">Horário de Fim *</Label>
+                      <Input
+                        id="recurrent_end"
+                        type="time"
+                        value={recurrentFormData.endTime}
+                        onChange={(e) => setRecurrentFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recurrent_unit">Unidade *</Label>
+                      <Select
+                        value={recurrentFormData.unitId}
+                        onValueChange={(val) => setRecurrentFormData(prev => ({ ...prev, unitId: val, classIds: [] }))}
+                        disabled={!recurrentFormData.interviewerId}
+                      >
+                        <SelectTrigger id="recurrent_unit">
+                          <SelectValue placeholder={recurrentFormData.interviewerId ? "Selecione a unidade" : "Selecione primeiro o entrevistador"} />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          {availableUnits.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {recurrentFormData.unitId && (
+                      <div className="md:col-span-2">
+                        <Label className="mb-2 block">Turmas (Opcional)</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border p-4 rounded-md max-h-40 overflow-y-auto bg-white">
+                          {classes.filter(c => c.unit_id === recurrentFormData.unitId).map((cls) => (
+                            <div key={cls.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`r-class-${cls.id}`}
+                                checked={recurrentFormData.classIds.includes(cls.id)}
+                                onCheckedChange={(chk) => {
+                                  setRecurrentFormData(prev => ({
+                                    ...prev,
+                                    classIds: chk ? [...prev.classIds, cls.id] : prev.classIds.filter(id => id !== cls.id)
+                                  }));
+                                }}
+                              />
+                              <Label htmlFor={`r-class-${cls.id}`} className="text-sm font-normal cursor-pointer">
+                                {cls.name} ({cls.series?.name})
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(availability.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center py-8">
-                Nenhuma disponibilidade cadastrada
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="flex space-x-2">
+                    <Button type="submit" className="bg-orange-500 hover:bg-orange-600">Salvar Disponibilidade Recorrente</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>Cancelar</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Disponibilidades Recorrentes Cadastradas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recurrentAvailabilities.length > 0 ? (
+                  recurrentAvailabilities.map((avail) => (
+                    <div key={avail.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <span className="font-semibold text-gray-800">{avail.profiles?.name}</span>
+                        <div className="flex items-center space-x-1 text-sm text-gray-600 bg-orange-50 text-orange-800 px-2 py-1 rounded">
+                          <span>{WEEKDAYS.find(w => w.value === avail.day_of_week)?.label}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Clock className="h-4 w-4 text-orange-500" />
+                          <span>{formatTimeForDisplay(avail.start_time)} - {formatTimeForDisplay(avail.end_time)}</span>
+                        </div>
+                        {avail.units && (
+                          <Badge variant="secondary">{avail.units.name}</Badge>
+                        )}
+                        {avail.class_ids && avail.class_ids.length > 0 && (
+                          <Badge variant="outline" className="border-green-300 text-green-700 bg-green-50">{avail.class_ids.length} turmas</Badge>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRecurrentDelete(avail.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-6">Nenhuma disponibilidade recorrente cadastrada.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- TABS CONTENT: EXCLUSIONS --- */}
+        <TabsContent value="exclusions" className="space-y-6">
+          {showAddForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Bloqueio ou Exclusão de Agenda</CardTitle>
+                <CardDescription>
+                  Impeça o agendamento de entrevistas em feriados, recessos ou horários de ausência.
+                  Exclusões específicas sempre se sobrepõem e cancelam a disponibilidade (tanto avulsa quanto recorrente).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleExclusionSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="exclusion_date">Data do Bloqueio *</Label>
+                      <Input
+                        id="exclusion_date"
+                        type="date"
+                        value={exclusionFormData.exclusionDate}
+                        min={getCurrentDate()}
+                        onChange={(e) => setExclusionFormData(prev => ({ ...prev, exclusionDate: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="exclusion_unit">Unidade (opcional)</Label>
+                      <Select
+                        value={exclusionFormData.unitId}
+                        onValueChange={(val) => setExclusionFormData(prev => ({ ...prev, unitId: val }))}
+                      >
+                        <SelectTrigger id="exclusion_unit">
+                          <SelectValue placeholder="Todas as unidades (global)" />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          <SelectItem value="all">Todas as unidades (global)</SelectItem>
+                          {units.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="exclusion_interviewer">Entrevistador (opcional)</Label>
+                      <Select
+                        value={exclusionFormData.interviewerId}
+                        onValueChange={(val) => setExclusionFormData(prev => ({ ...prev, interviewerId: val }))}
+                      >
+                        <SelectTrigger id="exclusion_interviewer">
+                          <SelectValue placeholder="Todos os entrevistadores" />
+                        </SelectTrigger>
+                        <SelectContent side="bottom">
+                          <SelectItem value="all">Todos os entrevistadores</SelectItem>
+                          {interviewers.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center space-x-2 mt-6">
+                      <Checkbox
+                        id="exclusion_all_day"
+                        checked={exclusionFormData.allDay}
+                        onCheckedChange={(chk) => setExclusionFormData(prev => ({ ...prev, allDay: !!chk }))}
+                      />
+                      <Label htmlFor="exclusion_all_day" className="cursor-pointer">Bloquear o dia inteiro</Label>
+                    </div>
+
+                    {!exclusionFormData.allDay && (
+                      <>
+                        <div>
+                          <Label htmlFor="exclusion_start">Horário de Início *</Label>
+                          <Input
+                            id="exclusion_start"
+                            type="time"
+                            value={exclusionFormData.startTime}
+                            onChange={(e) => setExclusionFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="exclusion_end">Horário de Fim *</Label>
+                          <Input
+                            id="exclusion_end"
+                            type="time"
+                            value={exclusionFormData.endTime}
+                            onChange={(e) => setExclusionFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button type="submit" className="bg-orange-500 hover:bg-orange-600">Salvar Bloqueio</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>Cancelar</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Bloqueios e Exclusões Cadastrados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {exclusions.length > 0 ? (
+                  exclusions.map((ex) => (
+                    <div key={ex.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center space-x-1 text-sm font-semibold text-red-600">
+                          <Calendar className="h-4 w-4" />
+                          <span>{formatDateForDisplay(ex.exclusion_date)}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Clock className="h-4 w-4 text-gray-500" />
+                          <span>
+                            {ex.start_time && ex.end_time 
+                              ? `${formatTimeForDisplay(ex.start_time)} - ${formatTimeForDisplay(ex.end_time)}`
+                              : 'Dia inteiro'}
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50">
+                          Bloqueado
+                        </Badge>
+                        <div>
+                          <span className="text-xs text-gray-500 block">
+                            Entrevistador: {ex.profiles?.name || 'Todos'}
+                          </span>
+                          <span className="text-xs text-gray-500 block">
+                            Unidade: {ex.units?.name || 'Todas (Global)'}
+                          </span>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleExclusionDelete(ex.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-6">Nenhum bloqueio cadastrado.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

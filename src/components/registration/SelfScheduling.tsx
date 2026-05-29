@@ -37,7 +37,10 @@ export const SelfScheduling = ({
   fallback
 }: SelfSchedulingProps) => {
   const [loading, setLoading] = useState(true);
-  const [availabilities, setAvailabilities] = useState<Availability[]>([]);
+  const [specificAvailabilities, setSpecificAvailabilities] = useState<any[]>([]);
+  const [recurrentAvailabilities, setRecurrentAvailabilities] = useState<any[]>([]);
+  const [exclusions, setExclusions] = useState<any[]>([]);
+  const [availableDates, setAvailableDates] = useState<Date[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSlot, setSelectedSlot] = useState<{ time: string, interviewers: string[] } | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -95,6 +98,61 @@ export const SelfScheduling = ({
     }
   };
 
+  // Helper to fetch all availability data sources
+  const fetchAvailabilities = async () => {
+    setLoading(true);
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // 1. Fetch specific availabilities (one-off)
+      const { data: specificData, error: specificErr } = await supabase
+        .from('interviewer_availability')
+        .select('*')
+        .gte('date', today);
+      if (specificErr) throw specificErr;
+
+      // 2. Fetch recurrent availabilities
+      const { data: recurrentData, error: recurrentErr } = await supabase
+        .from('interviewer_recurrent_availability' as any)
+        .select('*');
+      if (recurrentErr) throw recurrentErr;
+
+      // 3. Fetch exclusions
+      const { data: exclusionData, error: exclusionErr } = await supabase
+        .from('availability_exclusions' as any)
+        .select('*')
+        .gte('exclusion_date', today);
+      if (exclusionErr) throw exclusionErr;
+
+      setSpecificAvailabilities(specificData || []);
+      setRecurrentAvailabilities(recurrentData || []);
+      setExclusions(exclusionData || []);
+
+      // Calculate available dates for calendar (next 90 days)
+      const candidateDates: Date[] = [];
+      const base = startOfToday();
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(base);
+        d.setDate(d.getDate() + i);
+        candidateDates.push(d);
+      }
+
+      const datesWithSlots = candidateDates.filter(date => {
+        return getSlotsForDateLocal(date, specificData || [], recurrentData || [], exclusionData || []).length > 0;
+      });
+
+      setAvailableDates(datesWithSlots);
+      if (onAvailabilitiesLoaded) {
+        onAvailabilitiesLoaded(datesWithSlots.length > 0);
+      }
+    } catch (error) {
+      console.error('Error fetching availabilities:', error);
+      toast.error('Erro ao carregar horários disponíveis');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchBookedSlotsForDate = async () => {
       if (!selectedDate) {
@@ -103,13 +161,11 @@ export const SelfScheduling = ({
       }
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const dayAvails = availabilities.filter(a => a.date === dateStr);
-
+      const slots = getSlotsForDateLocal(selectedDate, specificAvailabilities, recurrentAvailabilities, exclusions);
+      
       const interviewerIds = Array.from(
         new Set(
-          dayAvails
-            .map(a => a.interviewer_id)
-            .filter((id): id is string => !!id)
+          slots.flatMap(s => s.interviewers)
         )
       );
 
@@ -131,18 +187,12 @@ export const SelfScheduling = ({
         }
 
         const map: Record<string, string[]> = {};
-
-        console.log('🗓️ Agendamentos encontrados para a data:', data?.length);
-
         (data || []).forEach((appt: { interviewer_id: string; appointment_time: string }) => {
           if (!appt.interviewer_id || !appt.appointment_time) return;
-
           const time = appt.appointment_time.substring(0, 5);
-
           const existing = map[time] || [];
           existing.push(appt.interviewer_id);
           map[time] = existing;
-          console.log(`🔒 Bloqueado: ${time} - Entrevistador: ${appt.interviewer_id}`);
         });
 
         setBookedSlots(map);
@@ -153,73 +203,7 @@ export const SelfScheduling = ({
     };
 
     fetchBookedSlotsForDate();
-  }, [selectedDate, availabilities]);
-
-  const fetchAvailabilities = async () => {
-    setLoading(true);
-    try {
-      // Usar data local para evitar problemas de fuso horário (UTC vs Local)
-      const today = format(new Date(), 'yyyy-MM-dd');
-      console.log('📅 Buscando disponibilidades a partir de:', today);
-      console.log('🔍 Filtros - Unit:', unitId, 'Class:', classId);
-
-      // Fetch availabilities
-      // Note: We need to filter client-side for class_ids array contains logic 
-      // if we can't do it easily in PostgREST without complex filters
-      const { data, error } = await supabase
-        .from('interviewer_availability')
-        .select('*')
-        .gte('date', today)
-        .order('date', { ascending: true });
-
-      if (error) throw error;
-
-      console.log('📥 Disponibilidades brutas:', data?.length);
-
-      // Filter locally for Unit and Class logic
-      const filtered = (data || []).filter((avail: any) => {
-        // Filter by Unit: Match specific unit OR Global (null)
-        const unitMatch = !avail.unit_id || avail.unit_id === unitId;
-
-        // Filter by Class: Empty array (all classes) OR contains specific class
-        // Tratamento robusto para class_ids (caso venha null, array vazio ou string)
-        let hasClassIds = false;
-        let includesClass = false;
-
-        if (avail.class_ids) {
-          if (Array.isArray(avail.class_ids)) {
-            hasClassIds = avail.class_ids.length > 0;
-            includesClass = avail.class_ids.includes(classId);
-          } else if (typeof avail.class_ids === 'string') {
-            // Fallback caso venha como string do Postgres
-            // O formato seria "{uuid,uuid}"
-            const cleanIds = (avail.class_ids as string).replace(/[{}]/g, '').split(',');
-            hasClassIds = cleanIds.length > 0 && cleanIds[0] !== '';
-            includesClass = cleanIds.includes(classId);
-          }
-        }
-
-        const classMatch = !hasClassIds || includesClass;
-
-        if (!unitMatch || !classMatch) {
-          console.log(`❌ Filtrado: ID ${avail.id} - UnitMatch: ${unitMatch}, ClassMatch: ${classMatch}`);
-        }
-
-        return unitMatch && classMatch;
-      });
-
-      console.log('✅ Disponibilidades filtradas:', filtered.length);
-      setAvailabilities(filtered);
-      if (onAvailabilitiesLoaded) {
-        onAvailabilitiesLoaded(filtered.length > 0);
-      }
-    } catch (error) {
-      console.error('Error fetching availabilities:', error);
-      toast.error('Erro ao carregar horários disponíveis');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedDate, specificAvailabilities, recurrentAvailabilities, exclusions]);
 
   // Generate 30 min slots for a specific availability record
   const generateSlots = (start: string, end: string) => {
@@ -234,49 +218,112 @@ export const SelfScheduling = ({
     return slots;
   };
 
-  // Group availabilities by Date -> Time Slot -> Interviewers
-  const getSlotsForDate = (date: Date) => {
+  // Helper to determine matches on Unit and Class
+  const matchesUnitAndClass = (avail: any) => {
+    const unitMatch = !avail.unit_id || avail.unit_id === unitId;
+    let hasClassIds = false;
+    let includesClass = false;
+
+    if (avail.class_ids) {
+      if (Array.isArray(avail.class_ids)) {
+        hasClassIds = avail.class_ids.length > 0;
+        includesClass = avail.class_ids.includes(classId);
+      } else if (typeof avail.class_ids === 'string') {
+        const cleanIds = (avail.class_ids as string).replace(/[{}]/g, '').split(',');
+        hasClassIds = cleanIds.length > 0 && cleanIds[0] !== '';
+        includesClass = cleanIds.includes(classId);
+      }
+    }
+
+    const classMatch = !hasClassIds || includesClass;
+    return unitMatch && classMatch;
+  };
+
+  // Logic to calculate slots for a date without booked slots (used for calendar dates calculation)
+  const getSlotsForDateLocal = (
+    date: Date,
+    specialsList: any[],
+    recurrentsList: any[],
+    exclusionsList: any[]
+  ) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const dayAvails = availabilities.filter(a => a.date === dateStr);
+    const dayOfWeek = date.getDay(); // 0=Sunday, 6=Saturday
+
+    // 1. Get exclusions for this date and unit
+    const activeExclusions = exclusionsList.filter(ex => {
+      const matchDate = ex.exclusion_date === dateStr;
+      const matchUnit = !ex.unit_id || ex.unit_id === unitId;
+      return matchDate && matchUnit;
+    });
+
+    // 2. Get specific availabilities for this date
+    const daySpecials = specialsList.filter(a => a.date === dateStr && matchesUnitAndClass(a));
+
+    // 3. Get recurrent availabilities for this weekday
+    const dayRecurrents = recurrentsList.filter(a => a.day_of_week === dayOfWeek && matchesUnitAndClass(a));
+
+    // Find all interviewers involved
+    const interviewers = Array.from(
+      new Set([
+        ...daySpecials.map(a => a.interviewer_id),
+        ...dayRecurrents.map(a => a.interviewer_id)
+      ])
+    );
 
     const slotsMap = new Map<string, string[]>(); // Time -> InterviewerIDs[]
 
-    dayAvails.forEach(avail => {
-      const slots = generateSlots(avail.start_time, avail.end_time);
-      slots.forEach(time => {
-        const existing = slotsMap.get(time) || [];
-        if (avail.interviewer_id) {
-          existing.push(avail.interviewer_id);
-        }
-        slotsMap.set(time, existing);
+    interviewers.forEach(interviewerId => {
+      // Rule: Specific availability overrides recurrent availability
+      const hasSpecific = daySpecials.some(a => a.interviewer_id === interviewerId);
+      const activeAvailabilities = hasSpecific
+        ? daySpecials.filter(a => a.interviewer_id === interviewerId)
+        : dayRecurrents.filter(a => a.interviewer_id === interviewerId);
+
+      activeAvailabilities.forEach(avail => {
+        const slots = generateSlots(avail.start_time, avail.end_time);
+        slots.forEach(time => {
+          // Check exclusion rules for this interviewer and slot
+          const isExcluded = activeExclusions.some(ex => {
+            const matchInterviewer = !ex.interviewer_id || ex.interviewer_id === interviewerId;
+            if (!matchInterviewer) return false;
+            
+            // If all day, it is excluded
+            if (!ex.start_time || !ex.end_time) return true;
+            
+            // Time range check
+            return time >= ex.start_time.substring(0, 5) && time < ex.end_time.substring(0, 5);
+          });
+
+          if (!isExcluded) {
+            const existing = slotsMap.get(time) || [];
+            existing.push(interviewerId);
+            slotsMap.set(time, existing);
+          }
+        });
       });
     });
 
-    const slotsWithAvailability = Array.from(slotsMap.entries())
-      .map(([time, interviewerIds]) => {
-        const bookedForTime = bookedSlots[time] || [];
-        const availableInterviewers = interviewerIds.filter(
-          id => !bookedForTime.includes(id)
-        );
-
-        if (bookedForTime.length > 0) {
-          console.log(`🕒 Horário ${time}: Total Entrevistadores: ${interviewerIds.length}, Bloqueados: ${bookedForTime.length}, Disponíveis: ${availableInterviewers.length}`);
-        }
-
-        return { time, interviewers: availableInterviewers };
-      })
+    return Array.from(slotsMap.entries())
+      .map(([time, interviewerIds]) => ({ time, interviewers: interviewerIds }))
       .filter(slot => slot.interviewers.length > 0)
       .filter(slot => isAppointmentSlotAvailableForDate(slot.time, date));
-
-    return slotsWithAvailability.sort((a, b) => a.time.localeCompare(b.time));
   };
 
-  // Get dates that have availability
-  const availableDates = availabilities
-    .map(a => parseISO(a.date))
-    .filter((date, index, self) =>
-      index === self.findIndex(d => isSameDay(d, date))
-    );
+  const getSlotsForDate = (date: Date) => {
+    const rawSlots = getSlotsForDateLocal(date, specificAvailabilities, recurrentAvailabilities, exclusions);
+    
+    return rawSlots
+      .map(slot => {
+        const bookedForTime = bookedSlots[slot.time] || [];
+        const availableInterviewers = slot.interviewers.filter(
+          id => !bookedForTime.includes(id)
+        );
+        return { time: slot.time, interviewers: availableInterviewers };
+      })
+      .filter(slot => slot.interviewers.length > 0)
+      .sort((a, b) => a.time.localeCompare(b.time));
+  };
+
 
   const handleBooking = async () => {
     if (!selectedDate || !selectedSlot) return;
@@ -368,7 +415,7 @@ export const SelfScheduling = ({
     );
   }
 
-  if (availabilities.length === 0) {
+  if (availableDates.length === 0) {
     return <>{fallback}</>;
   }
 
