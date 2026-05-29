@@ -222,14 +222,30 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   };
 
   const unifiedHistory = useMemo<UnifiedItem[]>(() => {
-    const fromInteractions: UnifiedItem[] = (interactions || []).map((i) => ({
-      id: i.id,
-      kind: 'interaction',
-      actor: (i as any).profiles?.name || 'Sistema',
-      at: i.created_at,
-      contentHtml: sanitizeInteractionComment(i.comments || ''),
-      badges: [i.interaction_type || ''],
-    }));
+    const fromInteractions: UnifiedItem[] = (interactions || []).map((i) => {
+      const interactionLabels: Record<string, string> = {
+        email_opened: 'e-mail aberto',
+        agendamento_entrevista: 'agendamento de entrevista',
+        agendamento: 'agendamento',
+        mudanca_status: 'mudança de status',
+        mudanca_turma: 'mudança de turma',
+        comentario: 'comentário',
+        atendimento: 'atendimento',
+        reativacao: 'reativação',
+        mudanca_data_prova: 'mudança de data da prova',
+        dados_pessoais_alterados: 'dados pessoais alterados',
+        notas_alteradas: 'notas alteradas'
+      };
+      const displayBadge = i.interaction_type ? (interactionLabels[i.interaction_type] || i.interaction_type) : '';
+      return {
+        id: i.id,
+        kind: 'interaction',
+        actor: (i as any).profiles?.name || 'Sistema',
+        at: i.created_at,
+        contentHtml: sanitizeInteractionComment(i.comments || ''),
+        badges: [displayBadge].filter(Boolean),
+      };
+    });
     const fromContacts: UnifiedItem[] = (contactAttempts || []).map((c) => ({
       id: c.id,
       kind: 'contact',
