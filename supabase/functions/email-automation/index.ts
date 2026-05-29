@@ -1038,13 +1038,28 @@ function renderTemplate(template: string, context: TemplateContext): string {
   });
 }
 
+/**
+ * Constrói o timestamp de envio interpretando `hour` e `minute` como
+ * horário de Brasília (America/Sao_Paulo, UTC-3).
+ * O servidor (Supabase Edge / Deno) roda em UTC, então somamos 3 horas
+ * para obter o instante UTC equivalente ao horário local desejado.
+ */
 function buildScheduledTimestamp(
   baseDate: Date,
   hour: number,
   minute: number,
 ): string {
-  const scheduled = new Date(baseDate);
-  scheduled.setHours(hour, minute, 0, 0);
+  const BRASILIA_OFFSET_HOURS = 3; // UTC-3
+  // Cria a data no fuso UTC com a hora que representa o horário de Brasília
+  const scheduled = new Date(Date.UTC(
+    baseDate.getUTCFullYear(),
+    baseDate.getUTCMonth(),
+    baseDate.getUTCDate(),
+    hour + BRASILIA_OFFSET_HOURS, // converte horário Brasília → UTC
+    minute,
+    0,
+    0,
+  ));
   return scheduled.toISOString();
 }
 

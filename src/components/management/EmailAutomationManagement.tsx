@@ -511,7 +511,9 @@ export const EmailAutomationManagement = () => {
                 }))
               }
             />
+            <p className="text-xs text-gray-500">Horário de Brasília (UTC-3). Ex.: 8 = envio às 8h no Brasil.</p>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="send_at_minute">Minuto</Label>
             <Input
