@@ -137,7 +137,8 @@ type EmailTriggerType =
   | "student_registered"
   | "appointment_scheduled"
   | "appointment_reminder_same_day"
-  | "exam_reminder_1_day_before";
+  | "exam_reminder_1_day_before"
+  | "attended_over_a_week_ago";
 
 interface TemplateContext {
   student_name?: string;
@@ -619,7 +620,66 @@ async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
     if (!result.skipped) examCount += 1;
   }
 
-  return { appointmentCount, examCount };
+  // --- Pós-atendimento: 7 dias após o atendimento realizado ---
+  let postAttendanceCount = 0;
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+  const sevenDaysAgoStr = formatIsoDate(sevenDaysAgo);
+
+  const { data: attendedAppointments } = await supabase
+    .from("appointments")
+    .select(`
+      id,
+      student_id,
+      appointment_date,
+      appointment_time,
+      students (
+        ${STUDENT_EMAIL_SELECT}
+      )
+    `)
+    .eq("appointment_date", sevenDaysAgoStr)
+    .eq("status", "realizado")
+    .eq("attended", true);
+
+  for (const appointment of attendedAppointments ?? []) {
+    const student = appointment.students as Record<string, unknown> | null;
+    if (!student?.email) continue;
+
+    const studentId = String(student.id);
+    const context = await buildStudentContext(supabase, studentId, student);
+    context.appointment_date = formatDate(String(appointment.appointment_date));
+    context.appointment_time = formatTime(String(appointment.appointment_time));
+
+    const template = await resolveTemplate(
+      supabase,
+      "attended_over_a_week_ago",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+
+    const result = await insertQueueItem(supabase, {
+      studentId,
+      appointmentId: String(appointment.id),
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "attended_over_a_week_ago",
+      toEmail: String(student.email),
+      toName: context.student_name,
+      context,
+      idempotencyKey: `attended_over_a_week_ago:${appointment.id}:${sevenDaysAgoStr}`,
+      scheduledFor,
+    });
+
+    if (!result.skipped) postAttendanceCount += 1;
+  }
+
+  return { appointmentCount, examCount, postAttendanceCount };
 }
 
 async function processQueue(supabase: ReturnType<typeof createClient>) {

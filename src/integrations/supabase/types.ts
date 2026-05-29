@@ -1098,6 +1098,7 @@ export type Database = {
         | "appointment_scheduled"
         | "appointment_reminder_same_day"
         | "exam_reminder_1_day_before"
+        | "attended_over_a_week_ago"
       email_queue_status:
         | "pending"
         | "sending"
@@ -1279,6 +1280,7 @@ export const Constants = {
         "appointment_scheduled",
         "appointment_reminder_same_day",
         "exam_reminder_1_day_before",
+        "attended_over_a_week_ago",
       ],
       email_queue_status: [
         "pending",
