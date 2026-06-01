@@ -276,7 +276,7 @@ export const UserManagement = () => {
   const isAdmin = profile?.profile === 'admin';
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {!isAdmin && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -286,12 +286,12 @@ export const UserManagement = () => {
         </Alert>
       )}
       
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold">Gestão de Usuários</h3>
         {isAdmin && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={resetForm}>
+              <Button onClick={resetForm} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Usuário
               </Button>
@@ -380,11 +380,12 @@ export const UserManagement = () => {
       </div>
 
       {isAdmin && (
-        <Card>
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle>Lista de Usuários</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -399,8 +400,10 @@ export const UserManagement = () => {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id} className={user.ativo === false ? 'opacity-60' : ''}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="min-w-[120px]">{user.name}</TableCell>
+                  <TableCell className="max-w-[180px] truncate sm:max-w-none sm:whitespace-normal">
+                    {user.email}
+                  </TableCell>
                   <TableCell>{profileLabels[user.profile]}</TableCell>
                   <TableCell>{user.units?.name || '-'}</TableCell>
                   <TableCell>
@@ -445,6 +448,7 @@ export const UserManagement = () => {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
         </Card>
       )}

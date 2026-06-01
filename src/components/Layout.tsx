@@ -69,9 +69,11 @@ export const Layout = ({ children }: LayoutProps) => {
     <DashboardNavProvider>
       <SidebarProvider defaultOpen>
         <AppSidebar />
-        <SidebarInset className="min-h-svh bg-slate-50">
+        <SidebarInset className="min-h-svh min-w-0 bg-slate-50">
           <LayoutHeader />
-          <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8">
+            {children}
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </DashboardNavProvider>

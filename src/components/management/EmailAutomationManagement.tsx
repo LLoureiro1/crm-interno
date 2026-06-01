@@ -345,7 +345,7 @@ export const EmailAutomationManagement = () => {
   }
 
   return (
-    <Tabs defaultValue="integration" className="space-y-4">
+    <Tabs defaultValue="integration" className="min-w-0 space-y-4">
       <TabsList>
         <TabsTrigger value="integration">Integração</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -627,7 +627,8 @@ export const EmailAutomationManagement = () => {
         </Button>
       </TabsContent>
 
-      <TabsContent value="queue">
+      <TabsContent value="queue" className="min-w-0">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -698,6 +699,7 @@ export const EmailAutomationManagement = () => {
             )}
           </TableBody>
         </Table>
+        </div>
       </TabsContent>
     </Tabs>
   );

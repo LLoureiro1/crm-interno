@@ -35,7 +35,7 @@ export const Dashboard = () => {
   }, [activeTab, canAccessAdvancedReports, canAccessConfig, setActiveTab]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full max-w-full space-y-6">
       {activeTab === 'reports' && (
         <ErrorBoundary>
           <ReportsTab />
