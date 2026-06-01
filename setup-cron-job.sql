@@ -1,48 +1,52 @@
--- Script para configurar execução automática diária da função update-student-statuses
--- Pré-requisito: ALTER DATABASE postgres SET app.settings.service_role_key = 'sua-service-role-key';
--- Execute este script no painel do Supabase (SQL Editor)
+-- Script para configurar execução automática diária das Edge Functions via pg_cron
+-- Pré-requisito: service_role_key em system_internal_config
+--
+--   INSERT INTO public.system_internal_config (key, value)
+--   VALUES ('service_role_key', 'eyJ...sua-service-role-key...')
+--   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
 
--- Verificar se a extensão pg_cron está habilitada
 SELECT * FROM pg_extension WHERE extname = 'pg_cron';
 
--- Remover cron job existente se houver
-SELECT cron.unschedule('update-student-statuses-daily');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'update-student-statuses-daily') THEN
+    PERFORM cron.unschedule('update-student-statuses-daily');
+  END IF;
+END $$;
 
--- Criar novo cron job para executar diariamente às 3h UTC
 SELECT cron.schedule(
   'update-student-statuses-daily',
   '0 3 * * *',
   $$
-  SELECT net.http_post(
-    url := 'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/update-student-statuses',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || COALESCE(nullif(current_setting('app.settings.service_role_key', true), ''), ''),
-      'Content-Type', 'application/json'
-    ),
-    body := '{"source":"cron"}'::jsonb
+  SELECT public.invoke_cron_edge_function(
+    'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/update-student-statuses',
+    'update-student-statuses'
   );
   $$
 );
 
--- Verificar se o cron job foi criado
-SELECT * FROM cron.job WHERE jobname = 'update-student-statuses-daily';
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'check-missed-interviews') THEN
+    PERFORM cron.unschedule('check-missed-interviews');
+  END IF;
+END $$;
 
--- Listar todos os cron jobs ativos
-SELECT 
-  jobid,
-  schedule,
-  command,
-  nodename,
-  nodeport,
-  database,
-  username,
-  active,
-  jobname
-FROM cron.job 
-ORDER BY jobid;
+SELECT cron.schedule(
+  'check-missed-interviews',
+  '0 9 * * *',
+  $$
+  SELECT public.invoke_cron_edge_function(
+    'https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/check-missed-interviews',
+    'check-missed-interviews'
+  );
+  $$
+);
 
--- Para testar o cron job manualmente (opcional)
--- SELECT cron.run_job(jobid) FROM cron.job WHERE jobname = 'update-student-statuses-daily';
+SELECT
+  public.get_cron_edge_auth_headers() IS NOT NULL AS cron_auth_ok,
+  (public.get_cron_edge_auth_headers() ? 'Authorization') AS has_authorization;
 
--- Para remover o cron job (se necessário)
--- SELECT cron.unschedule('update-student-statuses-daily');
+SELECT jobname, schedule FROM cron.job ORDER BY jobname;
+
+-- SELECT * FROM public.edge_function_logs ORDER BY created_at DESC LIMIT 20;

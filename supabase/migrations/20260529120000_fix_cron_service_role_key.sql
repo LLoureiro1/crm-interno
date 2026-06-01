@@ -1,5 +1,6 @@
--- =============================================================================
--- FIX: Recriar cron jobs com service_role key hardcoded
+-- DEPRECATED: substituído por 20260601030000_fix_cron_edge_functions_auth.sql
+-- (usa system_internal_config + invoke_cron_edge_function, sem key hardcoded no SQL)
+--
 -- 
 -- ANTES DE EXECUTAR:
 --   1. Acesse o Supabase Dashboard → Project Settings → API
