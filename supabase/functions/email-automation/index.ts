@@ -296,6 +296,7 @@ async function authorizeEdgeRequest(
 type EmailTriggerType =
   | "student_registered"
   | "appointment_scheduled"
+  | "appointment_scheduled_staff"
   | "appointment_reminder_same_day"
   | "exam_reminder_1_day_before"
   | "attended_over_a_week_ago"
@@ -316,6 +317,8 @@ interface TemplateContext {
   exam_time?: string;
   appointment_date?: string;
   appointment_time?: string;
+  appointment_modality?: string;
+  interviewer_name?: string;
   reschedule_link?: string;
 }
 
@@ -520,7 +523,7 @@ async function handleWebhook(
   }
 
   if (triggerType === "appointment_scheduled") {
-    return queueAppointmentEmail(supabase, record);
+    return queueAppointmentEmails(supabase, record, runId);
   }
 
   if (triggerType === "missed_appointment_reschedule") {
@@ -646,7 +649,7 @@ async function queueStudentEmail(
 
 /** Colunas reais de students (exam_time fica em exam_dates, não em students) */
 const STUDENT_EMAIL_SELECT =
-  "id, student_name, email, unit_id, status, tracking_code, exam_date, exam_date_id, class_id";
+  "id, student_name, email, unit_id, status, tracking_code, exam_date, exam_date_id, class_id, responsible_name";
 
 type StudentEmailRow = {
   id: string;
@@ -658,6 +661,7 @@ type StudentEmailRow = {
   exam_date: string | null;
   exam_date_id?: string | null;
   class_id: string | null;
+  responsible_name?: string | null;
 };
 
 async function resolveExamTime(
@@ -685,29 +689,66 @@ function normalizeStudentRow(
   return Array.isArray(row) ? row[0] ?? null : row;
 }
 
-async function loadStudentForAppointment(
+type InterviewerProfileRow = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type AppointmentEmailLoad = {
+  student: StudentEmailRow;
+  appointmentDate: string;
+  appointmentTime: string;
+  interviewModality: string;
+  interviewer: InterviewerProfileRow | null;
+};
+
+function normalizeInterviewerRow(
+  row: InterviewerProfileRow | InterviewerProfileRow[] | null | undefined,
+): InterviewerProfileRow | null {
+  if (!row) return null;
+  return Array.isArray(row) ? row[0] ?? null : row;
+}
+
+function formatInterviewModality(value: string | null | undefined): string {
+  if (!value) return "Não informado";
+  const normalized = value.toLowerCase().trim();
+  if (normalized === "presencial") return "Presencial";
+  if (normalized === "a_distancia") return "À distância";
+  return value;
+}
+
+async function loadAppointmentEmailContext(
   supabase: ReturnType<typeof createClient>,
   appointmentId: string,
   studentIdFromRecord: string | null,
-): Promise<
-  | { student: StudentEmailRow; appointmentDate: string; appointmentTime: string }
-  | { skipped: true; reason: string }
-> {
+  record: Record<string, unknown>,
+  runId: string,
+): Promise<AppointmentEmailLoad | { skipped: true; reason: string }> {
   const { data: appointmentRow, error: aptError } = await supabase
     .from("appointments")
     .select(`
       appointment_date,
       appointment_time,
       student_id,
+      interviewer_id,
+      formato_entrevista,
       students (
         ${STUDENT_EMAIL_SELECT}
+      ),
+      profiles (
+        id,
+        name,
+        email
       )
     `)
     .eq("id", appointmentId)
     .maybeSingle();
 
   if (aptError) {
-    logEmailEvent("warn", "appointment_load_failed", {
+    logEmailEvent("warn", "appointment_notify_load_failed", {
+      runId,
+      audience: "appointment_scheduled",
       appointmentId,
       error: aptError.message,
     });
@@ -729,7 +770,9 @@ async function loadStudentForAppointment(
       .maybeSingle();
 
     if (studentError) {
-      logEmailEvent("warn", "student_load_failed", {
+      logEmailEvent("warn", "appointment_notify_student_load_failed", {
+        runId,
+        audience: "appointment_scheduled",
         studentId,
         appointmentId,
         error: studentError.message,
@@ -745,29 +788,237 @@ async function loadStudentForAppointment(
     };
   }
 
-  const email = String(student.email ?? "").trim();
-  if (!email) {
-    return {
-      skipped: true,
-      reason:
-        "aluno sem e-mail cadastrado — inclua o e-mail na ficha do aluno para receber confirmação",
-    };
+  let interviewer = normalizeInterviewerRow(
+    appointmentRow?.profiles as InterviewerProfileRow | InterviewerProfileRow[] | null,
+  );
+
+  const interviewerIdFromRecord = record.interviewer_id != null &&
+      String(record.interviewer_id) !== "null"
+    ? String(record.interviewer_id)
+    : null;
+  const interviewerId = appointmentRow?.interviewer_id
+    ? String(appointmentRow.interviewer_id)
+    : interviewerIdFromRecord;
+
+  if (!interviewer && interviewerId) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .eq("id", interviewerId)
+      .maybeSingle();
+
+    if (profileError) {
+      logEmailEvent("warn", "appointment_notify_interviewer_load_failed", {
+        runId,
+        audience: "appointment_scheduled_staff",
+        appointmentId,
+        interviewerId,
+        error: profileError.message,
+      });
+    }
+    interviewer = profile as InterviewerProfileRow | null;
   }
 
+  const modalityRaw = appointmentRow?.formato_entrevista ??
+    record.formato_entrevista;
+
   return {
-    student: { ...student, email },
+    student,
     appointmentDate: String(
-      appointmentRow?.appointment_date ?? "",
+      appointmentRow?.appointment_date ?? record.appointment_date ?? "",
     ),
     appointmentTime: String(
-      appointmentRow?.appointment_time ?? "",
+      appointmentRow?.appointment_time ?? record.appointment_time ?? "",
     ),
+    interviewModality: formatInterviewModality(
+      modalityRaw != null ? String(modalityRaw) : null,
+    ),
+    interviewer,
   };
 }
 
-async function queueAppointmentEmail(
+async function buildAppointmentTemplateContext(
+  supabase: ReturnType<typeof createClient>,
+  load: AppointmentEmailLoad,
+  record: Record<string, unknown>,
+): Promise<TemplateContext & { unit_id?: string | null }> {
+  const context = await buildStudentContext(
+    supabase,
+    load.student.id,
+    load.student,
+  );
+  context.appointment_date = formatDate(
+    load.appointmentDate || String(record.appointment_date ?? ""),
+  );
+  context.appointment_time = formatTime(
+    load.appointmentTime || String(record.appointment_time ?? ""),
+  );
+  context.appointment_modality = load.interviewModality;
+  if (load.interviewer?.name) {
+    context.interviewer_name = load.interviewer.name;
+  }
+  return context;
+}
+
+async function queueAppointmentStudentEmail(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    appointmentId: string;
+    studentId: string;
+    studentEmail: string;
+    context: TemplateContext & { unit_id?: string | null };
+    runId: string;
+  },
+) {
+  const template = await resolveTemplate(
+    supabase,
+    "appointment_scheduled",
+    params.context.unit_id ?? null,
+  );
+
+  if (!template) {
+    logEmailEvent("warn", "appointment_notify_student_skipped", {
+      runId: params.runId,
+      audience: "appointment_scheduled",
+      appointmentId: params.appointmentId,
+      studentId: params.studentId,
+      reason: "template_inativo_ou_ausente",
+    });
+    return {
+      skipped: true,
+      reason:
+        "nenhum template ativo para appointment_scheduled (verifique Configurações → E-mails)",
+    };
+  }
+
+  const result = await insertQueueItem(supabase, {
+    studentId: params.studentId,
+    appointmentId: params.appointmentId,
+    unitId: params.context.unit_id ?? null,
+    template,
+    triggerType: "appointment_scheduled",
+    toEmail: params.studentEmail,
+    toName: params.context.student_name,
+    context: params.context,
+    idempotencyKey: `appointment_scheduled:${params.appointmentId}`,
+    scheduledFor: new Date().toISOString(),
+  });
+
+  if ("queued" in result && result.queued) {
+    logEmailEvent("info", "appointment_notify_student_queued", {
+      runId: params.runId,
+      audience: "appointment_scheduled",
+      appointmentId: params.appointmentId,
+      studentId: params.studentId,
+      toEmail: params.studentEmail,
+    });
+  }
+
+  return result;
+}
+
+async function queueAppointmentStaffEmail(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    appointmentId: string;
+    studentId: string;
+    context: TemplateContext & { unit_id?: string | null };
+    interviewer: InterviewerProfileRow | null;
+    runId: string;
+  },
+) {
+  const { appointmentId, studentId, context, interviewer, runId } = params;
+
+  if (!interviewer?.id) {
+    logEmailEvent("warn", "appointment_notify_staff_skipped", {
+      runId,
+      audience: "appointment_scheduled_staff",
+      appointmentId,
+      studentId,
+      reason: "interviewer_id_ausente",
+    });
+    return {
+      skipped: true,
+      reason: "agendamento sem entrevistador definido — e-mail interno não enviado",
+    };
+  }
+
+  const staffEmail = String(interviewer.email ?? "").trim();
+  if (!staffEmail) {
+    logEmailEvent("warn", "appointment_notify_staff_skipped", {
+      runId,
+      audience: "appointment_scheduled_staff",
+      appointmentId,
+      studentId,
+      interviewerId: interviewer.id,
+      reason: "colaborador_sem_email_no_perfil",
+    });
+    return {
+      skipped: true,
+      reason:
+        "colaborador sem e-mail no perfil — cadastre o e-mail do usuário interno para receber o aviso",
+    };
+  }
+
+  const staffContext: TemplateContext = {
+    ...context,
+    interviewer_name: interviewer.name || context.interviewer_name || "Colaborador",
+  };
+
+  const template = await resolveTemplate(
+    supabase,
+    "appointment_scheduled_staff",
+    context.unit_id ?? null,
+  );
+
+  if (!template) {
+    logEmailEvent("warn", "appointment_notify_staff_skipped", {
+      runId,
+      audience: "appointment_scheduled_staff",
+      appointmentId,
+      studentId,
+      interviewerId: interviewer.id,
+      reason: "template_inativo_ou_ausente",
+    });
+    return {
+      skipped: true,
+      reason:
+        "nenhum template ativo para appointment_scheduled_staff (verifique Configurações → E-mails)",
+    };
+  }
+
+  const result = await insertQueueItem(supabase, {
+    studentId,
+    appointmentId,
+    unitId: context.unit_id ?? null,
+    template,
+    triggerType: "appointment_scheduled_staff",
+    toEmail: staffEmail,
+    toName: staffContext.interviewer_name,
+    context: staffContext,
+    idempotencyKey: `appointment_scheduled_staff:${appointmentId}`,
+    scheduledFor: new Date().toISOString(),
+  });
+
+  if ("queued" in result && result.queued) {
+    logEmailEvent("info", "appointment_notify_staff_queued", {
+      runId,
+      audience: "appointment_scheduled_staff",
+      appointmentId,
+      studentId,
+      interviewerId: interviewer.id,
+      toEmail: staffEmail,
+      toName: staffContext.interviewer_name,
+    });
+  }
+
+  return result;
+}
+
+async function queueAppointmentEmails(
   supabase: ReturnType<typeof createClient>,
   record: Record<string, unknown>,
+  runId: string,
 ) {
   const appointmentId = String(record.id ?? "");
   if (!appointmentId || appointmentId === "undefined") {
@@ -779,55 +1030,85 @@ async function queueAppointmentEmail(
     ? String(record.student_id)
     : null;
 
-  const loaded = await loadStudentForAppointment(
+  const interviewerIdFromRecord = record.interviewer_id != null &&
+      String(record.interviewer_id) !== "null"
+    ? String(record.interviewer_id)
+    : null;
+
+  logEmailEvent("info", "appointment_notify_started", {
+    runId,
+    appointmentId,
+    studentId: studentIdFromRecord,
+    interviewerId: interviewerIdFromRecord,
+  });
+
+  const loaded = await loadAppointmentEmailContext(
     supabase,
     appointmentId,
     studentIdFromRecord,
+    record,
+    runId,
   );
 
   if ("skipped" in loaded) {
+    logEmailEvent("warn", "appointment_notify_aborted", {
+      runId,
+      appointmentId,
+      reason: loaded.reason,
+    });
     return loaded;
   }
 
-  const { student, appointmentDate, appointmentTime } = loaded;
-  const studentId = student.id;
+  const context = await buildAppointmentTemplateContext(supabase, loaded, record);
+  const studentId = loaded.student.id;
+  const studentEmail = String(loaded.student.email ?? "").trim();
 
-  const context = await buildStudentContext(supabase, studentId, student);
-  context.appointment_date = formatDate(
-    appointmentDate || String(record.appointment_date ?? ""),
-  );
-  context.appointment_time = formatTime(
-    appointmentTime || String(record.appointment_time ?? ""),
-  );
-
-  const template = await resolveTemplate(
-    supabase,
-    "appointment_scheduled",
-    context.unit_id ?? null,
-  );
-
-  if (!template) {
-    return {
+  let studentResult: Record<string, unknown>;
+  if (!studentEmail) {
+    logEmailEvent("warn", "appointment_notify_student_skipped", {
+      runId,
+      audience: "appointment_scheduled",
+      appointmentId,
+      studentId,
+      reason: "aluno_sem_email",
+    });
+    studentResult = {
       skipped: true,
       reason:
-        "nenhum template ativo para appointment_scheduled (verifique Configurações → E-mails)",
+        "aluno sem e-mail cadastrado — inclua o e-mail na ficha do aluno para receber confirmação",
     };
+  } else {
+    studentResult = await queueAppointmentStudentEmail(supabase, {
+      appointmentId,
+      studentId,
+      studentEmail,
+      context,
+      runId,
+    });
   }
 
-  const idempotencyKey = `appointment_scheduled:${appointmentId}`;
-
-  return insertQueueItem(supabase, {
-    studentId,
+  const staffResult = await queueAppointmentStaffEmail(supabase, {
     appointmentId,
-    unitId: context.unit_id ?? null,
-    template,
-    triggerType: "appointment_scheduled",
-    toEmail: student.email,
-    toName: context.student_name,
+    studentId,
     context,
-    idempotencyKey,
-    scheduledFor: new Date().toISOString(),
+    interviewer: loaded.interviewer,
+    runId,
   });
+
+  logEmailEvent("info", "appointment_notify_completed", {
+    runId,
+    appointmentId,
+    studentId,
+    interviewerId: loaded.interviewer?.id ?? interviewerIdFromRecord,
+    studentQueued: "queued" in studentResult && studentResult.queued === true,
+    staffQueued: "queued" in staffResult && staffResult.queued === true,
+  });
+
+  return {
+    appointmentId,
+    student: studentResult,
+    staff: staffResult,
+  };
 }
 
 async function scheduleReminders(

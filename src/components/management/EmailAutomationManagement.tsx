@@ -47,7 +47,9 @@ interface Unit {
 
 const TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   student_registered: 'Nova inscrição',
-  appointment_scheduled: 'Agendamento confirmado',
+  appointment_scheduled: 'Agendamento confirmado (inscrito)',
+  appointment_scheduled_staff:
+    '[INTERNO] Aviso ao colaborador — novo atendimento na agenda',
   appointment_reminder_same_day: 'Lembrete no dia do atendimento',
   exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
   attended_over_a_week_ago: 'Atendido há mais de uma semana',
@@ -75,6 +77,8 @@ const TEMPLATE_VARIABLES = [
   '{{unit_phone}}',
   '{{appointment_date}}',
   '{{appointment_time}}',
+  '{{appointment_modality}}',
+  '{{interviewer_name}}',
   '{{exam_date}}',
   '{{exam_time}}',
   '{{reschedule_link}}',
@@ -93,6 +97,8 @@ const PREVIEW_SAMPLE_DATA: Record<string, string> = {
   unit_phone: '(11) 99999-9999',
   appointment_date: '22/05/2026',
   appointment_time: '14:30',
+  appointment_modality: 'Presencial',
+  interviewer_name: 'Ana Coordenadora',
   exam_date: '23/05/2026',
   exam_time: '09:00',
 };
@@ -498,7 +504,19 @@ export const EmailAutomationManagement = () => {
           </div>
         </div>
 
-        {selectedTrigger !== 'student_registered' && selectedTrigger !== 'appointment_scheduled' && (
+        {selectedTrigger === 'appointment_scheduled_staff' && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <strong>E-mail interno (colaborador):</strong> este template é enviado apenas ao
+            usuário do sistema designado como entrevistador/atendente do agendamento. Não use
+            linguagem voltada à família do inscrito. O assunto padrão inclui{' '}
+            <code className="rounded bg-amber-100 px-1">[INTERNO — Colaborador]</code> para
+            deixar claro no inbox que é aviso da equipe.
+          </div>
+        )}
+
+        {selectedTrigger !== 'student_registered' &&
+          selectedTrigger !== 'appointment_scheduled' &&
+          selectedTrigger !== 'appointment_scheduled_staff' && (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>

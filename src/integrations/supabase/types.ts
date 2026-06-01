@@ -1116,6 +1116,7 @@ export type Database = {
       email_trigger_type:
         | "student_registered"
         | "appointment_scheduled"
+        | "appointment_scheduled_staff"
         | "appointment_reminder_same_day"
         | "exam_reminder_1_day_before"
         | "attended_over_a_week_ago"
@@ -1299,6 +1300,7 @@ export const Constants = {
       email_trigger_type: [
         "student_registered",
         "appointment_scheduled",
+        "appointment_scheduled_staff",
         "appointment_reminder_same_day",
         "exam_reminder_1_day_before",
         "attended_over_a_week_ago",
