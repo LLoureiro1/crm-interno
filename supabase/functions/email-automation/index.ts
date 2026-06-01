@@ -1,7 +1,9 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const FUNCTION_NAME = "email-automation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,9 +11,115 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-email-webhook-secret",
 };
 
+type LogLevel = "info" | "warn" | "error";
+
 type AuthResult =
   | { ok: true; body: Record<string, unknown>; isServiceRole: boolean; userId?: string }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; details?: Record<string, unknown> };
+
+type TokenDescription = {
+  prefix: string;
+  looksLikeJwt: boolean;
+  role?: string;
+};
+
+function logEmailEvent(
+  level: LogLevel,
+  event: string,
+  details: Record<string, unknown> = {},
+): void {
+  const payload = JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    event,
+    function: FUNCTION_NAME,
+    ...details,
+  });
+
+  if (level === "error") console.error(payload);
+  else if (level === "warn") console.warn(payload);
+  else console.log(payload);
+}
+
+function describeToken(token: string | null): TokenDescription {
+  if (!token) return { prefix: "(vazio)", looksLikeJwt: false };
+
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return { prefix: `${token.slice(0, 12)}...`, looksLikeJwt: false };
+  }
+
+  try {
+    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(payloadJson) as { role?: string };
+    return {
+      prefix: `${token.slice(0, 12)}...`,
+      looksLikeJwt: true,
+      role: payload.role,
+    };
+  } catch {
+    return { prefix: `${token.slice(0, 12)}...`, looksLikeJwt: false };
+  }
+}
+
+function logRequestContext(
+  req: Request,
+  body: Record<string, unknown>,
+  runId: string,
+  extra: Record<string, unknown> = {},
+): void {
+  const bearer = getBearerToken(req);
+  const webhookSecret = getEmailWebhookSecret(req);
+  const source = typeof body.source === "string" ? body.source : undefined;
+
+  logEmailEvent("info", "request_received", {
+    runId,
+    method: req.method,
+    userAgent: req.headers.get("user-agent") ?? null,
+    source: source ?? null,
+    triggerType: typeof body.trigger_type === "string" ? body.trigger_type : null,
+    hasAuthorizationHeader: Boolean(req.headers.get("Authorization")),
+    hasWebhookSecretHeader: Boolean(webhookSecret),
+    bearerToken: describeToken(bearer),
+    contentType: req.headers.get("content-type") ?? null,
+    ...extra,
+  });
+}
+
+async function persistEdgeFunctionLog(
+  supabaseAdmin: SupabaseClient,
+  entry: {
+    function_name: string;
+    source?: string;
+    status: string;
+    http_status?: number;
+    message?: string;
+    details?: Record<string, unknown>;
+  },
+): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin.from("edge_function_logs").insert({
+      function_name: entry.function_name,
+      source: entry.source ?? null,
+      status: entry.status,
+      http_status: entry.http_status ?? null,
+      message: entry.message ?? null,
+      details: entry.details ?? null,
+    });
+
+    if (error) {
+      logEmailEvent("warn", "log_persist_failed", {
+        status: entry.status,
+        dbError: error.message,
+      });
+    }
+  } catch (err) {
+    logEmailEvent("warn", "log_persist_failed", {
+      status: entry.status,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
 
 function getBearerToken(req: Request): string | null {
   const auth = req.headers.get("Authorization");
@@ -37,11 +145,18 @@ async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
   }
 }
 
-function jsonError(error: string, status: number): Response {
-  return new Response(JSON.stringify({ error }), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+function jsonError(
+  error: string,
+  status: number,
+  details?: Record<string, unknown>,
+): Response {
+  return new Response(
+    JSON.stringify(details ? { error, details } : { error }),
+    {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 }
 
 function getEmailWebhookSecret(req: Request): string | null {
@@ -66,6 +181,10 @@ async function authorizeEdgeRequest(
   if (isAutomatedCall) {
     const token = getBearerToken(req);
     if (token && isServiceRoleToken(token)) {
+      logEmailEvent("info", "auth_success", {
+        mode: "service_role",
+        source: source ?? "unspecified",
+      });
       return { ok: true, body, isServiceRole: true };
     }
 
@@ -74,26 +193,46 @@ async function authorizeEdgeRequest(
 
     if (webhookSecret && expected.length > 0) {
       if (!isValidEmailWebhookSecret(webhookSecret)) {
+        const details = {
+          source: source ?? null,
+          authMode: "webhook_secret",
+          hint: "x-email-webhook-secret não confere com EMAIL_AUTOMATION_WEBHOOK_SECRET",
+        };
+        logEmailEvent("error", "auth_failed", details);
         return {
           ok: false,
           status: 403,
           error: "x-email-webhook-secret inválido",
+          details,
         };
       }
+      logEmailEvent("info", "auth_success", {
+        mode: "webhook_secret",
+        source: source ?? "unspecified",
+      });
       return { ok: true, body, isServiceRole: true };
     }
 
-    // Trigger/cron via pg_net: secrets ficam só na Edge Function (não duplicar no SQL)
-    // Exige "Verify JWT" desligado no painel desta função
+    // Trigger/cron via pg_net: secrets ficam só na Edge Function (verify_jwt desligado)
+    logEmailEvent("info", "auth_success", {
+      mode: "automated_trusted",
+      source: source ?? "unspecified",
+      bearerToken: describeToken(token),
+    });
     return { ok: true, body, isServiceRole: true };
   }
 
   const token = getBearerToken(req);
   if (!token) {
+    logEmailEvent("error", "auth_failed", {
+      reason: "authorization_ausente",
+      source: source ?? null,
+    });
     return { ok: false, status: 401, error: "Authorization required" };
   }
 
   if (isServiceRoleToken(token)) {
+    logEmailEvent("info", "auth_success", { mode: "service_role", source: source ?? null });
     return { ok: true, body, isServiceRole: true };
   }
 
@@ -111,6 +250,11 @@ async function authorizeEdgeRequest(
   } = await supabaseUser.auth.getUser();
 
   if (userError || !user) {
+    logEmailEvent("error", "auth_failed", {
+      reason: "sessao_invalida",
+      authError: userError?.message ?? null,
+      bearerToken: describeToken(token),
+    });
     return { ok: false, status: 401, error: "Sessão inválida" };
   }
 
@@ -123,13 +267,29 @@ async function authorizeEdgeRequest(
     .single();
 
   if (profileError || !profile?.ativo) {
+    logEmailEvent("error", "auth_failed", {
+      reason: "usuario_inativo_ou_sem_perfil",
+      userId: user.id,
+      profileError: profileError?.message ?? null,
+    });
     return { ok: false, status: 403, error: "Usuário inativo ou sem perfil" };
   }
 
   if (!staffProfiles.includes(profile.profile)) {
+    logEmailEvent("error", "auth_failed", {
+      reason: "permissao_insuficiente",
+      userId: user.id,
+      profile: profile.profile,
+      allowedProfiles: staffProfiles,
+    });
     return { ok: false, status: 403, error: "Permissão insuficiente" };
   }
 
+  logEmailEvent("info", "auth_success", {
+    mode: "user",
+    userId: user.id,
+    profile: profile.profile,
+  });
   return { ok: true, body, isServiceRole: false, userId: user.id };
 }
 
@@ -181,21 +341,22 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Handle tracking pixel (GET request)
+  const runId = crypto.randomUUID().slice(0, 8);
   const url = new URL(req.url);
-  const source = url.searchParams.get("source");
+  const querySource = url.searchParams.get("source");
 
-  if (req.method === "GET" && source === "tracking") {
+  if (req.method === "GET" && querySource === "tracking") {
     const emailId = url.searchParams.get("id");
+    logEmailEvent("info", "tracking_pixel", { runId, emailId: emailId ?? null });
+
     if (emailId) {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       );
-      await handleTracking(supabase, emailId);
+      await handleTracking(supabase, emailId, runId);
     }
 
-    // Return 1x1 transparent GIF
     const pixel = Uint8Array.from(
       atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"),
       (c) => c.charCodeAt(0),
@@ -211,69 +372,142 @@ serve(async (req) => {
     });
   }
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
+  let body: Record<string, unknown> = {};
+  let source: string | undefined;
+
   try {
-    const body = await parseJsonBody(req);
+    body = await parseJsonBody(req);
+    source = typeof body.source === "string" ? body.source : undefined;
+    logRequestContext(req, body, runId);
+
     const auth = await authorizeEdgeRequest(req, body, {
       staffProfiles: ["admin"],
       automatedSources: ["cron", "webhook", "process_queue"],
     });
 
     if (!auth.ok) {
-      return jsonError(auth.error, auth.status);
+      await persistEdgeFunctionLog(supabaseAdmin, {
+        function_name: FUNCTION_NAME,
+        source,
+        status: "auth_failed",
+        http_status: auth.status,
+        message: auth.error,
+        details: { runId, ...auth.details },
+      });
+      return jsonError(auth.error, auth.status, auth.details);
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+    await persistEdgeFunctionLog(supabaseAdmin, {
+      function_name: FUNCTION_NAME,
+      source,
+      status: "started",
+      message: "Execução iniciada",
+      details: { runId },
+    });
 
-    const source = auth.body.source as string | undefined;
+    const supabase = supabaseAdmin;
+    source = auth.body.source as string | undefined;
+
+    logEmailEvent("info", "run_started", { runId, source: source ?? null });
+
+    let result: Record<string, unknown>;
 
     if (source === "cron") {
-      const reminders = await scheduleReminders(supabase);
-      const processed = await processQueue(supabase);
-      return jsonResponse({ success: true, reminders, processed });
-    }
-
-    if (source === "webhook") {
-      const queued = await handleWebhook(supabase, auth.body);
+      const reminders = await scheduleReminders(supabase, runId);
+      const processed = await processQueue(supabase, runId);
+      result = { success: true, reminders, processed };
+    } else if (source === "webhook") {
+      const queued = await handleWebhook(supabase, auth.body, runId);
       if (
         queued && typeof queued === "object" && "skipped" in queued &&
         queued.skipped
       ) {
-        console.warn(
-          "email-automation webhook skipped:",
-          (queued as { reason?: string }).reason ?? queued,
-        );
+        logEmailEvent("warn", "webhook_skipped", {
+          runId,
+          reason: (queued as { reason?: string }).reason ?? "desconhecido",
+          triggerType: auth.body.trigger_type ?? null,
+        });
+      } else {
+        logEmailEvent("info", "webhook_queued", {
+          runId,
+          triggerType: auth.body.trigger_type ?? null,
+          queued,
+        });
       }
-      const processed = await processQueue(supabase);
+      const processed = await processQueue(supabase, runId);
       if (processed.failed > 0) {
-        console.warn("email-automation fila com falhas:", processed);
+        logEmailEvent("warn", "queue_partial_failure", { runId, processed });
       }
-      return jsonResponse({ success: true, queued, processed });
+      result = { success: true, queued, processed };
+    } else if (source === "process_queue") {
+      const processed = await processQueue(supabase, runId);
+      result = { success: true, processed };
+    } else {
+      logEmailEvent("warn", "invalid_source", { runId, source: source ?? null });
+      await persistEdgeFunctionLog(supabaseAdmin, {
+        function_name: FUNCTION_NAME,
+        source,
+        status: "error",
+        http_status: 400,
+        message: "source inválido",
+        details: { runId, source: source ?? null },
+      });
+      return jsonResponse({ error: "source inválido" }, 400);
     }
 
-    if (source === "process_queue") {
-      const processed = await processQueue(supabase);
-      return jsonResponse({ success: true, processed });
-    }
+    logEmailEvent("info", "run_success", { runId, source: source ?? null, result });
 
-    return jsonResponse({ error: "source inválido" }, 400);
+    await persistEdgeFunctionLog(supabaseAdmin, {
+      function_name: FUNCTION_NAME,
+      source,
+      status: "success",
+      http_status: 200,
+      message: "Execução concluída",
+      details: { runId, ...result },
+    });
+
+    return jsonResponse(result);
   } catch (error) {
-    console.error("email-automation error:", error);
-    return jsonResponse(
-      { error: error instanceof Error ? error.message : "Erro interno" },
-      500,
-    );
+    const message = error instanceof Error ? error.message : "Erro interno";
+    logEmailEvent("error", "run_error", {
+      runId,
+      source: source ?? null,
+      error: message,
+      stack: error instanceof Error ? error.stack ?? null : null,
+    });
+
+    await persistEdgeFunctionLog(supabaseAdmin, {
+      function_name: FUNCTION_NAME,
+      source,
+      status: "error",
+      http_status: 500,
+      message,
+      details: { runId },
+    });
+
+    return jsonResponse({ error: message }, 500);
   }
 });
 
 async function handleWebhook(
   supabase: ReturnType<typeof createClient>,
   body: Record<string, unknown>,
+  runId: string,
 ) {
   const triggerType = body.trigger_type as EmailTriggerType;
   const record = body.record as Record<string, unknown> | undefined;
+
+  logEmailEvent("info", "webhook_received", {
+    runId,
+    triggerType: triggerType ?? null,
+    table: body.table ?? null,
+    recordId: record?.id ?? null,
+  });
 
   if (!record) {
     return { skipped: true, reason: "record ausente" };
@@ -398,7 +632,10 @@ async function loadStudentForAppointment(
     .maybeSingle();
 
   if (aptError) {
-    console.warn("queueAppointmentEmail:", aptError.message);
+    logEmailEvent("warn", "appointment_load_failed", {
+      appointmentId,
+      error: aptError.message,
+    });
   }
 
   let student = normalizeStudentRow(
@@ -417,7 +654,11 @@ async function loadStudentForAppointment(
       .maybeSingle();
 
     if (studentError) {
-      console.warn("queueAppointmentEmail student:", studentError.message);
+      logEmailEvent("warn", "student_load_failed", {
+        studentId,
+        appointmentId,
+        error: studentError.message,
+      });
     }
     student = directStudent as StudentEmailRow | null;
   }
@@ -514,7 +755,11 @@ async function queueAppointmentEmail(
   });
 }
 
-async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
+async function scheduleReminders(
+  supabase: ReturnType<typeof createClient>,
+  runId: string,
+) {
+  logEmailEvent("info", "schedule_reminders_started", { runId });
   const today = new Date();
   const todayStr = formatIsoDate(today);
   const tomorrow = new Date(today);
@@ -679,15 +924,25 @@ async function scheduleReminders(supabase: ReturnType<typeof createClient>) {
     if (!result.skipped) postAttendanceCount += 1;
   }
 
-  return { appointmentCount, examCount, postAttendanceCount };
+  const summary = { appointmentCount, examCount, postAttendanceCount };
+  logEmailEvent("info", "schedule_reminders_done", { runId, ...summary });
+  return summary;
 }
 
-async function processQueue(supabase: ReturnType<typeof createClient>) {
+async function processQueue(
+  supabase: ReturnType<typeof createClient>,
+  runId: string,
+) {
+  logEmailEvent("info", "queue_process_started", { runId });
   const defaultWebhookToken = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN") ?? "";
   const defaultWebhookUrl = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_URL") ?? "";
 
   if (!defaultWebhookToken && !defaultWebhookUrl) {
-    console.warn("GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN/URL não configurados");
+    logEmailEvent("warn", "apps_script_not_configured", {
+      runId,
+      hasToken: Boolean(defaultWebhookToken),
+      hasUrl: Boolean(defaultWebhookUrl),
+    });
   }
 
   const { data: pendingEmails, error } = await supabase
@@ -699,8 +954,14 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
     .limit(20);
 
   if (error) {
+    logEmailEvent("error", "queue_fetch_failed", { runId, error: error.message });
     throw error;
   }
+
+  logEmailEvent("info", "queue_pending_loaded", {
+    runId,
+    count: pendingEmails?.length ?? 0,
+  });
 
   let sent = 0;
   let failed = 0;
@@ -712,6 +973,14 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
     );
 
     if (!integration?.is_active) {
+      logEmailEvent("warn", "queue_item_failed", {
+        runId,
+        queueItemId: item.id,
+        reason: "integracao_inativa",
+        unitId: item.unit_id,
+        triggerType: item.trigger_type,
+        toEmail: item.to_email,
+      });
       await supabase
         .from("email_queue")
         .update({
@@ -728,6 +997,15 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
     const webhookToken = defaultWebhookToken;
 
     if (!webhookUrl || !webhookToken) {
+      logEmailEvent("warn", "queue_item_failed", {
+        runId,
+        queueItemId: item.id,
+        reason: "webhook_nao_configurado",
+        hasUrl: Boolean(webhookUrl),
+        hasToken: Boolean(webhookToken),
+        triggerType: item.trigger_type,
+        toEmail: item.to_email,
+      });
       await supabase
         .from("email_queue")
         .update({
@@ -752,6 +1030,7 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
       const { messageId } = await sendEmailViaAppsScriptWebhook({
         webhookUrl,
         token: webhookToken,
+        runId,
         payload: {
           event: String(item.trigger_type),
           trigger_type: String(item.trigger_type),
@@ -776,10 +1055,26 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
         .eq("id", item.id);
 
       sent += 1;
+      logEmailEvent("info", "queue_item_sent", {
+        runId,
+        queueItemId: item.id,
+        triggerType: item.trigger_type,
+        toEmail: item.to_email,
+        messageId,
+      });
     } catch (sendError) {
       const message = sendError instanceof Error
         ? sendError.message
         : "Erro desconhecido";
+
+      logEmailEvent("error", "queue_item_failed", {
+        runId,
+        queueItemId: item.id,
+        reason: "send_error",
+        triggerType: item.trigger_type,
+        toEmail: item.to_email,
+        error: message,
+      });
 
       await supabase
         .from("email_queue")
@@ -793,7 +1088,9 @@ async function processQueue(supabase: ReturnType<typeof createClient>) {
     }
   }
 
-  return { sent, failed };
+  const summary = { sent, failed };
+  logEmailEvent(failed > 0 ? "warn" : "info", "queue_process_done", { runId, ...summary });
+  return summary;
 }
 
 async function insertQueueItem(
@@ -846,10 +1143,31 @@ async function insertQueueItem(
 
   if (error) {
     if (error.code === "23505") {
+      logEmailEvent("info", "queue_item_duplicate", {
+        idempotencyKey: params.idempotencyKey,
+        triggerType: params.triggerType,
+        studentId: params.studentId,
+        toEmail: params.toEmail,
+      });
       return { skipped: true, reason: "e-mail já enfileirado" };
     }
+    logEmailEvent("error", "queue_insert_failed", {
+      triggerType: params.triggerType,
+      studentId: params.studentId,
+      toEmail: params.toEmail,
+      error: error.message,
+      code: error.code,
+    });
     throw error;
   }
+
+  logEmailEvent("info", "queue_item_inserted", {
+    emailId,
+    triggerType: params.triggerType,
+    studentId: params.studentId,
+    toEmail: params.toEmail,
+    scheduledFor: params.scheduledFor,
+  });
 
   return { queued: true };
 }
@@ -1162,6 +1480,7 @@ async function sendEmailViaAppsScriptWebhook(params: {
   webhookUrl: string;
   token: string;
   payload: Omit<AppsScriptWebhookPayload, "token">;
+  runId?: string;
 }): Promise<{ messageId: string }> {
   const requestUrl = buildAppsScriptWebhookUrl(params.webhookUrl, params.token);
   const body: AppsScriptWebhookPayload = {
@@ -1169,7 +1488,8 @@ async function sendEmailViaAppsScriptWebhook(params: {
     ...params.payload,
   };
 
-  console.log("Apps Script webhook:", {
+  logEmailEvent("info", "apps_script_request", {
+    runId: params.runId ?? null,
     to_email: body.to_email,
     to_name: body.to_name,
     trigger_type: body.trigger_type,
@@ -1194,6 +1514,14 @@ async function sendEmailViaAppsScriptWebhook(params: {
   if (!response.ok) {
     const errorMessage = extractAppsScriptError(rawResponse) ||
       `Webhook Apps Script retornou HTTP ${response.status}`;
+    logEmailEvent("error", "apps_script_http_error", {
+      runId: params.runId ?? null,
+      httpStatus: response.status,
+      to_email: body.to_email,
+      trigger_type: body.trigger_type,
+      error: errorMessage,
+      rawResponse,
+    });
     throw new Error(errorMessage);
   }
 
@@ -1315,9 +1643,9 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 async function handleTracking(
   supabase: ReturnType<typeof createClient>,
   emailId: string,
+  runId: string,
 ) {
   try {
-    // 1. Buscar informações do e-mail
     const { data: email, error: fetchError } = await supabase
       .from("email_queue")
       .select("student_id, trigger_type, subject, opened_at")
@@ -1325,7 +1653,11 @@ async function handleTracking(
       .maybeSingle();
 
     if (fetchError || !email) {
-      console.warn("handleTracking: e-mail não encontrado", emailId);
+      logEmailEvent("warn", "tracking_email_not_found", {
+        runId,
+        emailId,
+        error: fetchError?.message ?? null,
+      });
       return;
     }
 
@@ -1360,8 +1692,19 @@ async function handleTracking(
         interaction_type: "email_opened",
         comments: `E-mail aberto: "${email.subject}" (Evento: ${triggerLabel})`,
       });
+
+      logEmailEvent("info", "tracking_first_open", {
+        runId,
+        emailId,
+        studentId: email.student_id,
+        triggerType: email.trigger_type,
+      });
     }
   } catch (err) {
-    console.error("handleTracking error:", err);
+    logEmailEvent("error", "tracking_error", {
+      runId,
+      emailId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
