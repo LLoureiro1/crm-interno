@@ -12,6 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Mail, Save } from 'lucide-react';
+import { htmlToPlainText, plainTextToHtml } from '@/utils/emailTemplateBody';
+
+type BodyViewMode = 'text' | 'html' | 'preview';
 
 type EmailTriggerType = Enums<'email_trigger_type'>;
 type EmailQueueStatus = Enums<'email_queue_status'>;
@@ -127,7 +130,8 @@ export const EmailAutomationManagement = () => {
   const [loading, setLoading] = useState(true);
   const [savingIntegration, setSavingIntegration] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
-  const [bodyViewMode, setBodyViewMode] = useState<'html' | 'preview'>('html');
+  const [bodyViewMode, setBodyViewMode] = useState<BodyViewMode>('text');
+  const [plainTextBody, setPlainTextBody] = useState('');
 
   const unitFilter = selectedUnitId === 'default' ? null : selectedUnitId;
 
@@ -185,18 +189,34 @@ export const EmailAutomationManagement = () => {
         send_at_hour: 8,
         send_at_minute: 0,
       });
+      setPlainTextBody('');
       return;
     }
 
+    const htmlBody = currentTemplate.html_body;
     setTemplateForm({
       name: currentTemplate.name,
       subject: currentTemplate.subject,
-      html_body: currentTemplate.html_body,
+      html_body: htmlBody,
       is_active: currentTemplate.is_active,
       send_at_hour: currentTemplate.send_at_hour,
       send_at_minute: currentTemplate.send_at_minute,
     });
+    setPlainTextBody(htmlToPlainText(htmlBody));
   }, [currentTemplate, selectedTrigger]);
+
+  const handleBodyViewModeChange = (value: string) => {
+    const mode = value as BodyViewMode;
+    if (mode === 'text') {
+      setPlainTextBody(htmlToPlainText(templateForm.html_body));
+    }
+    setBodyViewMode(mode);
+  };
+
+  const handlePlainTextBodyChange = (value: string) => {
+    setPlainTextBody(value);
+    setTemplateForm((prev) => ({ ...prev, html_body: plainTextToHtml(value) }));
+  };
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -558,22 +578,38 @@ export const EmailAutomationManagement = () => {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label>Corpo do e-mail</Label>
-            <Tabs
-              value={bodyViewMode}
-              onValueChange={(value) => setBodyViewMode(value as 'html' | 'preview')}
-            >
+            <Tabs value={bodyViewMode} onValueChange={handleBodyViewModeChange}>
               <TabsList className="h-8">
-                <TabsTrigger value="html" className="px-3 text-xs">
+                <TabsTrigger value="text" className="px-2 text-xs sm:px-3">
+                  Texto
+                </TabsTrigger>
+                <TabsTrigger value="html" className="px-2 text-xs sm:px-3">
                   Código HTML
                 </TabsTrigger>
-                <TabsTrigger value="preview" className="px-3 text-xs">
+                <TabsTrigger value="preview" className="px-2 text-xs sm:px-3">
                   Visualização
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-          {bodyViewMode === 'html' ? (
+          {bodyViewMode === 'text' ? (
+            <div className="space-y-2">
+              <Textarea
+                id="template_text"
+                className="min-h-[320px] text-sm leading-relaxed"
+                value={plainTextBody}
+                onChange={(event) => handlePlainTextBodyChange(event.target.value)}
+                placeholder={'Olá, {{student_name}}!\n\nSua inscrição na {{unit_name}} foi recebida...'}
+              />
+              <p className="text-xs text-gray-500">
+                Edite apenas o texto. Use uma linha em branco entre parágrafos. Variáveis como{' '}
+                <code className="rounded bg-gray-100 px-1">{'{{student_name}}'}</code> são
+                preservadas e refletem automaticamente no HTML e na visualização. Formatação
+                avançada (cores, tabelas) permanece na aba Código HTML.
+              </p>
+            </div>
+          ) : bodyViewMode === 'html' ? (
             <Textarea
               id="template_html"
               className="min-h-[320px] font-mono text-sm"
