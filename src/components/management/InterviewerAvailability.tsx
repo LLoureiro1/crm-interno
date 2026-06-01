@@ -402,10 +402,25 @@ export const InterviewerAvailability = () => {
         setActiveTab(val as any);
         setShowAddForm(false);
       }} className="w-full">
-        <TabsList className="grid grid-cols-3 max-w-xl mb-4">
-          <TabsTrigger value="specific">Horários Avulsos</TabsTrigger>
-          <TabsTrigger value="recurrent">Horários Recorrentes</TabsTrigger>
-          <TabsTrigger value="exclusions">Bloqueios & Exclusões</TabsTrigger>
+        <TabsList className="mb-4 grid h-auto w-full max-w-xl grid-cols-1 gap-1 md:grid-cols-3">
+          <TabsTrigger
+            value="specific"
+            className="h-auto w-full whitespace-normal py-2 text-sm md:whitespace-nowrap"
+          >
+            Horários Avulsos
+          </TabsTrigger>
+          <TabsTrigger
+            value="recurrent"
+            className="h-auto w-full whitespace-normal py-2 text-sm md:whitespace-nowrap"
+          >
+            Horários Recorrentes
+          </TabsTrigger>
+          <TabsTrigger
+            value="exclusions"
+            className="h-auto w-full whitespace-normal py-2 text-sm md:whitespace-nowrap"
+          >
+            Bloqueios & Exclusões
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex justify-between items-center mb-4">
