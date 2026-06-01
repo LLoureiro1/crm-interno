@@ -51,6 +51,7 @@ const TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   appointment_reminder_same_day: 'Lembrete no dia do atendimento',
   exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
   attended_over_a_week_ago: 'Atendido há mais de uma semana',
+  missed_appointment_reschedule: 'Faltou ao atendimento — reagendar',
 };
 
 const STATUS_LABELS: Record<EmailQueueStatus, string> = {
@@ -76,6 +77,7 @@ const TEMPLATE_VARIABLES = [
   '{{appointment_time}}',
   '{{exam_date}}',
   '{{exam_time}}',
+  '{{reschedule_link}}',
 ];
 
 const PREVIEW_SAMPLE_DATA: Record<string, string> = {

@@ -12,6 +12,7 @@ import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Confirmation from './components/registration/Confirmation';
+import Reschedule from './pages/Reschedule';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ErrorBoundary from "./components/ErrorBoundary";
 import { DOMErrorPrevention } from "./components/DOMErrorPrevention";
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/confirmacao" element={<Confirmation />} />
+                <Route path="/reagendar" element={<Reschedule />} />
                 <Route path="/contact-lists" element={<ContactLists />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

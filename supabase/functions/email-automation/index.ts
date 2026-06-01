@@ -298,7 +298,8 @@ type EmailTriggerType =
   | "appointment_scheduled"
   | "appointment_reminder_same_day"
   | "exam_reminder_1_day_before"
-  | "attended_over_a_week_ago";
+  | "attended_over_a_week_ago"
+  | "missed_appointment_reschedule";
 
 interface TemplateContext {
   student_name?: string;
@@ -315,6 +316,7 @@ interface TemplateContext {
   exam_time?: string;
   appointment_date?: string;
   appointment_time?: string;
+  reschedule_link?: string;
 }
 
 interface EmailTemplate {
@@ -521,7 +523,80 @@ async function handleWebhook(
     return queueAppointmentEmail(supabase, record);
   }
 
+  if (triggerType === "missed_appointment_reschedule") {
+    return queueMissedRescheduleEmail(supabase, record, runId);
+  }
+
   return { skipped: true, reason: "trigger não tratado" };
+}
+
+function buildRescheduleLink(studentId: string, registrationToken: string): string {
+  const base = (Deno.env.get("PUBLIC_APP_URL") ?? "").replace(/\/$/, "");
+  const path = `/reagendar?s=${encodeURIComponent(studentId)}&t=${encodeURIComponent(registrationToken)}`;
+  return base ? `${base}${path}` : path;
+}
+
+async function queueMissedRescheduleEmail(
+  supabase: ReturnType<typeof createClient>,
+  record: Record<string, unknown>,
+  runId: string,
+) {
+  const studentId = String(record.id);
+  const email = String(record.email ?? "").trim();
+  const registrationToken = String(record.registration_token ?? "").trim();
+
+  if (!email) {
+    return {
+      skipped: true,
+      reason: "aluno sem e-mail cadastrado",
+    };
+  }
+
+  if (!registrationToken) {
+    logEmailEvent("warn", "missed_reschedule_no_token", { runId, studentId });
+    return {
+      skipped: true,
+      reason: "registration_token ausente no cadastro do aluno",
+    };
+  }
+
+  const context = await buildStudentContext(supabase, studentId, record);
+  context.reschedule_link = buildRescheduleLink(studentId, registrationToken);
+
+  const template = await resolveTemplate(
+    supabase,
+    "missed_appointment_reschedule",
+    context.unit_id ?? null,
+  );
+
+  if (!template) {
+    return {
+      skipped: true,
+      reason: "nenhum template ativo para missed_appointment_reschedule",
+    };
+  }
+
+  const todayStr = formatIsoDate(new Date());
+  const idempotencyKey = `missed_appointment_reschedule:${studentId}:${todayStr}`;
+
+  logEmailEvent("info", "missed_reschedule_queued", {
+    runId,
+    studentId,
+    toEmail: email,
+    rescheduleLink: context.reschedule_link,
+  });
+
+  return insertQueueItem(supabase, {
+    studentId,
+    unitId: context.unit_id ?? null,
+    template,
+    triggerType: "missed_appointment_reschedule",
+    toEmail: email,
+    toName: context.responsible_name || context.student_name,
+    context,
+    idempotencyKey,
+    scheduledFor: new Date().toISOString(),
+  });
 }
 
 async function queueStudentEmail(
@@ -1684,7 +1759,8 @@ async function handleTracking(
         appointment_scheduled: 'Agendamento confirmado',
         appointment_reminder_same_day: 'Lembrete no dia do atendimento',
         exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
-        attended_over_a_week_ago: 'Atendido há mais de uma semana'
+        attended_over_a_week_ago: 'Atendido há mais de uma semana',
+        missed_appointment_reschedule: 'Faltou ao atendimento — reagendar',
       };
       const triggerLabel = labels[email.trigger_type] || String(email.trigger_type).replace(/_/g, " ");
       await supabase.from("student_interactions").insert({

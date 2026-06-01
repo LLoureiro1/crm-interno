@@ -1,4 +1,13 @@
 import { useState, useEffect } from 'react';
+import {
+  getMyAppointment,
+  getRescheduleAccess,
+  publicRescheduleAfterMiss,
+  publicScheduleInterview,
+  type AppointmentCheckResult,
+  type RescheduleAccessResult,
+  type ScheduleRpcResult,
+} from '@/integrations/supabase/schedulingRpc';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,6 +30,8 @@ interface SelfSchedulingProps {
   unitAddress?: string;
   unitName?: string;
   fallback?: React.ReactNode;
+  /** initial = inscrição; reschedule = link após faltou_ao_atendimento (1x) */
+  mode?: 'initial' | 'reschedule';
 }
 
 type Availability = Tables<'interviewer_availability'>;
@@ -34,7 +45,8 @@ export const SelfScheduling = ({
   onAvailabilitiesLoaded,
   unitAddress,
   unitName,
-  fallback
+  fallback,
+  mode = 'initial',
 }: SelfSchedulingProps) => {
   const [loading, setLoading] = useState(true);
   const [specificAvailabilities, setSpecificAvailabilities] = useState<any[]>([]);
@@ -61,10 +73,25 @@ export const SelfScheduling = ({
   const checkExistingAppointment = async () => {
     setCheckingAppointment(true);
     try {
-      const { data, error } = await supabase.rpc('get_my_appointment', {
-        p_student_id: studentId,
-        p_registration_token: registrationToken,
-      });
+      if (mode === 'reschedule') {
+        const { data, error } = await getRescheduleAccess(studentId, registrationToken);
+
+        if (error) {
+          console.error('Erro ao verificar elegibilidade de reagendamento:', error);
+          setHasExistingAppointment(true);
+          return;
+        }
+
+        const result = data as RescheduleAccessResult;
+        if (!result?.success || !result.eligible) {
+          setHasExistingAppointment(true);
+        } else {
+          setHasExistingAppointment(false);
+        }
+        return;
+      }
+
+      const { data, error } = await getMyAppointment(studentId, registrationToken);
 
       if (error) {
         console.error('Erro ao verificar agendamento existente:', error);
@@ -72,11 +99,7 @@ export const SelfScheduling = ({
         return;
       }
 
-      const result = data as {
-        success?: boolean;
-        has_appointment?: boolean;
-        error?: string;
-      };
+      const result = data as AppointmentCheckResult;
 
       if (!result?.success) {
         console.error('Token inválido ao verificar agendamento:', result?.error);
@@ -342,30 +365,54 @@ export const SelfScheduling = ({
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-      // Verificação final via RPC (inclui validação de token e race condition)
-      const { data: existingCheck, error: checkError } = await supabase.rpc('get_my_appointment', {
-        p_student_id: studentId,
-        p_registration_token: registrationToken,
-      });
+      if (mode === 'initial') {
+        const { data: existingCheck, error: checkError } = await getMyAppointment(
+          studentId,
+          registrationToken,
+        );
 
-      if (checkError) throw checkError;
+        if (checkError) throw checkError;
 
-      const checkResult = existingCheck as { success?: boolean; has_appointment?: boolean };
-      if (checkResult?.has_appointment) {
-        toast.error('Você já possui um agendamento. Não é possível criar outro.');
-        setHasExistingAppointment(true);
-        return;
+        const checkResult = existingCheck as AppointmentCheckResult;
+        if (checkResult?.has_appointment) {
+          toast.error('Você já possui um agendamento. Não é possível criar outro.');
+          setHasExistingAppointment(true);
+          return;
+        }
+      } else {
+        const { data: accessCheck, error: accessError } = await getRescheduleAccess(
+          studentId,
+          registrationToken,
+        );
+
+        if (accessError) throw accessError;
+
+        const accessResult = accessCheck as RescheduleAccessResult;
+        if (!accessResult?.success || !accessResult.eligible) {
+          toast.error('Reagendamento não disponível. O link pode já ter sido utilizado.');
+          setHasExistingAppointment(true);
+          return;
+        }
       }
 
-      console.log('🔄 Iniciando agendamento via RPC...');
-      const { data: result, error: rpcError } = await supabase.rpc('public_schedule_interview', {
-        p_student_id: studentId,
-        p_interviewer_id: randomInterviewerId,
-        p_date: dateStr,
-        p_time: selectedSlot.time,
-        p_registration_token: registrationToken,
-        p_comments: `Agendamento realizado via auto-agendamento. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`
-      });
+      const comments = mode === 'reschedule'
+        ? `Reagendamento online após falta. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`
+        : `Agendamento realizado via auto-agendamento. Data: ${format(selectedDate, 'dd/MM/yyyy')}, Hora: ${selectedSlot.time}`;
+
+      console.log(`🔄 Iniciando ${mode === 'reschedule' ? 'reagendamento' : 'agendamento'} via RPC...`);
+
+      const scheduleParams = {
+        studentId,
+        interviewerId: randomInterviewerId,
+        date: dateStr,
+        time: selectedSlot.time,
+        registrationToken,
+        comments,
+      };
+
+      const { data: result, error: rpcError } = mode === 'reschedule'
+        ? await publicRescheduleAfterMiss(scheduleParams)
+        : await publicScheduleInterview(scheduleParams);
 
       if (rpcError) {
         console.error('❌ Erro no RPC:', rpcError);
@@ -374,12 +421,11 @@ export const SelfScheduling = ({
 
       console.log('✅ Resultado do RPC:', result);
 
-      // Check result success (RPC returns JSONB)
-      if (result && (result as any).success === false) {
-        throw new Error((result as any).error || 'Erro desconhecido ao agendar');
+      if (result && (result as ScheduleRpcResult).success === false) {
+        throw new Error((result as ScheduleRpcResult).error || 'Erro desconhecido ao agendar');
       }
 
-      toast.success('Agendamento realizado com sucesso!');
+      toast.success(mode === 'reschedule' ? 'Reagendamento realizado com sucesso!' : 'Agendamento realizado com sucesso!');
 
       onSuccess({
         date: dateStr,
@@ -407,9 +453,13 @@ export const SelfScheduling = ({
   if (hasExistingAppointment) {
     return (
       <div className="mt-4 p-4 border rounded-md bg-yellow-50 dark:bg-yellow-900 text-left">
-        <h3 className="text-lg font-semibold mb-2 text-yellow-800 dark:text-yellow-200">Agendamento já realizado</h3>
+        <h3 className="text-lg font-semibold mb-2 text-yellow-800 dark:text-yellow-200">
+          {mode === 'reschedule' ? 'Reagendamento indisponível' : 'Agendamento já realizado'}
+        </h3>
         <p className="text-yellow-700 dark:text-yellow-300">
-          Você já possui um agendamento de entrevista. Entre em contato conosco se precisar alterar ou cancelar.
+          {mode === 'reschedule'
+            ? 'Este link já foi utilizado ou não está mais disponível. Entre em contato com a unidade se precisar de ajuda.'
+            : 'Você já possui um agendamento de entrevista. Entre em contato conosco se precisar alterar ou cancelar.'}
         </p>
       </div>
     );
@@ -423,7 +473,11 @@ export const SelfScheduling = ({
 
   return (
     <>
-      <p className="text-sm text-gray-600 text-left mb-4">Escolha o melhor dia e horário para vir conhecer nossa escola.</p>
+      <p className="text-sm text-gray-600 text-left mb-4">
+        {mode === 'reschedule'
+          ? 'Escolha o novo dia e horário para o atendimento.'
+          : 'Escolha o melhor dia e horário para vir conhecer nossa escola.'}
+      </p>
       <div className="grid md:grid-cols-2 gap-6 mt-6">
         <Card className="border-none shadow-none md:border md:shadow-sm">
           <CardHeader className="px-0 md:px-6">
@@ -506,7 +560,7 @@ export const SelfScheduling = ({
                 </>
               ) : (
                 <>
-                  Confirmar Agendamento
+                  Confirmar {mode === 'reschedule' ? 'Reagendamento' : 'Agendamento'}
                   <CheckCircle2 className="ml-2 h-5 w-5" />
                 </>
               )}

@@ -655,6 +655,7 @@ export type Database = {
           tag: string | null
           tracking_code: string | null
           registration_token: string
+          missed_reschedule_used_at: string | null
           ano_letivo: string | null
           unit_id: string
           updated_at: string
@@ -689,6 +690,7 @@ export type Database = {
           tag?: string | null
           tracking_code?: string | null
           registration_token?: string
+          missed_reschedule_used_at?: string | null
           ano_letivo?: string | null
           unit_id: string
           updated_at?: string
@@ -723,6 +725,7 @@ export type Database = {
           tag?: string | null
           tracking_code?: string | null
           registration_token?: string
+          missed_reschedule_used_at?: string | null
           ano_letivo?: string | null
           unit_id?: string
           updated_at?: string
@@ -1015,8 +1018,7 @@ export type Database = {
       generate_student_code: {
         Args: Record<PropertyKey, never>
         Returns: string
-      }
-      ,
+      },
       distribute_contact_list_items: {
         Args: { p_list_id: string }
         Returns: undefined
@@ -1052,7 +1054,25 @@ export type Database = {
           p_comments?: string
         }
         Returns: Json
-      }
+      },
+      get_reschedule_access: {
+        Args: {
+          p_student_id: string
+          p_registration_token: string
+        }
+        Returns: Json
+      },
+      public_reschedule_after_miss: {
+        Args: {
+          p_student_id: string
+          p_interviewer_id: string
+          p_date: string
+          p_time: string
+          p_registration_token: string
+          p_comments?: string
+        }
+        Returns: Json
+      },
     }
     Enums: {
       dropout_reason:
@@ -1099,6 +1119,7 @@ export type Database = {
         | "appointment_reminder_same_day"
         | "exam_reminder_1_day_before"
         | "attended_over_a_week_ago"
+        | "missed_appointment_reschedule"
       email_queue_status:
         | "pending"
         | "sending"
@@ -1281,6 +1302,7 @@ export const Constants = {
         "appointment_reminder_same_day",
         "exam_reminder_1_day_before",
         "attended_over_a_week_ago",
+        "missed_appointment_reschedule",
       ],
       email_queue_status: [
         "pending",
