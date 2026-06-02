@@ -60,9 +60,9 @@ export function AppSidebar() {
   const canAccessConfig = profile?.profile === 'admin';
 
   const gestaoItems: NavItem[] = [
-    { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'reports', label: 'Painel Operacional', icon: BarChart3 },
     ...(canAccessAdvancedReports
-      ? [{ id: 'advanced-reports', label: 'Relatórios Avançados', icon: TrendingUp }]
+      ? [{ id: 'advanced-reports', label: 'Relatórios Estratégicos', icon: TrendingUp }]
       : []),
     { id: 'students', label: 'Inscritos', icon: Users },
     { id: 'appointments', label: 'Agendamentos', icon: Calendar },
