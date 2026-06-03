@@ -209,11 +209,12 @@ function extrairDadosLead(payload) {
   ]) || 'Não informado';
 
   var email = primeiroValor([
+    payload.to_email,
+    registro.to_email,
+    registro.recipient_email,
     registro.email,
     registro.email_lead,
     registro.E_MAIL,
-    registro.to_email,
-    payload.to_email,
     payload.email,
     payload.E_MAIL
   ]) || 'Não informado';

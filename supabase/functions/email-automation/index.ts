@@ -750,7 +750,7 @@ async function loadAppointmentEmailContext(
       students (
         ${STUDENT_EMAIL_SELECT}
       ),
-      profiles (
+      profiles!appointments_interviewer_id_fkey (
         id,
         name,
         email
@@ -2078,7 +2078,7 @@ async function buildAppsScriptRecord(
       record.student_id = student.id;
       record.student_name = student.student_name;
       record.nome = student.student_name;
-      record.email = student.email;
+      record.student_email = student.email;
       record.email_lead = student.email;
       record.phone = student.phone;
       record.telefone = student.phone;
@@ -2154,16 +2154,27 @@ async function buildAppsScriptRecord(
     record.student_name = item.to_name;
     record.nome = item.to_name;
   }
-  if (!record.email && item.to_email) {
-    record.email = item.to_email;
-  }
   if (!record.id && item.student_id) {
     record.id = item.student_id;
   }
 
+  // Destinatário real vem da fila (to_email). E-mails internos ao colaborador
+  // não podem usar record.email do aluno — o Apps Script prioriza registro.email.
+  const recipientEmail = String(item.to_email ?? "").trim();
+  if (recipientEmail) {
+    record.to_email = recipientEmail;
+    record.email = recipientEmail;
+    record.E_MAIL = recipientEmail;
+  } else if (!record.email && record.student_email) {
+    record.email = record.student_email;
+    record.E_MAIL = record.student_email;
+  }
+
   // Aliases alinhados à planilha institucional (NOME_LEAD, E-MAIL, etc.)
   record.NOME_LEAD = record.student_name ?? item.to_name ?? "";
-  record.E_MAIL = record.email ?? item.to_email ?? "";
+  if (!record.E_MAIL) {
+    record.E_MAIL = record.email ?? "";
+  }
   record.UNIDADE = record.unit_name ?? record.unidade ?? "";
   record.DATA_VISITA = record.data_visita ?? "";
   record.STATUS_ENVIO = item.trigger_type ?? record.trigger_type ?? "";
