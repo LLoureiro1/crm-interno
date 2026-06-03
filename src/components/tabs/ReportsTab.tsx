@@ -707,9 +707,16 @@ export const ReportsTab = () => {
             <Target className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-baseline space-x-2 mt-1">
-              <span className="text-3xl font-bold text-blue-700">{reportData.globalMatriculados}</span>
-              <span className="text-lg font-medium text-blue-500">/ {reportData.totalGoal}</span>
+            <div className="flex items-baseline justify-between mt-1">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-bold text-blue-700">{reportData.globalMatriculados}</span>
+                <span className="text-lg font-medium text-blue-500">/ {reportData.totalGoal}</span>
+              </div>
+              {reportData.totalGoal > 0 && (
+                <span className="text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-md">
+                  {((reportData.globalMatriculados / reportData.totalGoal) * 100).toFixed(1).replace('.', ',')}%
+                </span>
+              )}
             </div>
             {reportData.totalGoal > 0 && (
               <div className="mt-4 h-2 w-full bg-blue-200 rounded-full overflow-hidden">
