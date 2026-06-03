@@ -12,6 +12,7 @@ import { StudentImport } from '@/components/management/StudentImport';
 import { EnrollmentImport } from '@/components/management/EnrollmentImport';
 import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
 import { EmailAutomationManagement } from '@/components/management/EmailAutomationManagement';
+import { GoalManagement } from '@/components/management/GoalManagement';
 import ContactLists from '@/pages/ContactLists';
 
 const CONFIG_SECTION_TABS = [
@@ -26,6 +27,7 @@ const CONFIG_SECTION_TABS = [
   { value: 'enrollment', label: 'Matrículas' },
   { value: 'contact-lists', label: 'Listas de Contato' },
   { value: 'emails', label: 'E-mails' },
+  { value: 'goals', label: 'Metas' },
 ] as const;
 
 const tabTriggerClassName =
@@ -205,6 +207,12 @@ export const ConfigTab = () => {
               <EmailAutomationManagement />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="goals" className="min-w-0">
+          <div className={configCardClassName}>
+            <GoalManagement />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

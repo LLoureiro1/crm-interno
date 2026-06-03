@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, BookOpen, GraduationCap } from 'lucide-react';
+import { Users, Calendar, BookOpen, GraduationCap, Target } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import { Link } from 'react-router-dom';
@@ -46,6 +46,8 @@ interface ReportData {
   alunosProximaProva: number;
   agendamentosHoje: number;
   matriculados: number;
+  globalMatriculados: number;
+  totalGoal: number;
   statusCounts: { [key: string]: number };
 }
 
@@ -83,7 +85,7 @@ export const ReportsTab = () => {
 
     if (dateFilterType === 'default' || dateFilterType === 'all') return true;
     if (dateFilterType === 'today') return yyyymmdd === todayStr;
-    
+
     const today = new Date(todayStr + 'T00:00:00');
     const targetDate = new Date(yyyymmdd + 'T00:00:00');
 
@@ -140,6 +142,8 @@ export const ReportsTab = () => {
     alunosProximaProva: 0,
     agendamentosHoje: 0,
     matriculados: 0,
+    globalMatriculados: 0,
+    totalGoal: 0,
     statusCounts: {}
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
@@ -359,14 +363,14 @@ export const ReportsTab = () => {
       const students = allStudents.filter(s => String(s.ano_letivo) === currentAcademicYear);
       const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
       setStudentsData(students as Student[]);
-      
+
       const today = getCurrentDate();
-      
-      const totalInscricoes = studentsValid.filter(s => 
+
+      const totalInscricoes = studentsValid.filter(s =>
         s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
       ).length;
-      
-      const inscritosHoje = studentsValid.filter(s => 
+
+      const inscritosHoje = studentsValid.filter(s =>
         s.status !== 'processo_anos_anteriores' && getDateYYYYMMDD(s.created_at) === today
       ).length;
 
@@ -375,8 +379,25 @@ export const ReportsTab = () => {
         filterByUnit ? selectedUnit : undefined
       );
       setNextExamDatesByUnit(datesByUnit);
-      
+
       const matriculados = students.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at)).length;
+
+      const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
+
+      let totalGoal = 0;
+      if (selectedUnit === 'all') {
+        const allowedUnitIds = getAllowedUnitIdsForChart() || [];
+        if (allowedUnitIds.length > 0) {
+          totalGoal = units
+            .filter(u => allowedUnitIds.includes(u.id))
+            .reduce((acc, u) => acc + (u.student_goal || 0), 0);
+        } else {
+          totalGoal = units.reduce((acc, u) => acc + (u.student_goal || 0), 0);
+        }
+      } else {
+        const unit = units.find(u => u.id === selectedUnit);
+        totalGoal = unit?.student_goal || 0;
+      }
 
       // Agendamentos no período selecionado, alinhados ao filtro de unidade/série e ano letivo atual
       let appQuery = supabase.from('appointments').select('*');
@@ -385,11 +406,11 @@ export const ReportsTab = () => {
       } else if (dateFilterType === '7days') {
         const sevenDaysAgo = new Date(today + 'T00:00:00');
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0,10)).lte('appointment_date', today);
+        appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
       } else if (dateFilterType === '30days') {
         const thirtyDaysAgo = new Date(today + 'T00:00:00');
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0,10)).lte('appointment_date', today);
+        appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
       } else if (dateFilterType === 'custom' && customStartDate && customEndDate) {
         appQuery = appQuery.gte('appointment_date', customStartDate).lte('appointment_date', customEndDate);
       }
@@ -419,6 +440,8 @@ export const ReportsTab = () => {
         alunosProximaProva,
         agendamentosHoje,
         matriculados,
+        globalMatriculados,
+        totalGoal,
         statusCounts
       });
     }
@@ -469,39 +492,39 @@ export const ReportsTab = () => {
   );
 
   // Extraído para fora do componente principal para evitar recriação
-const StudentsTable = ({ students, statusLabels }: { students: Student[], statusLabels: { [key: string]: string } }) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Nome do Aluno</TableHead>
-        <TableHead>Responsável</TableHead>
-        <TableHead>Telefone</TableHead>
-        <TableHead>Turma</TableHead>
-        <TableHead>Unidade</TableHead>
-        <TableHead>Status</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {students.map((student) => (
-        <TableRow key={student.id}>
-          <TableCell>
-            <Link 
-              to={`/student/${student.id}`} 
-              className="text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              {student.student_name}
-            </Link>
-          </TableCell>
-          <TableCell>{student.responsible_name}</TableCell>
-          <TableCell>{student.phone}</TableCell>
-          <TableCell>{student.classes.name}</TableCell>
-          <TableCell>{student.classes.units.name}</TableCell>
-          <TableCell>{statusLabels[student.status] || student.status}</TableCell>
+  const StudentsTable = ({ students, statusLabels }: { students: Student[], statusLabels: { [key: string]: string } }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nome do Aluno</TableHead>
+          <TableHead>Responsável</TableHead>
+          <TableHead>Telefone</TableHead>
+          <TableHead>Turma</TableHead>
+          <TableHead>Unidade</TableHead>
+          <TableHead>Status</TableHead>
         </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
+      </TableHeader>
+      <TableBody>
+        {students.map((student) => (
+          <TableRow key={student.id}>
+            <TableCell>
+              <Link
+                to={`/student/${student.id}`}
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {student.student_name}
+              </Link>
+            </TableCell>
+            <TableCell>{student.responsible_name}</TableCell>
+            <TableCell>{student.phone}</TableCell>
+            <TableCell>{student.classes.name}</TableCell>
+            <TableCell>{student.classes.units.name}</TableCell>
+            <TableCell>{statusLabels[student.status] || student.status}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
   const statusLabels: { [key: string]: string } = {
     'nao_confirmado': 'Não Confirmado',
@@ -658,7 +681,7 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>                
+              <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>
             </CardContent>
           </Card>
         </div>
@@ -674,6 +697,30 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Goal Card */}
+      <div className="grid grid-cols-1">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-900">Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)</CardTitle>
+            <Target className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline space-x-2 mt-1">
+              <span className="text-3xl font-bold text-blue-700">{reportData.globalMatriculados}</span>
+              <span className="text-lg font-medium text-blue-500">/ {reportData.totalGoal}</span>
+            </div>
+            {reportData.totalGoal > 0 && (
+              <div className="mt-4 h-2 w-full bg-blue-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-500 ease-in-out"
+                  style={{ width: `${Math.min((reportData.globalMatriculados / reportData.totalGoal) * 100, 100)}%` }}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Status Breakdown */}
@@ -698,16 +745,16 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
                 'matriculado',
               ];
               return statusOrder
-            .filter(status => reportData.statusCounts[status] !== undefined)
-            .map(status => (
-              <div
-                key={status}
-                className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
-                <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
-              </div>
-            ));
+                .filter(status => reportData.statusCounts[status] !== undefined)
+                .map(status => (
+                  <div
+                    key={status}
+                    className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
+                    <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
+                    <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
+                  </div>
+                ));
             })()}
           </div>
         </CardContent>

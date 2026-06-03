@@ -792,6 +792,7 @@ export type Database = {
           name: string
           phone: string
           slug: string | null
+          student_goal: number
           updated_at: string | null
         }
         Insert: {
@@ -803,6 +804,7 @@ export type Database = {
           name: string
           phone: string
           slug?: string | null
+          student_goal?: number
           updated_at?: string | null
         }
         Update: {
@@ -814,6 +816,7 @@ export type Database = {
           name?: string
           phone?: string
           slug?: string | null
+          student_goal?: number
           updated_at?: string | null
         }
         Relationships: [
