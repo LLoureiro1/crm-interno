@@ -300,7 +300,15 @@ type EmailTriggerType =
   | "appointment_reminder_same_day"
   | "exam_reminder_1_day_before"
   | "attended_over_a_week_ago"
-  | "missed_appointment_reschedule";
+  | "missed_appointment_reschedule"
+  | "invite_to_schedule"
+  | "exam_reminder_same_day"
+  | "post_attendance_followup"
+  | "post_attendance_3_days"
+  | "matricula_concluida"
+  | "staff_new_lead_no_appointment"
+  | "staff_missed_appointment_no_reschedule"
+  | "staff_proposal_no_response";
 
 interface TemplateContext {
   student_name?: string;
@@ -332,6 +340,7 @@ interface EmailTemplate {
   send_offset_days: number;
   send_at_hour: number;
   send_at_minute: number;
+  recipient_user_ids?: string[] | null;
 }
 
 interface EmailIntegration {
@@ -530,6 +539,10 @@ async function handleWebhook(
     return queueMissedRescheduleEmail(supabase, record, runId);
   }
 
+  if (triggerType === "matricula_concluida") {
+    return queueStudentEmail(supabase, triggerType, record);
+  }
+
   return { skipped: true, reason: "trigger não tratado" };
 }
 
@@ -649,7 +662,7 @@ async function queueStudentEmail(
 
 /** Colunas reais de students (exam_time fica em exam_dates, não em students) */
 const STUDENT_EMAIL_SELECT =
-  "id, student_name, email, unit_id, status, tracking_code, exam_date, exam_date_id, class_id, responsible_name";
+  "id, student_name, email, unit_id, status, tracking_code, exam_date, exam_date_id, class_id, responsible_name, registration_token";
 
 type StudentEmailRow = {
   id: string;
@@ -662,6 +675,7 @@ type StudentEmailRow = {
   exam_date_id?: string | null;
   class_id: string | null;
   responsible_name?: string | null;
+  registration_token?: string | null;
 };
 
 async function resolveExamTime(
@@ -1280,7 +1294,377 @@ async function scheduleReminders(
     if (!result.skipped) postAttendanceCount += 1;
   }
 
-  const summary = { appointmentCount, examCount, postAttendanceCount };
+  // --- Lembrete de prova no dia (exam_reminder_same_day) ---
+  let examSameDayCount = 0;
+  const { data: studentsWithExamToday } = await supabase
+    .from("students")
+    .select(STUDENT_EMAIL_SELECT)
+    .eq("exam_date", todayStr)
+    .not("email", "is", null);
+
+  for (const student of studentsWithExamToday ?? []) {
+    if (!student.email) continue;
+    const context = await buildStudentContext(
+      supabase,
+      student.id,
+      student as Record<string, unknown>,
+    );
+    const template = await resolveTemplate(
+      supabase,
+      "exam_reminder_same_day",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const result = await insertQueueItem(supabase, {
+      studentId: student.id,
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "exam_reminder_same_day",
+      toEmail: student.email,
+      toName: context.student_name,
+      context,
+      idempotencyKey: `exam_reminder_same_day:${student.id}:${todayStr}`,
+      scheduledFor,
+    });
+    if (!result.skipped) examSameDayCount += 1;
+  }
+
+  // --- Convidar para agendamento (invite_to_schedule) ---
+  // Alunos em nenhum_agendamento há mais de 24 horas
+  let inviteToScheduleCount = 0;
+  const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const oneDayAgoIso = oneDayAgo.toISOString();
+  const yesterdayStr = formatIsoDate(oneDayAgo);
+
+  const { data: studentsToInvite } = await supabase
+    .from("students")
+    .select(STUDENT_EMAIL_SELECT)
+    .eq("status", "nenhum_agendamento")
+    .lt("created_at", oneDayAgoIso)
+    .not("email", "is", null);
+
+  for (const student of studentsToInvite ?? []) {
+    if (!student.email) continue;
+    const registrationToken = (student as StudentEmailRow).registration_token ?? "";
+    if (!registrationToken) continue;
+    const context = await buildStudentContext(
+      supabase,
+      student.id,
+      student as Record<string, unknown>,
+    );
+    context.reschedule_link = buildRescheduleLink(student.id, registrationToken);
+    const template = await resolveTemplate(
+      supabase,
+      "invite_to_schedule",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const result = await insertQueueItem(supabase, {
+      studentId: student.id,
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "invite_to_schedule",
+      toEmail: student.email,
+      toName: context.student_name,
+      context,
+      idempotencyKey: `invite_to_schedule:${student.id}:${todayStr}`,
+      scheduledFor,
+    });
+    if (!result.skipped) inviteToScheduleCount += 1;
+  }
+
+  // --- Follow-up pós atendimento 1 dia (post_attendance_followup) ---
+  let postFollowupCount = 0;
+
+  const { data: followupAppointments } = await supabase
+    .from("appointments")
+    .select(`
+      id,
+      student_id,
+      appointment_date,
+      appointment_time,
+      students (
+        ${STUDENT_EMAIL_SELECT}
+      )
+    `)
+    .eq("appointment_date", yesterdayStr)
+    .eq("status", "realizado")
+    .eq("attended", true);
+
+  for (const appointment of followupAppointments ?? []) {
+    const student = appointment.students as Record<string, unknown> | null;
+    if (!student?.email) continue;
+    const studentId = String(student.id);
+    const context = await buildStudentContext(supabase, studentId, student);
+    context.appointment_date = formatDate(String(appointment.appointment_date));
+    context.appointment_time = formatTime(String(appointment.appointment_time));
+    const template = await resolveTemplate(
+      supabase,
+      "post_attendance_followup",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const result = await insertQueueItem(supabase, {
+      studentId,
+      appointmentId: String(appointment.id),
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "post_attendance_followup",
+      toEmail: String(student.email),
+      toName: context.student_name,
+      context,
+      idempotencyKey: `post_attendance_followup:${appointment.id}:${yesterdayStr}`,
+      scheduledFor,
+    });
+    if (!result.skipped) postFollowupCount += 1;
+  }
+
+  // --- Valor pedagógico 3 dias após atendimento (post_attendance_3_days) ---
+  let post3DaysCount = 0;
+  const threeDaysAgo = new Date(today);
+  threeDaysAgo.setUTCDate(threeDaysAgo.getUTCDate() - 3);
+  const threeDaysAgoStr = formatIsoDate(threeDaysAgo);
+
+  const { data: threeDayAppointments } = await supabase
+    .from("appointments")
+    .select(`
+      id,
+      student_id,
+      appointment_date,
+      appointment_time,
+      students (
+        ${STUDENT_EMAIL_SELECT}
+      )
+    `)
+    .eq("appointment_date", threeDaysAgoStr)
+    .eq("status", "realizado")
+    .eq("attended", true);
+
+  for (const appointment of threeDayAppointments ?? []) {
+    const student = appointment.students as Record<string, unknown> | null;
+    if (!student?.email) continue;
+    const studentId = String(student.id);
+    const context = await buildStudentContext(supabase, studentId, student);
+    context.appointment_date = formatDate(String(appointment.appointment_date));
+    context.appointment_time = formatTime(String(appointment.appointment_time));
+    const template = await resolveTemplate(
+      supabase,
+      "post_attendance_3_days",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const result = await insertQueueItem(supabase, {
+      studentId,
+      appointmentId: String(appointment.id),
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "post_attendance_3_days",
+      toEmail: String(student.email),
+      toName: context.student_name,
+      context,
+      idempotencyKey: `post_attendance_3_days:${appointment.id}:${threeDaysAgoStr}`,
+      scheduledFor,
+    });
+    if (!result.skipped) post3DaysCount += 1;
+  }
+
+  // --- [INTERNO] Inscrito sem agendamento 24h (staff_new_lead_no_appointment) ---
+  let staffNewLeadCount = 0;
+
+  const { data: leadsWithoutAppointment } = await supabase
+    .from("students")
+    .select(STUDENT_EMAIL_SELECT)
+    .eq("status", "nenhum_agendamento")
+    .lt("created_at", oneDayAgoIso);
+
+  for (const student of leadsWithoutAppointment ?? []) {
+    const studentId = String(student.id);
+    const context = await buildStudentContext(
+      supabase,
+      studentId,
+      student as Record<string, unknown>,
+    );
+    const template = await resolveTemplate(
+      supabase,
+      "staff_new_lead_no_appointment",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const recipients = await resolveStaffRecipients(
+      supabase,
+      template,
+      context.unit_id ?? null,
+    );
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    for (const recipient of recipients) {
+      if (!recipient.email) continue;
+      const result = await insertQueueItem(supabase, {
+        studentId,
+        unitId: context.unit_id ?? null,
+        template,
+        triggerType: "staff_new_lead_no_appointment",
+        toEmail: recipient.email,
+        toName: recipient.name,
+        context,
+        idempotencyKey: `staff_new_lead_no_appointment:${studentId}:${recipient.id}:${todayStr}`,
+        scheduledFor,
+      });
+      if (!result.skipped) staffNewLeadCount += 1;
+    }
+  }
+
+  // --- [INTERNO] Faltou ao atendimento 24h sem reagendar ---
+  let staffMissedCount = 0;
+
+  const { data: missedStudents } = await supabase
+    .from("students")
+    .select(STUDENT_EMAIL_SELECT)
+    .eq("status", "faltou_ao_atendimento")
+    .lt("updated_at", oneDayAgoIso);
+
+  for (const student of missedStudents ?? []) {
+    const studentId = String(student.id);
+    const context = await buildStudentContext(
+      supabase,
+      studentId,
+      student as Record<string, unknown>,
+    );
+    const template = await resolveTemplate(
+      supabase,
+      "staff_missed_appointment_no_reschedule",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+    const recipients = await resolveStaffRecipients(
+      supabase,
+      template,
+      context.unit_id ?? null,
+    );
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    for (const recipient of recipients) {
+      if (!recipient.email) continue;
+      const result = await insertQueueItem(supabase, {
+        studentId,
+        unitId: context.unit_id ?? null,
+        template,
+        triggerType: "staff_missed_appointment_no_reschedule",
+        toEmail: recipient.email,
+        toName: recipient.name,
+        context,
+        idempotencyKey: `staff_missed_appointment_no_reschedule:${studentId}:${recipient.id}:${todayStr}`,
+        scheduledFor,
+      });
+      if (!result.skipped) staffMissedCount += 1;
+    }
+  }
+
+  // --- [INTERNO] Proposta sem retorno 3 dias (staff_proposal_no_response) ---
+  let staffProposalCount = 0;
+
+  const { data: proposalAppointments } = await supabase
+    .from("appointments")
+    .select(`
+      id,
+      student_id,
+      appointment_date,
+      interviewer_id,
+      students (
+        ${STUDENT_EMAIL_SELECT}
+      )
+    `)
+    .eq("appointment_date", threeDaysAgoStr)
+    .eq("status", "realizado")
+    .eq("attended", true);
+
+  for (const appointment of proposalAppointments ?? []) {
+    const student = appointment.students as Record<string, unknown> | null;
+    if (!student) continue;
+    if (String(student.status ?? "") !== "atendimento_recentemente") continue;
+
+    const studentId = String(student.id);
+    const interviewerId = appointment.interviewer_id
+      ? String(appointment.interviewer_id)
+      : null;
+    if (!interviewerId) continue;
+
+    const { data: interviewer } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .eq("id", interviewerId)
+      .maybeSingle();
+
+    if (!interviewer?.email) continue;
+
+    const context = await buildStudentContext(supabase, studentId, student);
+    context.appointment_date = formatDate(String(appointment.appointment_date));
+
+    const template = await resolveTemplate(
+      supabase,
+      "staff_proposal_no_response",
+      context.unit_id ?? null,
+    );
+    if (!template?.is_active) continue;
+
+    const scheduledFor = buildScheduledTimestamp(
+      today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const result = await insertQueueItem(supabase, {
+      studentId,
+      appointmentId: String(appointment.id),
+      unitId: context.unit_id ?? null,
+      template,
+      triggerType: "staff_proposal_no_response",
+      toEmail: String(interviewer.email),
+      toName: String(interviewer.name ?? ""),
+      context,
+      idempotencyKey: `staff_proposal_no_response:${studentId}:${interviewerId}:${todayStr}`,
+      scheduledFor,
+    });
+    if (!result.skipped) staffProposalCount += 1;
+  }
+
+  const summary = {
+    appointmentCount,
+    examCount,
+    examSameDayCount,
+    postAttendanceCount,
+    postFollowupCount,
+    post3DaysCount,
+    inviteToScheduleCount,
+    staffNewLeadCount,
+    staffMissedCount,
+    staffProposalCount,
+  };
   logEmailEvent("info", "schedule_reminders_done", { runId, ...summary });
   return summary;
 }
@@ -1606,6 +1990,34 @@ async function resolveTemplate(
   }
 
   return null;
+}
+
+async function resolveStaffRecipients(
+  supabase: ReturnType<typeof createClient>,
+  template: EmailTemplate,
+  unitId: string | null,
+): Promise<{ id: string; name: string; email: string }[]> {
+  const recipientIds = template.recipient_user_ids ?? [];
+
+  if (recipientIds.length > 0) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .in("id", recipientIds)
+      .eq("ativo", true);
+    return (data ?? []) as { id: string; name: string; email: string }[];
+  }
+
+  // Fallback: todos os usuários ativos da mesma unidade
+  let query = supabase
+    .from("profiles")
+    .select("id, name, email")
+    .eq("ativo", true);
+  if (unitId) {
+    query = query.eq("unit_id", unitId);
+  }
+  const { data } = await query;
+  return (data ?? []) as { id: string; name: string; email: string }[];
 }
 
 async function resolveIntegration(
@@ -2042,6 +2454,14 @@ async function handleTracking(
         exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
         attended_over_a_week_ago: 'Atendido há mais de uma semana',
         missed_appointment_reschedule: 'Faltou ao atendimento — reagendar',
+        invite_to_schedule: 'Convite para agendamento',
+        exam_reminder_same_day: 'Lembrete no dia da prova',
+        post_attendance_followup: 'Follow-up pós atendimento',
+        post_attendance_3_days: 'Comunicação pedagógica (3 dias após atendimento)',
+        matricula_concluida: 'Matrícula concluída',
+        staff_new_lead_no_appointment: '[INTERNO] Lead sem agendamento 24h',
+        staff_missed_appointment_no_reschedule: '[INTERNO] Faltou ao atendimento 24h sem reagendar',
+        staff_proposal_no_response: '[INTERNO] Proposta sem retorno 3 dias',
       };
       const triggerLabel = labels[email.trigger_type] || String(email.trigger_type).replace(/_/g, " ");
       await supabase.from("student_interactions").insert({

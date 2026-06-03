@@ -333,6 +333,7 @@ export type Database = {
           send_offset_days: number
           send_at_hour: number
           send_at_minute: number
+          recipient_user_ids: string[]
           created_at: string
           updated_at: string
         }
@@ -347,6 +348,7 @@ export type Database = {
           send_offset_days?: number
           send_at_hour?: number
           send_at_minute?: number
+          recipient_user_ids?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -361,6 +363,7 @@ export type Database = {
           send_offset_days?: number
           send_at_hour?: number
           send_at_minute?: number
+          recipient_user_ids?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -1121,6 +1124,14 @@ export type Database = {
         | "exam_reminder_1_day_before"
         | "attended_over_a_week_ago"
         | "missed_appointment_reschedule"
+        | "invite_to_schedule"
+        | "exam_reminder_same_day"
+        | "post_attendance_followup"
+        | "post_attendance_3_days"
+        | "matricula_concluida"
+        | "staff_new_lead_no_appointment"
+        | "staff_missed_appointment_no_reschedule"
+        | "staff_proposal_no_response"
       email_queue_status:
         | "pending"
         | "sending"
@@ -1305,6 +1316,14 @@ export const Constants = {
         "exam_reminder_1_day_before",
         "attended_over_a_week_ago",
         "missed_appointment_reschedule",
+        "invite_to_schedule",
+        "exam_reminder_same_day",
+        "post_attendance_followup",
+        "post_attendance_3_days",
+        "matricula_concluida",
+        "staff_new_lead_no_appointment",
+        "staff_missed_appointment_no_reschedule",
+        "staff_proposal_no_response",
       ],
       email_queue_status: [
         "pending",

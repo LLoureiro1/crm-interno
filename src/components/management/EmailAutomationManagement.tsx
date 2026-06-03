@@ -57,6 +57,14 @@ const TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   exam_reminder_1_day_before: 'Lembrete 1 dia antes da prova',
   attended_over_a_week_ago: 'Atendido há mais de uma semana',
   missed_appointment_reschedule: 'Faltou ao atendimento — reagendar',
+  invite_to_schedule: 'Convidar para o agendamento',
+  exam_reminder_same_day: 'Lembrete no dia da prova',
+  post_attendance_followup: 'Follow-up pós atendimento (1 dia)',
+  post_attendance_3_days: 'Comunicação de valor pedagógico (3 dias após atendimento)',
+  matricula_concluida: 'Matrícula Concluída',
+  staff_new_lead_no_appointment: '[INTERNO] Inscrito novo sem atendimento',
+  staff_missed_appointment_no_reschedule: '[INTERNO] Faltou ao atendimento e não reagendou',
+  staff_proposal_no_response: '[INTERNO] Proposta sem retorno',
 };
 
 const STATUS_LABELS: Record<EmailQueueStatus, string> = {
@@ -104,6 +112,7 @@ const PREVIEW_SAMPLE_DATA: Record<string, string> = {
   interviewer_name: 'Ana Coordenadora',
   exam_date: '23/05/2026',
   exam_time: '09:00',
+  reschedule_link: 'https://exemplo.escola.com.br/reagendar?s=demo&t=token',
 };
 
 function renderTemplatePreview(template: string, overrides: Record<string, string> = {}): string {
@@ -152,6 +161,8 @@ export const EmailAutomationManagement = () => {
     [templates, selectedTrigger],
   );
 
+  const [activeUsers, setActiveUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+
   const [templateForm, setTemplateForm] = useState({
     name: '',
     subject: '',
@@ -159,6 +170,7 @@ export const EmailAutomationManagement = () => {
     is_active: true,
     send_at_hour: 8,
     send_at_minute: 0,
+    recipient_user_ids: [] as string[],
   });
 
   const previewSubject = useMemo(
@@ -188,6 +200,7 @@ export const EmailAutomationManagement = () => {
         is_active: true,
         send_at_hour: 8,
         send_at_minute: 0,
+        recipient_user_ids: [],
       });
       setPlainTextBody('');
       return;
@@ -201,6 +214,7 @@ export const EmailAutomationManagement = () => {
       is_active: currentTemplate.is_active,
       send_at_hour: currentTemplate.send_at_hour,
       send_at_minute: currentTemplate.send_at_minute,
+      recipient_user_ids: currentTemplate.recipient_user_ids ?? [],
     });
     setPlainTextBody(htmlToPlainText(htmlBody));
   }, [currentTemplate, selectedTrigger]);
@@ -221,7 +235,7 @@ export const EmailAutomationManagement = () => {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [{ data: unitsData }, { data: queueData }] = await Promise.all([
+      const [{ data: unitsData }, { data: queueData }, { data: profilesData }] = await Promise.all([
         supabase.from('units').select('id, name').order('name'),
         supabase
           .from('email_queue')
@@ -230,10 +244,12 @@ export const EmailAutomationManagement = () => {
           )
           .order('created_at', { ascending: false })
           .limit(30),
+        supabase.from('profiles').select('id, name, email').eq('ativo', true).order('name'),
       ]);
 
       setUnits(unitsData ?? []);
       setQueueItems(queueData ?? []);
+      setActiveUsers((profilesData ?? []) as { id: string; name: string; email: string }[]);
     } catch (error) {
       console.error(error);
       toast.error('Erro ao carregar configurações de e-mail');
@@ -336,6 +352,7 @@ export const EmailAutomationManagement = () => {
         is_active: templateForm.is_active,
         send_at_hour: templateForm.send_at_hour,
         send_at_minute: templateForm.send_at_minute,
+        recipient_user_ids: templateForm.recipient_user_ids,
         updated_at: new Date().toISOString(),
       };
 
@@ -534,9 +551,56 @@ export const EmailAutomationManagement = () => {
           </div>
         )}
 
+        {(selectedTrigger === 'staff_new_lead_no_appointment' ||
+          selectedTrigger === 'staff_missed_appointment_no_reschedule' ||
+          selectedTrigger === 'staff_proposal_no_response') && (
+          <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-950">
+              <strong>[E-mail interno]</strong> Destinatários — selecione os usuários que receberão
+              este alerta. Se nenhum for selecionado, todos os usuários ativos da unidade do
+              inscrito serão notificados.
+              {selectedTrigger === 'staff_proposal_no_response' && (
+                <span className="mt-1 block text-xs text-amber-800">
+                  ℹ️ Para “Proposta sem retorno” o e-mail é sempre enviado ao entrevistador que
+                  realizou o atendimento; os destinatários abaixo não substituem esse comportamento.
+                </span>
+              )}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+              {activeUsers.map((user) => (
+                <label
+                  key={user.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border bg-white p-2 text-sm hover:bg-amber-50"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-amber-600"
+                    checked={templateForm.recipient_user_ids.includes(user.id)}
+                    onChange={(e) => {
+                      const ids = templateForm.recipient_user_ids;
+                      setTemplateForm((prev) => ({
+                        ...prev,
+                        recipient_user_ids: e.target.checked
+                          ? [...ids, user.id]
+                          : ids.filter((id) => id !== user.id),
+                      }));
+                    }}
+                  />
+                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate text-xs text-gray-500">{user.email}</span>
+                </label>
+              ))}
+              {activeUsers.length === 0 && (
+                <p className="text-xs text-amber-800">Nenhum usuário ativo encontrado.</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {selectedTrigger !== 'student_registered' &&
           selectedTrigger !== 'appointment_scheduled' &&
-          selectedTrigger !== 'appointment_scheduled_staff' && (
+          selectedTrigger !== 'appointment_scheduled_staff' &&
+          selectedTrigger !== 'matricula_concluida' && (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>
