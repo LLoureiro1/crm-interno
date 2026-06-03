@@ -278,16 +278,16 @@ export const EmailAutomationManagement = () => {
     setIntegration(
       integrationData
         ? {
-            ...integrationData,
-            webhook_url: integrationData.webhook_url ?? '',
-          }
+          ...integrationData,
+          webhook_url: integrationData.webhook_url ?? '',
+        }
         : {
-            unit_id: unitFilter,
-            sender_email: '',
-            sender_name: '',
-            webhook_url: '',
-            is_active: true,
-          },
+          unit_id: unitFilter,
+          sender_email: '',
+          sender_name: '',
+          webhook_url: '',
+          is_active: true,
+        },
     );
     setTemplates(templatesData ?? []);
   };
@@ -552,92 +552,85 @@ export const EmailAutomationManagement = () => {
         )}
 
         {(selectedTrigger === 'staff_new_lead_no_appointment' ||
-          selectedTrigger === 'staff_missed_appointment_no_reschedule' ||
-          selectedTrigger === 'staff_proposal_no_response') && (
-          <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3">
-            <p className="text-sm font-medium text-amber-950">
-              <strong>[E-mail interno]</strong> Destinatários — selecione os usuários que receberão
-              este alerta. Se nenhum for selecionado, todos os usuários ativos da unidade do
-              inscrito serão notificados.
-              {selectedTrigger === 'staff_proposal_no_response' && (
-                <span className="mt-1 block text-xs text-amber-800">
-                  ℹ️ Para “Proposta sem retorno” o e-mail é sempre enviado ao entrevistador que
-                  realizou o atendimento; os destinatários abaixo não substituem esse comportamento.
-                </span>
-              )}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-              {activeUsers.map((user) => (
-                <label
-                  key={user.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border bg-white p-2 text-sm hover:bg-amber-50"
-                >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-amber-600"
-                    checked={templateForm.recipient_user_ids.includes(user.id)}
-                    onChange={(e) => {
-                      const ids = templateForm.recipient_user_ids;
-                      setTemplateForm((prev) => ({
-                        ...prev,
-                        recipient_user_ids: e.target.checked
-                          ? [...ids, user.id]
-                          : ids.filter((id) => id !== user.id),
-                      }));
-                    }}
-                  />
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-gray-500">{user.email}</span>
-                </label>
-              ))}
-              {activeUsers.length === 0 && (
-                <p className="text-xs text-amber-800">Nenhum usuário ativo encontrado.</p>
-              )}
+          selectedTrigger === 'staff_missed_appointment_no_reschedule') && (
+            <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-950">
+                <strong>[E-mail interno]</strong> Destinatários — selecione os usuários que receberão
+                este alerta. Se nenhum for selecionado, todos os usuários ativos da unidade do
+                inscrito serão notificados.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                {activeUsers.map((user) => (
+                  <label
+                    key={user.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border bg-white p-2 text-sm hover:bg-amber-50"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-amber-600"
+                      checked={templateForm.recipient_user_ids.includes(user.id)}
+                      onChange={(e) => {
+                        const ids = templateForm.recipient_user_ids;
+                        setTemplateForm((prev) => ({
+                          ...prev,
+                          recipient_user_ids: e.target.checked
+                            ? [...ids, user.id]
+                            : ids.filter((id) => id !== user.id),
+                        }));
+                      }}
+                    />
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs text-gray-500">{user.email}</span>
+                  </label>
+                ))}
+                {activeUsers.length === 0 && (
+                  <p className="text-xs text-amber-800">Nenhum usuário ativo encontrado.</p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {selectedTrigger !== 'student_registered' &&
           selectedTrigger !== 'appointment_scheduled' &&
           selectedTrigger !== 'appointment_scheduled_staff' &&
           selectedTrigger !== 'matricula_concluida' && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>
-              <Input
-                id="send_at_hour"
-                type="number"
-                min={0}
-                max={23}
-                value={templateForm.send_at_hour}
-                onChange={(event) =>
-                  setTemplateForm((prev) => ({
-                    ...prev,
-                    send_at_hour: Number(event.target.value),
-                  }))
-                }
-              />
-              <p className="text-xs text-gray-500">Horário de Brasília (UTC-3). Ex.: 8 = envio às 8h no Brasil.</p>
-            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="send_at_hour">Horário de envio (lembretes)</Label>
+                <Input
+                  id="send_at_hour"
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={templateForm.send_at_hour}
+                  onChange={(event) =>
+                    setTemplateForm((prev) => ({
+                      ...prev,
+                      send_at_hour: Number(event.target.value),
+                    }))
+                  }
+                />
+                <p className="text-xs text-gray-500">Horário de Brasília (UTC-3). Ex.: 8 = envio às 8h no Brasil.</p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="send_at_minute">Minuto</Label>
-              <Input
-                id="send_at_minute"
-                type="number"
-                min={0}
-                max={59}
-                value={templateForm.send_at_minute}
-                onChange={(event) =>
-                  setTemplateForm((prev) => ({
-                    ...prev,
-                    send_at_minute: Number(event.target.value),
-                  }))
-                }
-              />
+              <div className="space-y-2">
+                <Label htmlFor="send_at_minute">Minuto</Label>
+                <Input
+                  id="send_at_minute"
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={templateForm.send_at_minute}
+                  onChange={(event) =>
+                    setTemplateForm((prev) => ({
+                      ...prev,
+                      send_at_minute: Number(event.target.value),
+                    }))
+                  }
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -729,76 +722,76 @@ export const EmailAutomationManagement = () => {
 
       <TabsContent value="queue" className="min-w-0">
         <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Evento</TableHead>
-              <TableHead>Destinatário</TableHead>
-              <TableHead>Assunto</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aberto em</TableHead>
-              <TableHead>Envio</TableHead>
-              <TableHead>Erro</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {queueItems.length === 0 ? (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-gray-500">
-                  Nenhum e-mail na fila ainda.
-                </TableCell>
+                <TableHead>Evento</TableHead>
+                <TableHead>Destinatário</TableHead>
+                <TableHead>Assunto</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Aberto em</TableHead>
+                <TableHead>Envio</TableHead>
+                <TableHead>Erro</TableHead>
               </TableRow>
-            ) : (
-              queueItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{TRIGGER_LABELS[item.trigger_type]}</TableCell>
-                  <TableCell>{item.to_email}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{item.subject}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        item.status === 'sent'
-                          ? 'default'
-                          : item.status === 'failed'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                    >
-                      {STATUS_LABELS[item.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {item.opened_at ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium text-green-600">
-                          {new Date(item.opened_at).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
-                        </span>
-                        {item.opened_count && item.opened_count > 1 && (
-                          <span className="text-[10px] text-gray-400">
-                            {item.opened_count} aberturas
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(item.scheduled_for).toLocaleString('pt-BR')}</TableCell>
-                  <TableCell className="max-w-[200px] truncate text-red-600">
-                    {item.error_message ?? '-'}
+            </TableHeader>
+            <TableBody>
+              {queueItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500">
+                    Nenhum e-mail na fila ainda.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                queueItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{TRIGGER_LABELS[item.trigger_type]}</TableCell>
+                    <TableCell>{item.to_email}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{item.subject}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          item.status === 'sent'
+                            ? 'default'
+                            : item.status === 'failed'
+                              ? 'destructive'
+                              : 'secondary'
+                        }
+                      >
+                        {STATUS_LABELS[item.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.opened_at ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-medium text-green-600">
+                            {new Date(item.opened_at).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
+                          </span>
+                          {item.opened_count && item.opened_count > 1 && (
+                            <span className="text-[10px] text-gray-400">
+                              {item.opened_count} aberturas
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(item.scheduled_for).toLocaleString('pt-BR')}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-red-600">
+                      {item.error_message ?? '-'}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </TabsContent>
     </Tabs>
