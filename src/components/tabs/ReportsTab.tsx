@@ -42,6 +42,7 @@ type Student = Tables<'students'> & {
 
 interface ReportData {
   totalInscricoes: number;
+  inscritosHoje: number;
   alunosProximaProva: number;
   agendamentosHoje: number;
   matriculados: number;
@@ -56,6 +57,54 @@ export const ReportsTab = () => {
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<string>('all');
   const [isCentralUser, setIsCentralUser] = useState(false);
+
+  const [dateFilterType, setDateFilterType] = useState<string>('default');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  const getDateYYYYMMDD = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('T')) {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return dateStr.substring(0, 10);
+  };
+
+  const isDateInPeriod = (dateStr: string | null | undefined) => {
+    const yyyymmdd = getDateYYYYMMDD(dateStr);
+    if (!yyyymmdd) return false;
+
+    const todayStr = getCurrentDate();
+
+    if (dateFilterType === 'default' || dateFilterType === 'all') return true;
+    if (dateFilterType === 'today') return yyyymmdd === todayStr;
+    
+    const today = new Date(todayStr + 'T00:00:00');
+    const targetDate = new Date(yyyymmdd + 'T00:00:00');
+
+    if (dateFilterType === '7days') {
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      return targetDate >= sevenDaysAgo && targetDate <= today;
+    }
+    if (dateFilterType === '30days') {
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      return targetDate >= thirtyDaysAgo && targetDate <= today;
+    }
+    if (dateFilterType === 'custom') {
+      if (customStartDate && customEndDate) {
+        return yyyymmdd >= customStartDate && yyyymmdd <= customEndDate;
+      }
+      return true; // não filtra até preencher ambas
+    }
+    return true;
+  };
 
   const availableSegments = useMemo(
     () => sortSegments(series.map((s) => s.level)),
@@ -87,6 +136,7 @@ export const ReportsTab = () => {
   };
   const [reportData, setReportData] = useState<ReportData>({
     totalInscricoes: 0,
+    inscritosHoje: 0,
     alunosProximaProva: 0,
     agendamentosHoje: 0,
     matriculados: 0,
@@ -133,7 +183,7 @@ export const ReportsTab = () => {
 
   useEffect(() => {
     fetchReportData();
-  }, [selectedUnit, selectedSegment, selectedSeries, isCentralUser, profile?.unit_id]);
+  }, [selectedUnit, selectedSegment, selectedSeries, isCentralUser, profile?.unit_id, dateFilterType, customStartDate, customEndDate]);
 
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
@@ -222,22 +272,6 @@ export const ReportsTab = () => {
     }
   };
 
-  const applySeriesFilterToClassesQuery = <T extends { eq: (col: string, val: string) => T; in: (col: string, vals: string[]) => T }>(
-    query: T
-  ) => {
-    if (selectedSeries !== 'all') {
-      return query.eq('series_id', selectedSeries);
-    }
-    if (selectedSegment !== 'all') {
-      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
-      if (seriesIdsInSegment.length > 0) {
-        return query.in('series_id', seriesIdsInSegment);
-      }
-      return query.eq('series_id', '00000000-0000-0000-0000-000000000000');
-    }
-    return query;
-  };
-
   const fetchReportData = async () => {
     const filterByUnit = selectedUnit !== 'all';
 
@@ -276,7 +310,17 @@ export const ReportsTab = () => {
     if (allowedUnitIds && allowedUnitIds.length > 0) {
       classesQuery = classesQuery.in('unit_id', allowedUnitIds);
     }
-    classesQuery = applySeriesFilterToClassesQuery(classesQuery);
+
+    if (selectedSeries !== 'all') {
+      classesQuery = classesQuery.eq('series_id', selectedSeries);
+    } else if (selectedSegment !== 'all') {
+      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
+      if (seriesIdsInSegment.length > 0) {
+        classesQuery = classesQuery.in('series_id', seriesIdsInSegment);
+      } else {
+        classesQuery = classesQuery.eq('series_id', '00000000-0000-0000-0000-000000000000');
+      }
+    }
 
     const [{ data: allStudents, error: studentsError }, { data: allClasses, error: classesError }] =
       await Promise.all([query, classesQuery]);
@@ -319,20 +363,37 @@ export const ReportsTab = () => {
       const today = getCurrentDate();
       
       const totalInscricoes = studentsValid.filter(s => 
-        s.status !== 'processo_anos_anteriores'
+        s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
       ).length;
+      
+      const inscritosHoje = studentsValid.filter(s => 
+        s.status !== 'processo_anos_anteriores' && getDateYYYYMMDD(s.created_at) === today
+      ).length;
+
       const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
         studentsValid,
         filterByUnit ? selectedUnit : undefined
       );
       setNextExamDatesByUnit(datesByUnit);
-      const matriculados = students.filter(s => s.status === 'matriculado').length;
+      
+      const matriculados = students.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at)).length;
 
-      // Agendamentos hoje, alinhados ao filtro de unidade/série e ano letivo atual
-      const { data: appointments } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('appointment_date', today);
+      // Agendamentos no período selecionado, alinhados ao filtro de unidade/série e ano letivo atual
+      let appQuery = supabase.from('appointments').select('*');
+      if (dateFilterType === 'default' || dateFilterType === 'today') {
+        appQuery = appQuery.eq('appointment_date', today);
+      } else if (dateFilterType === '7days') {
+        const sevenDaysAgo = new Date(today + 'T00:00:00');
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0,10)).lte('appointment_date', today);
+      } else if (dateFilterType === '30days') {
+        const thirtyDaysAgo = new Date(today + 'T00:00:00');
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0,10)).lte('appointment_date', today);
+      } else if (dateFilterType === 'custom' && customStartDate && customEndDate) {
+        appQuery = appQuery.gte('appointment_date', customStartDate).lte('appointment_date', customEndDate);
+      }
+      const { data: appointments } = await appQuery;
 
       const filteredAppointments = (appointments || []).filter(app =>
         students.some(s => s.id === app.student_id)
@@ -346,12 +407,15 @@ export const ReportsTab = () => {
 
       // Count by status
       const statusCounts: { [key: string]: number } = {};
-      students.forEach(student => {
-        statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
+      studentsValid.forEach(student => {
+        if (isDateInPeriod(student.updated_at || student.created_at)) {
+          statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
+        }
       });
 
       setReportData({
         totalInscricoes,
+        inscritosHoje,
         alunosProximaProva,
         agendamentosHoje,
         matriculados,
@@ -363,7 +427,10 @@ export const ReportsTab = () => {
   const getFilteredStudents = (filterType: string) => {
     switch (filterType) {
       case 'total':
-        return studentsData.filter(s => s.status !== 'cadastro_invalido');
+        return studentsData.filter(s => s.status !== 'cadastro_invalido' && isDateInPeriod(s.created_at));
+      case 'inscritos_hoje':
+        const todayStr = getCurrentDate();
+        return studentsData.filter(s => s.status !== 'cadastro_invalido' && getDateYYYYMMDD(s.created_at) === todayStr);
       case 'proxima_prova':
         // Alinhar com a próxima prova por unidade (quando "Todas as unidades"),
         // ou apenas daquela unidade quando um filtro específico estiver selecionado
@@ -382,14 +449,14 @@ export const ReportsTab = () => {
         // exibir alunos que possuem alguma data de exame definida
         return studentsData.filter((s) => !!s.exam_date && s.status !== 'cadastro_invalido');
       case 'matriculados':
-        return studentsData.filter(s => s.status === 'matriculado');
+        return studentsData.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at));
       default:
         return [];
     }
   };
 
   const getStudentsByStatus = (status: string) => {
-    return studentsData.filter(s => s.status === status);
+    return studentsData.filter(s => s.status === status && isDateInPeriod(s.updated_at || s.created_at));
   };
 
   const getStudentsByClassAndStatus = (classId: string, status: string) => {
@@ -456,6 +523,16 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
     setDialogOpen(true);
   };
 
+  const getAgendamentosLabel = () => {
+    if (dateFilterType === 'default') return 'Agendamentos Hoje';
+    if (dateFilterType === 'all') return 'Agendamentos (Todos)';
+    if (dateFilterType === 'today') return 'Agendamentos Hoje';
+    if (dateFilterType === '7days') return 'Agendamentos (7 dias)';
+    if (dateFilterType === '30days') return 'Agendamentos (30 dias)';
+    if (dateFilterType === 'custom') return 'Agendamentos (Período)';
+    return 'Agendamentos Hoje';
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -502,12 +579,44 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
             ))}
           </SelectContent>
         </Select>
+
+        <Select value={dateFilterType} onValueChange={setDateFilterType}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent side="bottom">
+            <SelectItem value="default">Selecione o período...</SelectItem>
+            <SelectItem value="all">Todo o período</SelectItem>
+            <SelectItem value="today">Hoje</SelectItem>
+            <SelectItem value="7days">Últimos 7 dias</SelectItem>
+            <SelectItem value="30days">Últimos 30 dias</SelectItem>
+            <SelectItem value="custom">Personalizado</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {dateFilterType === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="flex h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <span className="text-sm text-gray-500">até</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="flex h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
-          <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
+          <Card className="h-full flex flex-col justify-between">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -518,8 +627,20 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </Card>
         </div>
 
-        <div className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
-          <Card>
+        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
+          <Card className="h-full flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inscritos Hoje</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reportData.inscritosHoje}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
+          <Card className="h-full flex flex-col justify-between">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
               <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -530,10 +651,10 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </Card>
         </div>
 
-        <div className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(todayAppointmentsStudents, 'Alunos com Agendamentos Hoje')}>
-          <Card>
+        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(todayAppointmentsStudents, getAgendamentosLabel())}>
+          <Card className="h-full flex flex-col justify-between">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
+              <CardTitle className="text-sm font-medium">{getAgendamentosLabel()}</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -542,8 +663,8 @@ const StudentsTable = ({ students, statusLabels }: { students: Student[], status
           </Card>
         </div>
 
-        <div className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
-          <Card>
+        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
+          <Card className="h-full flex flex-col justify-between">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
               <GraduationCap className="h-4 w-4 text-muted-foreground" />
