@@ -1916,143 +1916,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
               </CardContent>
             </Card>
 
-            {/* Interview Scheduling */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>Agendar Entrevista</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowSchedulingModal(true)}
-                  className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 mb-2"
-                >
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  Conferir Disponibilidades
-                </Button>
-                <div className="relative mb-2">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-gray-500">Ou agende manualmente</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
-                    <Label htmlFor="interview-date">Data</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal pl-2 sm:pl-3"
-                        >
-                          <CalendarIcon className="mr-1 sm:mr-2 h-4 w-4" />
-                          {interviewDate ? (
-                            format(new Date(interviewDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
-                          ) : (
-                            <span>Escolha a data</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={interviewDate ? new Date(interviewDate + 'T00:00:00') : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              const year = date.getFullYear();
-                              const month = String(date.getMonth() + 1).padStart(2, '0');
-                              const day = String(date.getDate()).padStart(2, '0');
-                              setInterviewDate(`${year}-${month}-${day}`);
-                            }
-                          }}
-                          fromDate={startOfToday()}
-                          disabled={{ before: startOfToday() }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <Label htmlFor="interview-time">Horário</Label>
-                    <Select value={interviewTime} onValueChange={setInterviewTime}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Escolha o horário" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 24 }, (_, hour) => {
-                          return [0, 30]
-                            .map((minute) => {
-                              const withinBusinessHours = hour >= 7 && hour <= 21;
-                              const isDisallowedLateSlot = hour === 21 && minute === 30; // Excluir 21:30
-                              if (!withinBusinessHours || isDisallowedLateSlot) return null;
-
-                              const timeValue = `${hour.toString().padStart(2, '0')}:${minute
-                                .toString()
-                                .padStart(2, '0')}`;
-                              const displayTime = `${hour.toString().padStart(2, '0')}:${minute
-                                .toString()
-                                .padStart(2, '0')}`;
-                              return (
-                                <SelectItem key={timeValue} value={timeValue}>
-                                  {displayTime}
-                                </SelectItem>
-                              );
-                            })
-                            .filter(Boolean);
-                        }).flat()}
-                      </SelectContent>
-                    </Select>                   
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <Label htmlFor="interviewer">Entrevistador</Label>
-                    <Select value={interviewerId} onValueChange={setInterviewerId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent side="bottom">
-                        {interviewers.filter(Boolean).map(interviewer => (
-                          <SelectItem key={interviewer?.id as string} value={interviewer?.id as string}>
-                            {interviewer?.name || 'Sem nome'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                {/* Checkbox para formato da entrevista */}
-                <div className="flex items-center space-x-2 pt-2 sm:pt-2 mt-1 sm:mt-0">
-                  <Checkbox 
-                    id="formato-entrevista"
-                    checked={formatoEntrevista === 'a_distancia'}
-                    onCheckedChange={(checked) => 
-                      setFormatoEntrevista(checked ? 'a_distancia' : 'presencial')
-                    }
-                  />
-                  <Label 
-                    htmlFor="formato-entrevista" 
-                    className="cursor-pointer text-sm font-normal"
-                  >
-                    Entrevista a distância
-                  </Label>
-                </div>
-                
-                <Button 
-                  onClick={handleScheduleInterview}
-                  className="w-full bg-blue-500 hover:bg-blue-600"
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Agendar Entrevista
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Actions - Only show Register Attendance if it's interview day */}
+            {/* Registrar Atendimento — logo abaixo de Proposta */}
             {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
             <Card>
               <CardHeader>
@@ -2193,6 +2057,142 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </CardContent>
               </Card>
             )}
+
+            {/* Interview Scheduling */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Agendar Entrevista</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSchedulingModal(true)}
+                  className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 mb-2"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Conferir Disponibilidades
+                </Button>
+                <div className="relative mb-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">Ou agende manualmente</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="interview-date">Data</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal pl-2 sm:pl-3"
+                        >
+                          <CalendarIcon className="mr-1 sm:mr-2 h-4 w-4" />
+                          {interviewDate ? (
+                            format(new Date(interviewDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                          ) : (
+                            <span>Escolha a data</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={interviewDate ? new Date(interviewDate + 'T00:00:00') : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              setInterviewDate(`${year}-${month}-${day}`);
+                            }
+                          }}
+                          fromDate={startOfToday()}
+                          disabled={{ before: startOfToday() }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label htmlFor="interview-time">Horário</Label>
+                    <Select value={interviewTime} onValueChange={setInterviewTime}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolha o horário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, hour) => {
+                          return [0, 30]
+                            .map((minute) => {
+                              const withinBusinessHours = hour >= 7 && hour <= 21;
+                              const isDisallowedLateSlot = hour === 21 && minute === 30; // Excluir 21:30
+                              if (!withinBusinessHours || isDisallowedLateSlot) return null;
+
+                              const timeValue = `${hour.toString().padStart(2, '0')}:${minute
+                                .toString()
+                                .padStart(2, '0')}`;
+                              const displayTime = `${hour.toString().padStart(2, '0')}:${minute
+                                .toString()
+                                .padStart(2, '0')}`;
+                              return (
+                                <SelectItem key={timeValue} value={timeValue}>
+                                  {displayTime}
+                                </SelectItem>
+                              );
+                            })
+                            .filter(Boolean);
+                        }).flat()}
+                      </SelectContent>
+                    </Select>                   
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <Label htmlFor="interviewer">Entrevistador</Label>
+                    <Select value={interviewerId} onValueChange={setInterviewerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        {interviewers.filter(Boolean).map(interviewer => (
+                          <SelectItem key={interviewer?.id as string} value={interviewer?.id as string}>
+                            {interviewer?.name || 'Sem nome'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* Checkbox para formato da entrevista */}
+                <div className="flex items-center space-x-2 pt-2 sm:pt-2 mt-1 sm:mt-0">
+                  <Checkbox 
+                    id="formato-entrevista"
+                    checked={formatoEntrevista === 'a_distancia'}
+                    onCheckedChange={(checked) => 
+                      setFormatoEntrevista(checked ? 'a_distancia' : 'presencial')
+                    }
+                  />
+                  <Label 
+                    htmlFor="formato-entrevista" 
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    Entrevista a distância
+                  </Label>
+                </div>
+                
+                <Button 
+                  onClick={handleScheduleInterview}
+                  className="w-full bg-blue-500 hover:bg-blue-600"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Agendar Entrevista
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Status Update */}
             <Card>
