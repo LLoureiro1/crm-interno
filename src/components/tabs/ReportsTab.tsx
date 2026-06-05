@@ -21,6 +21,11 @@ import {
   isExcludedFromClassChart,
   type ReportClassRow,
 } from '@/utils/classStatusAggregation';
+import {
+  buildEarliestExamDatesByUnit,
+  filterStudentsProximaProva,
+  supplementNextExamDatesFromStudents,
+} from '@/utils/nextExamReport';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
@@ -232,7 +237,6 @@ export const ReportsTab = () => {
   ): Promise<{ count: number; datesByUnit: Record<string, string> }> => {
     try {
       const today = getCurrentDate();
-      // Determinar conjunto de unidades de interesse
       const unitIds = unitId
         ? [unitId]
         : Array.from(new Set(students.map((s) => s.unit_id ?? s.classes?.unit_id).filter(Boolean) as string[]));
@@ -241,7 +245,6 @@ export const ReportsTab = () => {
         return { count: 0, datesByUnit: {} };
       }
 
-      // Buscar todas as datas de prova futuras para as unidades de interesse
       const { data: upcomingDates, error } = await supabase
         .from('exam_dates')
         .select('unit_id, exam_date')
@@ -254,22 +257,11 @@ export const ReportsTab = () => {
         return { count: 0, datesByUnit: {} };
       }
 
-      // Agrupar e pegar a primeira (mais próxima futura) por unidade
-      const earliestByUnit: Record<string, string> = {};
-      (upcomingDates || []).forEach((row) => {
-        if (!earliestByUnit[row.unit_id]) {
-          earliestByUnit[row.unit_id] = row.exam_date as string;
-        }
-      });
+      const fromTable = buildEarliestExamDatesByUnit(upcomingDates ?? []);
+      const datesByUnit = supplementNextExamDatesFromStudents(students, fromTable, today);
+      const count = filterStudentsProximaProva(students, datesByUnit).length;
 
-      // Contar alunos pela data de exame: exam_date deve coincidir com a próxima da sua unidade
-      const count = students.filter((student) => {
-        const studentUnitId = student.unit_id ?? student.classes?.unit_id;
-        const unitNextDate = studentUnitId ? earliestByUnit[studentUnitId] : undefined;
-        return !!unitNextDate && student.exam_date === unitNextDate;
-      }).length;
-
-      return { count, datesByUnit: earliestByUnit };
+      return { count, datesByUnit };
     } catch (error) {
       console.error('Erro ao agregar alunos por próxima prova de unidade:', error);
       return { count: 0, datesByUnit: {} };
@@ -455,22 +447,7 @@ export const ReportsTab = () => {
         const todayStr = getCurrentDate();
         return studentsData.filter(s => s.status !== 'cadastro_invalido' && getDateYYYYMMDD(s.created_at) === todayStr);
       case 'proxima_prova':
-        // Alinhar com a próxima prova por unidade (quando "Todas as unidades"),
-        // ou apenas daquela unidade quando um filtro específico estiver selecionado
-        if (Object.keys(nextExamDatesByUnit).length > 0) {
-          return studentsData.filter((s) => {
-            const studentUnitId = s.unit_id ?? s.classes?.unit_id;
-            return (
-              !!studentUnitId &&
-              !!nextExamDatesByUnit[studentUnitId] &&
-              s.exam_date === nextExamDatesByUnit[studentUnitId] &&
-              s.status !== 'cadastro_invalido'
-            );
-          });
-        }
-        // Fallback: quando ainda não há mapeamento de próxima prova por unidade,
-        // exibir alunos que possuem alguma data de exame definida
-        return studentsData.filter((s) => !!s.exam_date && s.status !== 'cadastro_invalido');
+        return filterStudentsProximaProva(studentsData, nextExamDatesByUnit);
       case 'matriculados':
         return studentsData.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at));
       default:
