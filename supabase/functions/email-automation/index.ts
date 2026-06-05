@@ -5,6 +5,93 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 
 const FUNCTION_NAME = "email-automation";
 
+/** Limites de envio ao Google Apps Script (configuráveis via secrets da Edge Function). */
+type QueueThrottleConfig = {
+  batchSize: number;
+  webhookBatchSize: number;
+  sendDelayMs: number;
+  staggerMs: number;
+  maxAttempts: number;
+  retryBaseDelayMs: number;
+};
+
+function parseEnvInt(name: string, fallback: number, min = 0, max = 600_000): number {
+  const raw = Deno.env.get(name);
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function getQueueThrottleConfig(): QueueThrottleConfig {
+  return {
+    batchSize: parseEnvInt("EMAIL_QUEUE_BATCH_SIZE", 5, 1, 50),
+    webhookBatchSize: parseEnvInt("EMAIL_QUEUE_WEBHOOK_BATCH_SIZE", 2, 1, 20),
+    sendDelayMs: parseEnvInt("EMAIL_QUEUE_SEND_DELAY_MS", 3000, 500, 60_000),
+    staggerMs: parseEnvInt("EMAIL_QUEUE_STAGGER_MS", 2500, 500, 120_000),
+    maxAttempts: parseEnvInt("EMAIL_QUEUE_MAX_ATTEMPTS", 5, 1, 20),
+    retryBaseDelayMs: parseEnvInt("EMAIL_QUEUE_RETRY_BASE_DELAY_MS", 60_000, 5_000, 600_000),
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Espaça horários de enfileiramento quando muitos e-mails entram de uma vez. */
+function createQueueStagger(staggerMs = getQueueThrottleConfig().staggerMs) {
+  let index = 0;
+  return {
+    next(base: Date | string = new Date()): string {
+      const baseMs = typeof base === "string" ? new Date(base).getTime() : base.getTime();
+      const scheduledMs = baseMs + index * staggerMs;
+      index += 1;
+      return new Date(scheduledMs).toISOString();
+    },
+  };
+}
+
+function isTransientSendError(error: unknown, httpStatus?: number): boolean {
+  if (httpStatus && [408, 429, 500, 502, 503, 504].includes(httpStatus)) {
+    return true;
+  }
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("quota") ||
+    message.includes("rate limit") ||
+    message.includes("too many") ||
+    message.includes("service invoked") ||
+    message.includes("lock") ||
+    message.includes("busy") ||
+    message.includes("temporarily") ||
+    message.includes("try again")
+  );
+}
+
+function computeRetryScheduledFor(attempts: number): string {
+  const { retryBaseDelayMs } = getQueueThrottleConfig();
+  const delayMs = retryBaseDelayMs * Math.pow(2, Math.max(0, attempts - 1));
+  return new Date(Date.now() + delayMs).toISOString();
+}
+
+async function countDuePendingEmails(
+  supabase: ReturnType<typeof createClient>,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("email_queue")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .lte("scheduled_for", new Date().toISOString());
+
+  if (error) {
+    logEmailEvent("warn", "queue_remaining_count_failed", { error: error.message });
+    return 0;
+  }
+  return count ?? 0;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -433,7 +520,7 @@ serve(async (req) => {
 
     if (source === "cron") {
       const reminders = await scheduleReminders(supabase, runId);
-      const processed = await processQueue(supabase, runId);
+      const processed = await processQueue(supabase, runId, { source: "cron" });
       result = { success: true, reminders, processed };
     } else if (source === "webhook") {
       const queued = await handleWebhook(supabase, auth.body, runId);
@@ -453,13 +540,20 @@ serve(async (req) => {
           queued,
         });
       }
-      const processed = await processQueue(supabase, runId);
+      const processed = await processQueue(supabase, runId, { source: "webhook" });
       if (processed.failed > 0) {
         logEmailEvent("warn", "queue_partial_failure", { runId, processed });
       }
+      if ((processed.remaining ?? 0) > 0) {
+        logEmailEvent("info", "queue_backlog_remaining", {
+          runId,
+          remaining: processed.remaining,
+          hint: "próximo ciclo do cron process-queue drenará o restante",
+        });
+      }
       result = { success: true, queued, processed };
     } else if (source === "process_queue") {
-      const processed = await processQueue(supabase, runId);
+      const processed = await processQueue(supabase, runId, { source: "process_queue" });
       result = { success: true, processed };
     } else {
       logEmailEvent("warn", "invalid_source", { runId, source: source ?? null });
@@ -882,6 +976,7 @@ async function queueAppointmentStudentEmail(
     studentEmail: string;
     context: TemplateContext & { unit_id?: string | null };
     runId: string;
+    scheduledFor: string;
   },
 ) {
   const template = await resolveTemplate(
@@ -915,7 +1010,7 @@ async function queueAppointmentStudentEmail(
     toName: params.context.student_name,
     context: params.context,
     idempotencyKey: `appointment_scheduled:${params.appointmentId}`,
-    scheduledFor: new Date().toISOString(),
+    scheduledFor: params.scheduledFor,
   });
 
   if ("queued" in result && result.queued) {
@@ -939,9 +1034,10 @@ async function queueAppointmentStaffEmail(
     context: TemplateContext & { unit_id?: string | null };
     interviewer: InterviewerProfileRow | null;
     runId: string;
+    scheduledFor: string;
   },
 ) {
-  const { appointmentId, studentId, context, interviewer, runId } = params;
+  const { appointmentId, studentId, context, interviewer, runId, scheduledFor } = params;
 
   if (!interviewer?.id) {
     logEmailEvent("warn", "appointment_notify_staff_skipped", {
@@ -1011,7 +1107,7 @@ async function queueAppointmentStaffEmail(
     toName: staffContext.interviewer_name,
     context: staffContext,
     idempotencyKey: `appointment_scheduled_staff:${appointmentId}`,
-    scheduledFor: new Date().toISOString(),
+    scheduledFor,
   });
 
   if ("queued" in result && result.queued) {
@@ -1076,6 +1172,7 @@ async function queueAppointmentEmails(
   const context = await buildAppointmentTemplateContext(supabase, loaded, record);
   const studentId = loaded.student.id;
   const studentEmail = String(loaded.student.email ?? "").trim();
+  const stagger = createQueueStagger();
 
   let studentResult: Record<string, unknown>;
   if (!studentEmail) {
@@ -1098,6 +1195,7 @@ async function queueAppointmentEmails(
       studentEmail,
       context,
       runId,
+      scheduledFor: stagger.next(),
     });
   }
 
@@ -1107,6 +1205,7 @@ async function queueAppointmentEmails(
     context,
     interviewer: loaded.interviewer,
     runId,
+    scheduledFor: stagger.next(),
   });
 
   logEmailEvent("info", "appointment_notify_completed", {
@@ -1135,6 +1234,7 @@ async function scheduleReminders(
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = formatIsoDate(tomorrow);
+  const stagger = createQueueStagger();
 
   let appointmentCount = 0;
   let examCount = 0;
@@ -1186,7 +1286,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `appointment_reminder_same_day:${appointment.id}:${todayStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
 
     if (!result.skipped) appointmentCount += 1;
@@ -1229,7 +1329,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `exam_reminder_1_day_before:${student.id}:${tomorrowStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
 
     if (!result.skipped) examCount += 1;
@@ -1288,7 +1388,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `attended_over_a_week_ago:${appointment.id}:${sevenDaysAgoStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
 
     if (!result.skipped) postAttendanceCount += 1;
@@ -1329,7 +1429,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `exam_reminder_same_day:${student.id}:${todayStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
     if (!result.skipped) examSameDayCount += 1;
   }
@@ -1378,7 +1478,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `invite_to_schedule:${student.id}:${todayStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
     if (!result.skipped) inviteToScheduleCount += 1;
   }
@@ -1429,7 +1529,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `post_attendance_followup:${appointment.id}:${yesterdayStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
     if (!result.skipped) postFollowupCount += 1;
   }
@@ -1483,7 +1583,7 @@ async function scheduleReminders(
       toName: context.student_name,
       context,
       idempotencyKey: `post_attendance_3_days:${appointment.id}:${threeDaysAgoStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
     if (!result.skipped) post3DaysCount += 1;
   }
@@ -1531,7 +1631,7 @@ async function scheduleReminders(
         toName: recipient.name,
         context,
         idempotencyKey: `staff_new_lead_no_appointment:${studentId}:${recipient.id}:${todayStr}`,
-        scheduledFor,
+        scheduledFor: stagger.next(scheduledFor),
       });
       if (!result.skipped) staffNewLeadCount += 1;
     }
@@ -1580,7 +1680,7 @@ async function scheduleReminders(
         toName: recipient.name,
         context,
         idempotencyKey: `staff_missed_appointment_no_reschedule:${studentId}:${recipient.id}:${todayStr}`,
-        scheduledFor,
+        scheduledFor: stagger.next(scheduledFor),
       });
       if (!result.skipped) staffMissedCount += 1;
     }
@@ -1648,7 +1748,7 @@ async function scheduleReminders(
       toName: String(interviewer.name ?? ""),
       context,
       idempotencyKey: `staff_proposal_no_response:${studentId}:${interviewerId}:${todayStr}`,
-      scheduledFor,
+      scheduledFor: stagger.next(scheduledFor),
     });
     if (!result.skipped) staffProposalCount += 1;
   }
@@ -1672,8 +1772,22 @@ async function scheduleReminders(
 async function processQueue(
   supabase: ReturnType<typeof createClient>,
   runId: string,
+  options: { source?: string; batchSize?: number } = {},
 ) {
-  logEmailEvent("info", "queue_process_started", { runId });
+  const throttle = getQueueThrottleConfig();
+  const batchSize = options.batchSize ??
+    (options.source === "webhook"
+      ? throttle.webhookBatchSize
+      : throttle.batchSize);
+
+  logEmailEvent("info", "queue_process_started", {
+    runId,
+    source: options.source ?? null,
+    batchSize,
+    sendDelayMs: throttle.sendDelayMs,
+    maxAttempts: throttle.maxAttempts,
+  });
+
   const defaultWebhookToken = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_TOKEN") ?? "";
   const defaultWebhookUrl = Deno.env.get("GOOGLE_APPS_SCRIPT_WEBHOOK_URL") ?? "";
 
@@ -1691,7 +1805,7 @@ async function processQueue(
     .eq("status", "pending")
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: true })
-    .limit(20);
+    .limit(batchSize);
 
   if (error) {
     logEmailEvent("error", "queue_fetch_failed", { runId, error: error.message });
@@ -1701,12 +1815,27 @@ async function processQueue(
   logEmailEvent("info", "queue_pending_loaded", {
     runId,
     count: pendingEmails?.length ?? 0,
+    batchSize,
   });
 
   let sent = 0;
   let failed = 0;
+  let deferred = 0;
 
-  for (const item of pendingEmails ?? []) {
+  for (let index = 0; index < (pendingEmails?.length ?? 0); index++) {
+    const item = pendingEmails![index];
+
+    if (index > 0) {
+      logEmailEvent("info", "queue_send_throttle_wait", {
+        runId,
+        queueItemId: item.id,
+        delayMs: throttle.sendDelayMs,
+        position: index + 1,
+        batchSize,
+      });
+      await sleep(throttle.sendDelayMs);
+    }
+
     const integration = await resolveIntegration(
       supabase,
       item.unit_id as string | null,
@@ -1759,9 +1888,11 @@ async function processQueue(
       continue;
     }
 
+    const nextAttempts = (item.attempts ?? 0) + 1;
+
     await supabase
       .from("email_queue")
-      .update({ status: "sending", attempts: (item.attempts ?? 0) + 1 })
+      .update({ status: "sending", attempts: nextAttempts })
       .eq("id", item.id);
 
     try {
@@ -1801,11 +1932,43 @@ async function processQueue(
         triggerType: item.trigger_type,
         toEmail: item.to_email,
         messageId,
+        attempt: nextAttempts,
       });
     } catch (sendError) {
       const message = sendError instanceof Error
         ? sendError.message
         : "Erro desconhecido";
+      const httpStatus = sendError instanceof Error &&
+          "httpStatus" in sendError
+        ? Number((sendError as Error & { httpStatus?: number }).httpStatus)
+        : undefined;
+      const canRetry = isTransientSendError(sendError, httpStatus) &&
+        nextAttempts < throttle.maxAttempts;
+
+      if (canRetry) {
+        const retryAt = computeRetryScheduledFor(nextAttempts);
+        await supabase
+          .from("email_queue")
+          .update({
+            status: "pending",
+            scheduled_for: retryAt,
+            error_message: `Tentativa ${nextAttempts}/${throttle.maxAttempts}: ${message}`,
+          })
+          .eq("id", item.id);
+
+        deferred += 1;
+        logEmailEvent("warn", "queue_item_deferred", {
+          runId,
+          queueItemId: item.id,
+          reason: "transient_send_error",
+          triggerType: item.trigger_type,
+          toEmail: item.to_email,
+          attempt: nextAttempts,
+          retryAt,
+          error: message,
+        });
+        continue;
+      }
 
       logEmailEvent("error", "queue_item_failed", {
         runId,
@@ -1813,6 +1976,7 @@ async function processQueue(
         reason: "send_error",
         triggerType: item.trigger_type,
         toEmail: item.to_email,
+        attempt: nextAttempts,
         error: message,
       });
 
@@ -1828,8 +1992,12 @@ async function processQueue(
     }
   }
 
-  const summary = { sent, failed };
-  logEmailEvent(failed > 0 ? "warn" : "info", "queue_process_done", { runId, ...summary });
+  const remaining = await countDuePendingEmails(supabase);
+  const summary = { sent, failed, deferred, remaining, batchSize };
+  logEmailEvent(failed > 0 || deferred > 0 ? "warn" : "info", "queue_process_done", {
+    runId,
+    ...summary,
+  });
   return summary;
 }
 
@@ -2301,7 +2469,9 @@ async function sendEmailViaAppsScriptWebhook(params: {
       error: errorMessage,
       rawResponse,
     });
-    throw new Error(errorMessage);
+    const err = new Error(errorMessage) as Error & { httpStatus?: number };
+    err.httpStatus = response.status;
+    throw err;
   }
 
   if (typeof rawResponse === "string" || !rawResponse) {

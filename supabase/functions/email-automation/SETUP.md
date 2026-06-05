@@ -72,7 +72,32 @@ Cole o conteúdo de `index.ts` em um único arquivo na função `email-automatio
 
 Execute `setup-email-cron-job.sql` no SQL Editor para lembretes diários.
 
-## 4. Payload enviado ao Apps Script
+A migration `20260604120000_email_queue_process_cron.sql` agenda também o job **`email-automation-process-queue`** a cada **5 minutos**, que drena a fila em lotes pequenos (`source: process_queue`).
+
+## 4. Controle de ritmo (throttling)
+
+Para evitar sobrecarga no Google Apps Script, a Edge Function limita envios por execução e espaça as chamadas. Configure via **secrets** da função (valores padrão entre parênteses):
+
+| Secret | Padrão | Descrição |
+|--------|--------|-----------|
+| `EMAIL_QUEUE_BATCH_SIZE` | 5 | Máximo de e-mails por execução (cron / process_queue) |
+| `EMAIL_QUEUE_WEBHOOK_BATCH_SIZE` | 2 | Máximo após evento imediato (webhook de agendamento/inscrição) |
+| `EMAIL_QUEUE_SEND_DELAY_MS` | 3000 | Pausa entre cada POST ao Apps Script (ms) |
+| `EMAIL_QUEUE_STAGGER_MS` | 2500 | Espaçamento ao enfileirar muitos e-mails de uma vez (cron) |
+| `EMAIL_QUEUE_MAX_ATTEMPTS` | 5 | Tentativas antes de marcar como falhou |
+| `EMAIL_QUEUE_RETRY_BASE_DELAY_MS` | 60000 | Backoff base para reenvio após erro temporário |
+
+**Estratégias aplicadas:**
+
+1. **Lotes pequenos** — no máximo 5 envios por ciclo (2 após webhook).
+2. **Intervalo entre envios** — 3 s entre cada chamada ao script.
+3. **Escalonamento na fila** — lembretes do cron entram com `scheduled_for` escalonado (ex.: 08:00, 08:02:30, 08:05…).
+4. **Cron a cada 5 min** — drena o backlog sem picos.
+5. **Retry com backoff** — erros temporários (timeout, 429, quota) reagendam em vez de falhar na hora.
+
+Logs relevantes: `queue_send_throttle_wait`, `queue_item_deferred`, `queue_backlog_remaining`.
+
+## 5. Payload enviado ao Apps Script
 
 ```json
 {
@@ -142,7 +167,7 @@ Resposta esperada do Apps Script:
 }
 ```
 
-## 5. Fluxo técnico
+## 6. Fluxo técnico
 
 ```
 INSERT students/appointments
@@ -160,7 +185,7 @@ Planilha + GmailApp.sendEmail()
 email_queue (sent/failed)
 ```
 
-## 6. Configurar no CRM
+## 7. Configurar no CRM
 
 **Configurações → E-mails**
 
