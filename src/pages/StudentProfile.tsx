@@ -2310,8 +2310,11 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     <Label htmlFor="erp-code">Código do ERP (Sophia) *</Label>
                     <Input
                       id="erp-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
                       value={erpCode}
-                      onChange={(e) => setErpCode(e.target.value)}
+                      onChange={(e) => setErpCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="Informe o código do ERP"
                     />
                   </div>
