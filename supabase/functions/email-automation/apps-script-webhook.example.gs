@@ -108,6 +108,10 @@ function doPost(e) {
         sheet.getRange(ultimaLinha, COL.ENVIO_IMEDIATO).setValue('Enviado');
       } catch (emailErr) {
         erroEmail = emailErr.message || String(emailErr);
+        registrarErroWorkspace('dispararEmailHtml', emailErr, {
+          to: lead.email,
+          trigger_type: payload.trigger_type || payload.event || ''
+        });
         sheet.getRange(ultimaLinha, COL.ENVIO_IMEDIATO).setValue('Falhou: ' + erroEmail);
       }
     } else if (payload.subject && payload.html_body && !lead.emailValido) {
@@ -126,6 +130,7 @@ function doPost(e) {
       lead_email: lead.email
     });
   } catch (err) {
+    registrarErroWorkspace('doPost', err, { token_presente: Boolean(tokenRecebido) });
     return jsonResponse({ success: false, error: 'Erro: ' + err.message });
   }
 }
@@ -469,4 +474,16 @@ function jsonResponse(body) {
   return ContentService
     .createTextOutput(JSON.stringify(body))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Logs visíveis em Apps Script → Execuções (útil quando o CRM recebe success=false). */
+function registrarErroWorkspace(contexto, err, extra) {
+  var mensagem = err && err.message ? err.message : String(err);
+  Logger.log(JSON.stringify({
+    ts: new Date().toISOString(),
+    origin: 'google_workspace',
+    context: contexto,
+    error: mensagem,
+    extra: extra || {}
+  }));
 }

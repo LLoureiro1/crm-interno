@@ -52,6 +52,9 @@ function createQueueStagger(staggerMs = getQueueThrottleConfig().staggerMs) {
 }
 
 function isTransientSendError(error: unknown, httpStatus?: number): boolean {
+  if (isAppsScriptError(error) && !error.transient) {
+    return false;
+  }
   if (httpStatus && [408, 429, 500, 502, 503, 504].includes(httpStatus)) {
     return true;
   }
@@ -68,6 +71,55 @@ function isTransientSendError(error: unknown, httpStatus?: number): boolean {
     message.includes("temporarily") ||
     message.includes("try again")
   );
+}
+
+/** Falha originada no Google Apps Script / Workspace (não na Edge Function). */
+class AppsScriptError extends Error {
+  readonly origin = "apps_script" as const;
+  readonly httpStatus?: number;
+  readonly rawResponse?: unknown;
+  readonly transient: boolean;
+  readonly code?: string;
+
+  constructor(
+    message: string,
+    options: {
+      httpStatus?: number;
+      rawResponse?: unknown;
+      transient?: boolean;
+      code?: string;
+    } = {},
+  ) {
+    super(message);
+    this.name = "AppsScriptError";
+    this.httpStatus = options.httpStatus;
+    this.rawResponse = options.rawResponse;
+    this.transient = options.transient ?? false;
+    this.code = options.code;
+  }
+}
+
+function isAppsScriptError(error: unknown): error is AppsScriptError {
+  return error instanceof AppsScriptError ||
+    (error instanceof Error && (error as AppsScriptError).origin === "apps_script");
+}
+
+function logAppsScriptFailure(
+  event: string,
+  details: Record<string, unknown>,
+): void {
+  logEmailEvent("error", event, {
+    failure_origin: "apps_script",
+    ...details,
+  });
+}
+
+function formatQueueErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Erro desconhecido";
+  if (isAppsScriptError(error)) {
+    return `[Google Workspace] ${message}`;
+  }
+  return message;
 }
 
 function computeRetryScheduledFor(attempts: number): string {
@@ -1935,9 +1987,8 @@ async function processQueue(
         attempt: nextAttempts,
       });
     } catch (sendError) {
-      const message = sendError instanceof Error
-        ? sendError.message
-        : "Erro desconhecido";
+      const message = formatQueueErrorMessage(sendError);
+      const fromAppsScript = isAppsScriptError(sendError);
       const httpStatus = sendError instanceof Error &&
           "httpStatus" in sendError
         ? Number((sendError as Error & { httpStatus?: number }).httpStatus)
@@ -1960,7 +2011,8 @@ async function processQueue(
         logEmailEvent("warn", "queue_item_deferred", {
           runId,
           queueItemId: item.id,
-          reason: "transient_send_error",
+          reason: fromAppsScript ? "apps_script_transient_error" : "transient_send_error",
+          failure_origin: fromAppsScript ? "apps_script" : "edge_function",
           triggerType: item.trigger_type,
           toEmail: item.to_email,
           attempt: nextAttempts,
@@ -1973,11 +2025,13 @@ async function processQueue(
       logEmailEvent("error", "queue_item_failed", {
         runId,
         queueItemId: item.id,
-        reason: "send_error",
+        reason: fromAppsScript ? "apps_script_error" : "send_error",
+        failure_origin: fromAppsScript ? "apps_script" : "edge_function",
         triggerType: item.trigger_type,
         toEmail: item.to_email,
         attempt: nextAttempts,
         error: message,
+        httpStatus: httpStatus ?? null,
       });
 
       await supabase
@@ -2461,7 +2515,7 @@ async function sendEmailViaAppsScriptWebhook(params: {
   if (!response.ok) {
     const errorMessage = extractAppsScriptError(rawResponse) ||
       `Webhook Apps Script retornou HTTP ${response.status}`;
-    logEmailEvent("error", "apps_script_http_error", {
+    logAppsScriptFailure("apps_script_http_error", {
       runId: params.runId ?? null,
       httpStatus: response.status,
       to_email: body.to_email,
@@ -2469,18 +2523,48 @@ async function sendEmailViaAppsScriptWebhook(params: {
       error: errorMessage,
       rawResponse,
     });
-    const err = new Error(errorMessage) as Error & { httpStatus?: number };
-    err.httpStatus = response.status;
-    throw err;
+    throw new AppsScriptError(errorMessage, {
+      httpStatus: response.status,
+      rawResponse,
+      transient: [408, 429, 500, 502, 503, 504].includes(response.status),
+      code: "http_error",
+    });
   }
 
   if (typeof rawResponse === "string" || !rawResponse) {
-    throw new Error(
-      "Resposta inválida do Apps Script (provável redirect sem body JSON). Reimplante o Web App e confira a URL.",
-    );
+    const errorMessage =
+      "Resposta inválida do Apps Script (provável redirect sem body JSON). Reimplante o Web App e confira a URL.";
+    logAppsScriptFailure("apps_script_invalid_response", {
+      runId: params.runId ?? null,
+      to_email: body.to_email,
+      trigger_type: body.trigger_type,
+      error: errorMessage,
+      rawResponse,
+    });
+    throw new AppsScriptError(errorMessage, {
+      rawResponse,
+      code: "invalid_response",
+    });
   }
 
   const responseObj = rawResponse as Record<string, unknown>;
+
+  if (responseObj.success === false) {
+    const errorMessage = extractAppsScriptError(rawResponse) ||
+      "Apps Script retornou success=false";
+    logAppsScriptFailure("apps_script_rejected", {
+      runId: params.runId ?? null,
+      to_email: body.to_email,
+      trigger_type: body.trigger_type,
+      error: errorMessage,
+      rawResponse,
+    });
+    throw new AppsScriptError(errorMessage, {
+      rawResponse,
+      code: "success_false",
+    });
+  }
+
   const expectsEmail = Boolean(body.subject && body.html_body);
 
   if (expectsEmail) {
@@ -2488,13 +2572,33 @@ async function sendEmailViaAppsScriptWebhook(params: {
       const emailError = typeof responseObj.email_error === "string"
         ? responseObj.email_error
         : "Apps Script não enviou o e-mail (email_sent=false)";
-      throw new Error(emailError);
+      logAppsScriptFailure("apps_script_email_failed", {
+        runId: params.runId ?? null,
+        to_email: body.to_email,
+        trigger_type: body.trigger_type,
+        error: emailError,
+        rawResponse,
+      });
+      throw new AppsScriptError(emailError, {
+        rawResponse,
+        code: "email_not_sent",
+      });
     }
 
     if (responseObj.lead_email === "Não informado") {
-      throw new Error(
-        "Apps Script recebeu payload sem e-mail — reimplante o Web App com o script atualizado",
-      );
+      const errorMessage =
+        "Apps Script recebeu payload sem e-mail — reimplante o Web App com o script atualizado";
+      logAppsScriptFailure("apps_script_missing_email", {
+        runId: params.runId ?? null,
+        to_email: body.to_email,
+        trigger_type: body.trigger_type,
+        error: errorMessage,
+        rawResponse,
+      });
+      throw new AppsScriptError(errorMessage, {
+        rawResponse,
+        code: "missing_email",
+      });
     }
   }
 
@@ -2564,6 +2668,9 @@ function extractAppsScriptError(rawResponse: unknown): string | null {
 
   const response = rawResponse as Record<string, unknown>;
   if (typeof response.error === "string") return response.error;
+  if (typeof response.email_error === "string" && response.email_error) {
+    return response.email_error;
+  }
   if (typeof response.message === "string" && response.success === false) {
     return response.message;
   }
