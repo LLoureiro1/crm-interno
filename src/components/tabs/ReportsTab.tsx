@@ -9,6 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Users, Calendar, BookOpen, GraduationCap, Target } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
+import {
+  getDateYYYYMMDD,
+  isActivityInReportPeriod,
+  isCreatedInReportPeriod,
+  type ReportDateFilterState,
+} from '@/utils/reportDateFilter';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -69,49 +75,22 @@ export const ReportsTab = () => {
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
 
-  const getDateYYYYMMDD = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '';
-    if (dateStr.includes('T')) {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    return dateStr.substring(0, 10);
-  };
+  const dateFilter: ReportDateFilterState = useMemo(
+    () => ({
+      dateFilterType: dateFilterType as ReportDateFilterState['dateFilterType'],
+      customStartDate,
+      customEndDate,
+    }),
+    [dateFilterType, customStartDate, customEndDate]
+  );
 
-  const isDateInPeriod = (dateStr: string | null | undefined) => {
-    const yyyymmdd = getDateYYYYMMDD(dateStr);
-    if (!yyyymmdd) return false;
+  const isDateInPeriod = (dateStr: string | null | undefined) =>
+    isCreatedInReportPeriod(dateStr, dateFilter);
 
-    const todayStr = getCurrentDate();
-
-    if (dateFilterType === 'default' || dateFilterType === 'all') return true;
-    if (dateFilterType === 'today') return yyyymmdd === todayStr;
-
-    const today = new Date(todayStr + 'T00:00:00');
-    const targetDate = new Date(yyyymmdd + 'T00:00:00');
-
-    if (dateFilterType === '7days') {
-      const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(today.getDate() - 7);
-      return targetDate >= sevenDaysAgo && targetDate <= today;
-    }
-    if (dateFilterType === '30days') {
-      const thirtyDaysAgo = new Date(today);
-      thirtyDaysAgo.setDate(today.getDate() - 30);
-      return targetDate >= thirtyDaysAgo && targetDate <= today;
-    }
-    if (dateFilterType === 'custom') {
-      if (customStartDate && customEndDate) {
-        return yyyymmdd >= customStartDate && yyyymmdd <= customEndDate;
-      }
-      return true; // não filtra até preencher ambas
-    }
-    return true;
-  };
+  const isActivityInPeriod = (
+    createdAt: string | null | undefined,
+    updatedAt: string | null | undefined
+  ) => isActivityInReportPeriod(createdAt, updatedAt, dateFilter);
 
   const availableSegments = useMemo(
     () => sortSegments(series.map((s) => s.level)),
@@ -372,7 +351,9 @@ export const ReportsTab = () => {
       );
       setNextExamDatesByUnit(datesByUnit);
 
-      const matriculados = students.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at)).length;
+      const matriculados = students.filter(
+        (s) => s.status === 'matriculado' && isActivityInPeriod(s.created_at, s.updated_at)
+      ).length;
 
       const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
 
@@ -421,7 +402,7 @@ export const ReportsTab = () => {
       // Count by status
       const statusCounts: { [key: string]: number } = {};
       studentsValid.forEach(student => {
-        if (isDateInPeriod(student.updated_at || student.created_at)) {
+        if (isActivityInPeriod(student.created_at, student.updated_at)) {
           statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
         }
       });
@@ -449,14 +430,19 @@ export const ReportsTab = () => {
       case 'proxima_prova':
         return filterStudentsProximaProva(studentsData, nextExamDatesByUnit);
       case 'matriculados':
-        return studentsData.filter(s => s.status === 'matriculado' && isDateInPeriod(s.updated_at || s.created_at));
+        return studentsData.filter(
+          (s) =>
+            s.status === 'matriculado' && isActivityInPeriod(s.created_at, s.updated_at)
+        );
       default:
         return [];
     }
   };
 
   const getStudentsByStatus = (status: string) => {
-    return studentsData.filter(s => s.status === status && isDateInPeriod(s.updated_at || s.created_at));
+    return studentsData.filter(
+      (s) => s.status === status && isActivityInPeriod(s.created_at, s.updated_at)
+    );
   };
 
   const getStudentsByClassAndStatus = (classId: string, status: string) => {

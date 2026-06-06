@@ -18,6 +18,28 @@ import {
   getSegmentLabel,
   sortSegments,
 } from '@/utils/educationLevel';
+import {
+  getDateYYYYMMDD,
+  getReportPeriodBounds,
+  isActivityInReportPeriod,
+  isCreatedInReportPeriod,
+  type ReportDateFilterState,
+  shouldApplyDateFilter,
+} from '@/utils/reportDateFilter';
+import { getCurrentDate } from '@/utils/dateUtils';
+import {
+  fetchEnrollmentDatesByStudentIds,
+  resolveEnrollmentDate,
+} from '@/utils/enrollmentDate';
+import { STUDENT_STATUS_FUNNEL_EXCLUDED } from '@/utils/studentStatus';
+import {
+  EnrollmentTimelineChart,
+  type EnrollmentTimelinePoint,
+} from '@/components/reports/EnrollmentTimelineChart';
+import {
+  UnitsStatusOverviewTable,
+  type UnitStatusOverviewRow,
+} from '@/components/reports/UnitsStatusOverviewTable';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -125,7 +147,23 @@ export const AdvancedReportsTab = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>('all');
+  const [dateFilterType, setDateFilterType] = useState<string>('default');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [classes, setClasses] = useState<Tables<'classes'>[]>([]);
+  const [unitStatusRows, setUnitStatusRows] = useState<UnitStatusOverviewRow[]>([]);
+  const [unitStatusTotals, setUnitStatusTotals] = useState<UnitStatusOverviewRow | null>(null);
+  const [unitStatusLoading, setUnitStatusLoading] = useState(false);
+  const [enrollmentTimeline, setEnrollmentTimeline] = useState<EnrollmentTimelinePoint[]>([]);
+
+  const dateFilter: ReportDateFilterState = useMemo(
+    () => ({
+      dateFilterType: dateFilterType as ReportDateFilterState['dateFilterType'],
+      customStartDate,
+      customEndDate,
+    }),
+    [dateFilterType, customStartDate, customEndDate]
+  );
 
   const availableSegments = useMemo(
     () => sortSegments(series.map((s) => s.level)),
@@ -243,14 +281,27 @@ export const AdvancedReportsTab = () => {
     setUnits(data || []);
   };
 
-  const visibleUnits = units.filter(unit => {
-    // Sempre ocultar a unidade "Central"
-    if (unit.name.toLowerCase() === 'central') return false;
+  const visibleUnits = useMemo(
+    () =>
+      units.filter((unit) => {
+        if (unit.name.toLowerCase() === 'central') return false;
+        if (!profile?.unit_id) return true;
+        if (isCentralUser) return true;
+        return unit.id === profile.unit_id;
+      }),
+    [units, profile?.unit_id, isCentralUser]
+  );
 
-    if (!profile?.unit_id) return true;
-    if (isCentralUser) return true;
-    return unit.id === profile.unit_id;
-  });
+  const buildEmptyUnitRows = (targetUnits: Tables<'units'>[]): UnitStatusOverviewRow[] =>
+    targetUnits.map((unit) => ({
+      unitId: unit.id,
+      unitName: unit.name,
+      statusCounts: {},
+      total: 0,
+      inscritos: 0,
+      matriculados: 0,
+      goal: unit.student_goal || 0,
+    }));
 
   const fetchSeries = async () => {
     const { data, error } = await supabase
@@ -517,16 +568,11 @@ export const AdvancedReportsTab = () => {
   };
 
   // Função para aplicar filtros nas queries
-  const applyFilters = (query: any) => {
-    // Sempre filtrar por ano letivo atual
+  const applyFilters = (query: any, options?: { skipUnit?: boolean }) => {
     const currentAcademicYear = getCurrentAcademicYear();
-    console.log('🔍 Debug Relatórios Avançados:');
-    console.log('📅 Data atual:', new Date().toLocaleDateString());
-    console.log('📚 Ano letivo calculado:', currentAcademicYear);
-
     query = query.eq('ano_letivo', parseInt(currentAcademicYear));
 
-    if (selectedUnitId !== 'all') {
+    if (!options?.skipUnit && selectedUnitId !== 'all') {
       query = query.eq('unit_id', selectedUnitId);
     }
     const classIds = getClassIdsForSeriesFilter(
@@ -543,6 +589,265 @@ export const AdvancedReportsTab = () => {
       }
     }
     return query;
+  };
+
+  const matchesActivityDateFilter = (createdAt: string | null, updatedAt: string | null) =>
+    isActivityInReportPeriod(createdAt, updatedAt, dateFilter);
+
+  const matchesCreatedDateFilter = (createdAt: string | null) =>
+    isCreatedInReportPeriod(createdAt, dateFilter);
+
+  const matchesEnrollmentDateFilter = (
+    enrollmentDate: string | null | undefined
+  ) => isCreatedInReportPeriod(enrollmentDate, dateFilter);
+
+  const fetchUnitStatusOverview = async () => {
+    const targetUnits = visibleUnits;
+    if (targetUnits.length === 0) {
+      setUnitStatusRows([]);
+      setUnitStatusTotals(null);
+      return;
+    }
+
+    setUnitStatusLoading(true);
+    setUnitStatusRows(buildEmptyUnitRows(targetUnits));
+
+    try {
+      let query = supabase
+        .from('students')
+        .select('id, status, unit_id, created_at, updated_at');
+
+      query = applyFilters(query, { skipUnit: true })
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Erro ao buscar status por unidade:', error);
+        setUnitStatusRows(buildEmptyUnitRows(targetUnits));
+        setUnitStatusTotals(null);
+        return;
+      }
+
+      const students = (data || []) as Array<{
+        id: string;
+        status: string;
+        unit_id: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>;
+
+      const enrolledIds = students.filter((s) => s.status === 'matriculado').map((s) => s.id);
+      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const rows: UnitStatusOverviewRow[] = targetUnits.map((unit) => {
+        const unitStudents = students.filter((s) => s.unit_id === unit.id);
+        const statusCounts: Record<string, number> = {};
+
+        unitStudents.forEach((student) => {
+          statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
+        });
+
+        const inscritos = unitStudents.filter((s) =>
+          matchesCreatedDateFilter(s.created_at)
+        ).length;
+
+        const matriculados = unitStudents.filter((s) => {
+          if (s.status !== 'matriculado') return false;
+          const enrollmentDate = resolveEnrollmentDate(
+            s.id,
+            enrollmentDates,
+            s.updated_at,
+            s.created_at
+          );
+          return matchesEnrollmentDateFilter(enrollmentDate);
+        }).length;
+
+        const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+
+        return {
+          unitId: unit.id,
+          unitName: unit.name,
+          statusCounts,
+          total,
+          inscritos,
+          matriculados,
+          goal: unit.student_goal || 0,
+        };
+      });
+
+      const totalsStatusCounts: Record<string, number> = {};
+      let totalsInscritos = 0;
+      let totalsMatriculados = 0;
+      let totalsTotal = 0;
+      let totalsGoal = 0;
+
+      rows.forEach((row) => {
+        totalsInscritos += row.inscritos;
+        totalsMatriculados += row.matriculados;
+        totalsTotal += row.total;
+        totalsGoal += row.goal;
+        Object.entries(row.statusCounts).forEach(([status, count]) => {
+          totalsStatusCounts[status] = (totalsStatusCounts[status] || 0) + count;
+        });
+      });
+
+      setUnitStatusRows(rows);
+      setUnitStatusTotals({
+        unitId: 'total',
+        unitName: 'Total',
+        statusCounts: totalsStatusCounts,
+        total: totalsTotal,
+        inscritos: totalsInscritos,
+        matriculados: totalsMatriculados,
+        goal: totalsGoal,
+      });
+    } catch (error) {
+      console.error('Erro ao calcular visão por unidade:', error);
+      setUnitStatusRows(buildEmptyUnitRows(targetUnits));
+      setUnitStatusTotals(null);
+    } finally {
+      setUnitStatusLoading(false);
+    }
+  };
+
+  const fetchEnrollmentTimeline = async () => {
+    try {
+      let query = supabase
+        .from('students')
+        .select('id, status, created_at, updated_at');
+
+      query = applyFilters(query)
+        .not('status', 'in', `(${STUDENT_STATUS_FUNNEL_EXCLUDED.join(',')})`);
+
+      const { data: studentsData, error: studentsError } = await query;
+      if (studentsError) {
+        console.error('Erro ao buscar alunos para linha do tempo:', studentsError);
+        setEnrollmentTimeline([]);
+        return;
+      }
+
+      const students = (studentsData || []) as Array<{
+        id: string;
+        status: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>;
+
+      const enrolledIds = students.filter((s) => s.status === 'matriculado').map((s) => s.id);
+      const enrollmentDateByStudent = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const inscritosByDate = new Map<string, number>();
+      const matriculadosByDate = new Map<string, number>();
+      const periodBounds = getReportPeriodBounds(dateFilter);
+
+      const includeInPeriod = (dateStr: string) =>
+        !periodBounds || (dateStr >= periodBounds.start && dateStr <= periodBounds.end);
+
+      students.forEach((student) => {
+        const createdDate = getDateYYYYMMDD(student.created_at);
+        if (createdDate && matchesCreatedDateFilter(student.created_at) && includeInPeriod(createdDate)) {
+          inscritosByDate.set(createdDate, (inscritosByDate.get(createdDate) || 0) + 1);
+        }
+
+        if (student.status === 'matriculado') {
+          const enrollmentRaw = resolveEnrollmentDate(
+            student.id,
+            enrollmentDateByStudent,
+            student.updated_at,
+            student.created_at
+          );
+          const enrollmentDate = getDateYYYYMMDD(enrollmentRaw);
+          if (
+            enrollmentDate &&
+            matchesEnrollmentDateFilter(enrollmentRaw) &&
+            includeInPeriod(enrollmentDate)
+          ) {
+            matriculadosByDate.set(
+              enrollmentDate,
+              (matriculadosByDate.get(enrollmentDate) || 0) + 1
+            );
+          }
+        }
+      });
+
+      if (
+        inscritosByDate.size === 0 &&
+        matriculadosByDate.size === 0 &&
+        !shouldApplyDateFilter(dateFilter)
+      ) {
+        const today = getCurrentDate();
+        const academicYear = parseInt(getCurrentAcademicYear(), 10);
+        const startDate = `${academicYear - 1}-08-01`;
+        const endDate = today < `${academicYear}-07-31` ? today : `${academicYear}-07-31`;
+
+        students.forEach((student) => {
+          const createdDate = getDateYYYYMMDD(student.created_at);
+          if (createdDate && createdDate >= startDate && createdDate <= endDate) {
+            inscritosByDate.set(createdDate, (inscritosByDate.get(createdDate) || 0) + 1);
+          }
+          if (student.status === 'matriculado') {
+            const enrollmentRaw = resolveEnrollmentDate(
+              student.id,
+              enrollmentDateByStudent,
+              student.updated_at,
+              student.created_at
+            );
+            const enrollmentDate = getDateYYYYMMDD(enrollmentRaw);
+            if (enrollmentDate && enrollmentDate >= startDate && enrollmentDate <= endDate) {
+              matriculadosByDate.set(
+                enrollmentDate,
+                (matriculadosByDate.get(enrollmentDate) || 0) + 1
+              );
+            }
+          }
+        });
+      }
+
+      const allDates = Array.from(
+        new Set([...inscritosByDate.keys(), ...matriculadosByDate.keys()])
+      ).sort();
+
+      const useWeeklyBuckets = allDates.length > 60;
+      const bucketMap = new Map<string, EnrollmentTimelinePoint>();
+
+      const addToBucket = (date: string, field: 'inscritos' | 'matriculados', value: number) => {
+        let bucketKey = date;
+        let label = new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        });
+
+        if (useWeeklyBuckets) {
+          const d = new Date(date + 'T00:00:00');
+          const day = d.getDay();
+          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+          const weekStart = new Date(d);
+          weekStart.setDate(diff);
+          bucketKey = weekStart.toISOString().substring(0, 10);
+          label = `Sem. ${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+        }
+
+        if (!bucketMap.has(bucketKey)) {
+          bucketMap.set(bucketKey, {
+            date: bucketKey,
+            label,
+            inscritos: 0,
+            matriculados: 0,
+          });
+        }
+        bucketMap.get(bucketKey)![field] += value;
+      };
+
+      inscritosByDate.forEach((count, date) => addToBucket(date, 'inscritos', count));
+      matriculadosByDate.forEach((count, date) => addToBucket(date, 'matriculados', count));
+
+      setEnrollmentTimeline(
+        Array.from(bucketMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+      );
+    } catch (error) {
+      console.error('Erro ao calcular linha do tempo:', error);
+      setEnrollmentTimeline([]);
+    }
   };
 
   // Função: tempo médio entre cadastro e matrícula (em dias)
@@ -564,12 +869,15 @@ export const AdvancedReportsTab = () => {
       }
 
       const students = (studentsData || []) as Array<{ id: string; created_at: string | null; updated_at: string | null }>;
-      if (students.length === 0) {
+      const filteredStudents = students.filter((s) =>
+        matchesActivityDateFilter(s.created_at, s.updated_at)
+      );
+      if (filteredStudents.length === 0) {
         setAverageEnrollmentTimeDays(0);
         return;
       }
 
-      const studentIds = students.map(s => s.id);
+      const studentIds = filteredStudents.map(s => s.id);
       // Buscar interações de matrícula (se existirem) para obter data precisa
       const { data: interactionsData, error: interactionsError } = await supabase
         .from('student_interactions')
@@ -593,7 +901,7 @@ export const AdvancedReportsTab = () => {
       // Calcular diferença em dias: (data_matricula - created_at)
       let totalDays = 0;
       let count = 0;
-      students.forEach(s => {
+      filteredStudents.forEach(s => {
         const createdAt = s.created_at ? new Date(s.created_at) : null;
         // Preferir data da interação de matrícula; fallback para updated_at
         const enrollmentAtStr = firstEnrollmentMap.get(s.id) || s.updated_at || null;
@@ -619,7 +927,7 @@ export const AdvancedReportsTab = () => {
     try {
       let query = supabase
         .from('students')
-        .select('id, dropout_reason')
+        .select('id, dropout_reason, created_at, updated_at')
         .eq('status', 'desistente');
 
       query = applyFilters(query);
@@ -631,7 +939,12 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const desistentes = (data || []) as Array<{ id: string; dropout_reason: string | null }>;
+      const desistentes = ((data || []) as Array<{
+        id: string;
+        dropout_reason: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>).filter((d) => matchesActivityDateFilter(d.created_at, d.updated_at));
       if (desistentes.length === 0) {
         setDropoutReasonStats([]);
         return;
@@ -675,7 +988,7 @@ export const AdvancedReportsTab = () => {
       // IDs de alunos filtrados (excluindo estados indesejados)
       let studentsQuery = supabase
         .from('students')
-        .select('id, status');
+        .select('id, status, created_at, updated_at');
 
       studentsQuery = applyFilters(studentsQuery)
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
@@ -687,7 +1000,13 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const studentIds = (studentsData || []).map((s: any) => s.id);
+      const studentIds = ((studentsData || []) as Array<{
+        id: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>)
+        .filter((s) => matchesActivityDateFilter(s.created_at, s.updated_at))
+        .map((s) => s.id);
       if (studentIds.length === 0) {
         setContactsByAttendant([]);
         return;
@@ -727,38 +1046,47 @@ export const AdvancedReportsTab = () => {
 
   const fetchConversionRate = async () => {
     try {
-      // Query base para total de estudantes (excluindo cadastro_invalido e processo_anos_anteriores)
       let totalQuery = supabase
         .from('students')
-        .select('*', { count: 'exact', head: true })
+        .select('id, status, created_at, updated_at')
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
-      // Query base para estudantes matriculados
-      let enrolledQuery = supabase
-        .from('students')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'matriculado');
-
-      // Aplicar filtros
       totalQuery = applyFilters(totalQuery);
-      enrolledQuery = applyFilters(enrolledQuery);
 
-      const [totalResult, enrolledResult] = await Promise.all([
-        totalQuery,
-        enrolledQuery
-      ]);
+      const { data, error } = await totalQuery;
 
-      if (totalResult.error || enrolledResult.error) {
-        console.error('Error fetching student counts:', totalResult.error || enrolledResult.error);
+      if (error) {
+        console.error('Error fetching student counts:', error);
         return;
       }
 
-      const totalStudents = totalResult.count ?? 0;
-      const enrolledStudents = enrolledResult.count ?? 0;
+      const students = (data || []) as Array<{
+        id: string;
+        status: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>;
+
+      const enrolledIds = students.filter((s) => s.status === 'matriculado').map((s) => s.id);
+      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const totalStudents = students.filter((s) =>
+        matchesCreatedDateFilter(s.created_at)
+      ).length;
+
+      const enrolledStudents = students.filter((s) => {
+        if (s.status !== 'matriculado') return false;
+        const enrollmentDate = resolveEnrollmentDate(
+          s.id,
+          enrollmentDates,
+          s.updated_at,
+          s.created_at
+        );
+        return matchesEnrollmentDateFilter(enrollmentDate);
+      }).length;
 
       if (totalStudents > 0) {
-        const rate = (enrolledStudents / totalStudents) * 100;
-        setConversionRate(rate);
+        setConversionRate((enrolledStudents / totalStudents) * 100);
       } else {
         setConversionRate(0);
       }
@@ -770,14 +1098,12 @@ export const AdvancedReportsTab = () => {
 
   const fetchAverageDiscount = async () => {
     try {
-      // Buscar todos os alunos matriculados com desconto
       let query = supabase
         .from('students')
-        .select('discount_percentage')
+        .select('id, discount_percentage, created_at, updated_at')
         .eq('status', 'matriculado')
         .not('discount_percentage', 'is', null);
 
-      // Aplicar filtros
       query = applyFilters(query);
 
       const { data: enrolledStudents, error } = await query;
@@ -787,19 +1113,40 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      if (!enrolledStudents || enrolledStudents.length === 0) {
+      const enrolledIds = ((enrolledStudents || []) as Array<{
+        id: string;
+        discount_percentage: number | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>).map((s) => s.id);
+
+      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const filtered = ((enrolledStudents || []) as Array<{
+        id: string;
+        discount_percentage: number | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>).filter((s) => {
+        const enrollmentDate = resolveEnrollmentDate(
+          s.id,
+          enrollmentDates,
+          s.updated_at,
+          s.created_at
+        );
+        return matchesEnrollmentDateFilter(enrollmentDate);
+      });
+
+      if (filtered.length === 0) {
         setAverageDiscount(0);
         return;
       }
 
-      // Calcular média dos descontos
-      const totalDiscount = enrolledStudents.reduce((sum, student) => {
+      const totalDiscount = filtered.reduce((sum, student) => {
         return sum + (student.discount_percentage || 0);
       }, 0);
 
-      const avgDiscount = totalDiscount / enrolledStudents.length;
-      setAverageDiscount(avgDiscount);
-
+      setAverageDiscount(totalDiscount / filtered.length);
     } catch (error) {
       console.error('Erro ao calcular desconto médio:', error);
       setAverageDiscount(0);
@@ -808,18 +1155,19 @@ export const AdvancedReportsTab = () => {
 
   const fetchAverageMonthlyFee = async () => {
     try {
-      // Buscar alunos matriculados com dados da turma
       let query = supabase
         .from('students')
         .select(`
+                    id,
                     discount_percentage,
+                    created_at,
+                    updated_at,
                     classes (
                         monthly_fee
                     )
                 `)
         .eq('status', 'matriculado');
 
-      // Aplicar filtros
       query = applyFilters(query);
 
       const { data: enrolledStudents, error } = await query;
@@ -829,34 +1177,44 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      if (!enrolledStudents || enrolledStudents.length === 0) {
+      const enrolledIds = ((enrolledStudents || []) as Array<{ id: string }>).map((s) => s.id);
+      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const filtered = ((enrolledStudents || []) as Array<{
+        id: string;
+        discount_percentage: number | null;
+        created_at: string | null;
+        updated_at: string | null;
+        classes: { monthly_fee: number | null } | null;
+      }>).filter((s) => {
+        const enrollmentDate = resolveEnrollmentDate(
+          s.id,
+          enrollmentDates,
+          s.updated_at,
+          s.created_at
+        );
+        return matchesEnrollmentDateFilter(enrollmentDate);
+      });
+
+      if (filtered.length === 0) {
         setAverageMonthlyFee(0);
         return;
       }
 
-      // Calcular mensalidade média com desconto aplicado
       let totalFeeWithDiscount = 0;
       let validStudents = 0;
 
-      enrolledStudents.forEach(student => {
+      filtered.forEach((student) => {
         if (student.classes?.monthly_fee) {
           const originalFee = student.classes.monthly_fee;
           const discountPercentage = student.discount_percentage || 0;
-          const discountMultiplier = 1 - (discountPercentage / 100);
-          const finalFee = originalFee * discountMultiplier;
-
-          totalFeeWithDiscount += finalFee;
+          const discountMultiplier = 1 - discountPercentage / 100;
+          totalFeeWithDiscount += originalFee * discountMultiplier;
           validStudents++;
         }
       });
 
-      if (validStudents > 0) {
-        const avgFee = totalFeeWithDiscount / validStudents;
-        setAverageMonthlyFee(avgFee);
-      } else {
-        setAverageMonthlyFee(0);
-      }
-
+      setAverageMonthlyFee(validStudents > 0 ? totalFeeWithDiscount / validStudents : 0);
     } catch (error) {
       console.error('Erro ao calcular mensalidade média:', error);
       setAverageMonthlyFee(0);
@@ -973,63 +1331,65 @@ export const AdvancedReportsTab = () => {
 
   const fetchInterviewStats = async () => {
     try {
-      // Buscar entrevistas marcadas (alunos com interview_date, excluindo cadastro_invalido e processo_anos_anteriores)
       let scheduledQuery = supabase
         .from('students')
-        .select('*', { count: 'exact', head: true })
+        .select('id, interview_date, unit_id, class_id')
         .not('interview_date', 'is', null)
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
-      // Buscar entrevistas realizadas através de student_interactions
-      // Contar alunos únicos que tiveram interação do tipo "atendimento"
-      let completedQuery = supabase
-        .from('student_interactions')
-        .select('student_id')
-        .eq('interaction_type', 'atendimento');
-
-      // Aplicar filtros para entrevistas marcadas
       scheduledQuery = applyFilters(scheduledQuery);
 
-      const [scheduledResult, completedResult] = await Promise.all([
-        scheduledQuery,
-        completedQuery
-      ]);
+      const { data: scheduledStudents, error: scheduledError } = await scheduledQuery;
 
-      if (scheduledResult.error || completedResult.error) {
-        console.error('Erro ao buscar estatísticas de entrevistas:', scheduledResult.error || completedResult.error);
+      if (scheduledError) {
+        console.error('Erro ao buscar estatísticas de entrevistas:', scheduledError);
         return;
       }
 
-      const scheduled = scheduledResult.count ?? 0;
+      const scheduled = ((scheduledStudents || []) as Array<{ interview_date: string | null }>).filter(
+        (s) => matchesCreatedDateFilter(s.interview_date)
+      ).length;
 
-      // Para entrevistas realizadas, precisamos aplicar filtros adicionais
-      // pois student_interactions não tem unit_id/class_id diretamente
+      let completedQuery = supabase
+        .from('student_interactions')
+        .select('student_id, created_at')
+        .eq('interaction_type', 'atendimento');
+
+      const { data: completedInteractions, error: completedError } = await completedQuery;
+
+      if (completedError) {
+        console.error('Erro ao buscar entrevistas realizadas:', completedError);
+        setScheduledInterviews(scheduled);
+        setCompletedInterviews(0);
+        setInterviewCompletionRate(0);
+        return;
+      }
+
+      const interactionsInPeriod = (completedInteractions || []).filter((item) =>
+        matchesCreatedDateFilter(item.created_at)
+      );
+
       let completedCount = 0;
 
-      if (completedResult.data && completedResult.data.length > 0) {
-        // Se há filtros aplicados, precisamos verificar se os alunos das interações
-        // pertencem às unidades/turmas selecionadas
-        if (selectedUnitId !== 'all' || selectedSeriesId !== 'all' || selectedSegment !== 'all') {
-          const studentIds = [...new Set(completedResult.data.map(item => item.student_id))];
+      if (interactionsInPeriod.length > 0) {
+        const studentIds = [...new Set(interactionsInPeriod.map((item) => item.student_id).filter(Boolean))];
 
-          let studentsQuery = supabase
-            .from('students')
-            .select('id, unit_id, class_id')
-            .in('id', studentIds);
+        let studentsQuery = supabase
+          .from('students')
+          .select('id')
+          .in('id', studentIds as string[]);
 
-          studentsQuery = applyFilters(studentsQuery);
+        studentsQuery = applyFilters(studentsQuery);
 
-          const { data: filteredStudents, error: studentsError } = await studentsQuery;
+        const { data: filteredStudents, error: studentsError } = await studentsQuery;
 
-          if (studentsError) {
-            console.error('Erro ao filtrar alunos das interações:', studentsError);
-            completedCount = 0;
-          } else {
-            completedCount = filteredStudents?.length || 0;
-          }
+        if (studentsError) {
+          console.error('Erro ao filtrar alunos das interações:', studentsError);
+          completedCount = 0;
         } else {
-          // Sem filtros, contar alunos únicos das interações
-          completedCount = new Set(completedResult.data.map(item => item.student_id)).size;
+          completedCount = new Set(
+            (filteredStudents || []).map((s) => s.id)
+          ).size;
         }
       }
 
@@ -1038,7 +1398,6 @@ export const AdvancedReportsTab = () => {
       setScheduledInterviews(scheduled);
       setCompletedInterviews(completedCount);
       setInterviewCompletionRate(rate);
-
     } catch (error) {
       console.error('Erro ao calcular estatísticas de entrevistas:', error);
       setScheduledInterviews(0);
@@ -1055,6 +1414,8 @@ export const AdvancedReportsTab = () => {
         .select(`
                     registration_source_id,
                     status,
+                    created_at,
+                    updated_at,
                     unit_registration_source_associations!students_registration_source_id_fkey (
                         id,
                         custom_label,
@@ -1082,10 +1443,20 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
+      const filteredStudents = students.filter((student: any) =>
+        matchesActivityDateFilter(student.created_at, student.updated_at)
+      );
+
+      if (filteredStudents.length === 0) {
+        setRegistrationSources([]);
+        setRegistrationSourcesPie({ data: [] });
+        return;
+      }
+
       // Agrupar por origem e calcular estatísticas
       const sourceMap = new Map();
 
-      students.forEach((student: any) => {
+      filteredStudents.forEach((student: any) => {
         // Usar custom_label se disponível, senão usar o label global
         const sourceLabel = student.unit_registration_source_associations?.custom_label ||
           student.unit_registration_source_associations?.global_registration_sources?.source_label ||
@@ -1109,7 +1480,7 @@ export const AdvancedReportsTab = () => {
       });
 
       // Calcular percentuais e taxa de conversão
-      const totalStudents = students.length;
+      const totalStudents = filteredStudents.length;
       const sourceStats = Array.from(sourceMap.values())
         .map(stats => ({
           ...stats,
@@ -1146,7 +1517,7 @@ export const AdvancedReportsTab = () => {
       // Buscar todos os estudantes com tracking_code
       let query = supabase
         .from('students')
-        .select('tracking_code, status')
+        .select('tracking_code, status, created_at, updated_at')
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
       // Aplicar filtros
@@ -1159,8 +1530,13 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      // Filtrar apenas estudantes com tracking_code
-      const studentsWithTracking = students?.filter(student => student.tracking_code && student.tracking_code.trim() !== '') || [];
+      // Filtrar apenas estudantes com tracking_code e dentro do período
+      const studentsWithTracking = (students || []).filter(
+        (student: any) =>
+          student.tracking_code &&
+          student.tracking_code.trim() !== '' &&
+          matchesActivityDateFilter(student.created_at, student.updated_at)
+      );
 
       // Agrupar por tracking_code
       const trackingMap = new Map();
@@ -1222,7 +1598,7 @@ export const AdvancedReportsTab = () => {
       // IDs de alunos filtrados (excluindo estados indesejados)
       let studentsQuery = supabase
         .from('students')
-        .select('id, status');
+        .select('id, status, created_at, updated_at');
 
       studentsQuery = applyFilters(studentsQuery)
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
@@ -1235,7 +1611,13 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const studentIds = (studentsData || []).map((s: any) => s.id);
+      const studentIds = ((studentsData || []) as Array<{
+        id: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>)
+        .filter((s) => matchesActivityDateFilter(s.created_at, s.updated_at))
+        .map((s) => s.id);
       if (studentIds.length === 0) {
         setContactsByChannel([]);
         setContactsByReason([]);
@@ -1298,7 +1680,7 @@ export const AdvancedReportsTab = () => {
       // IDs de alunos matriculados (filtrados)
       let enrolledQuery = supabase
         .from('students')
-        .select('id')
+        .select('id, created_at, updated_at')
         .eq('status', 'matriculado');
 
       enrolledQuery = applyFilters(enrolledQuery);
@@ -1310,7 +1692,13 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const enrolledIds = (enrolledIdsData || []).map((s: any) => s.id);
+      const enrolledIds = ((enrolledIdsData || []) as Array<{
+        id: string;
+        created_at: string | null;
+        updated_at: string | null;
+      }>)
+        .filter((s) => matchesActivityDateFilter(s.created_at, s.updated_at))
+        .map((s) => s.id);
       if (enrolledIds.length === 0) {
         setAvgContactsPerEnrolled(0);
         return;
@@ -1347,19 +1735,23 @@ export const AdvancedReportsTab = () => {
 
   // Função para buscar todos os dados
   const fetchAllData = () => {
-    fetchConversionRate();
-    fetchAverageDiscount();
-    fetchAverageMonthlyFee();
-    fetchInterviewerConversion();
-    fetchInterviewStats(); // Adicionado para buscar estatísticas de entrevistas
-    fetchRegistrationSources(); // Adicionado para buscar estatísticas de origens
-    fetchTrackingSources(); // Adicionado para buscar estatísticas de tracking
-    fetchContactAttemptStats(); // Tentativas por canal/motivo
-    fetchAverageContactsPerEnrolled(); // Média por aluno matriculado
-    fetchExamAttendanceStats(); // Presença em provas (datas passadas)
-    fetchAverageTimeToEnrollment(); // Tempo médio entre cadastro e matrícula
-    fetchDropoutReasonsStats(); // Motivos de desistência
-    fetchContactsPerAttendant(); // Contatos por atendente
+    fetchUnitStatusOverview();
+    fetchEnrollmentTimeline();
+    if (units.length > 0 && classes.length > 0) {
+      fetchConversionRate();
+      fetchAverageDiscount();
+      fetchAverageMonthlyFee();
+      fetchInterviewerConversion();
+      fetchInterviewStats();
+      fetchRegistrationSources();
+      fetchTrackingSources();
+      fetchContactAttemptStats();
+      fetchAverageContactsPerEnrolled();
+      fetchExamAttendanceStats();
+      fetchAverageTimeToEnrollment();
+      fetchDropoutReasonsStats();
+      fetchContactsPerAttendant();
+    }
   };
 
   // Effect inicial para buscar dados básicos
@@ -1369,16 +1761,61 @@ export const AdvancedReportsTab = () => {
     fetchClasses();
   }, []);
 
+  useEffect(() => {
+    if (visibleUnits.length > 0) {
+      setUnitStatusRows(buildEmptyUnitRows(visibleUnits));
+    }
+  }, [visibleUnits]);
+
   // Effect para atualizar dados quando filtros mudarem
   useEffect(() => {
+    if (units.length === 0 || visibleUnits.length === 0) return;
+    fetchUnitStatusOverview();
+    fetchEnrollmentTimeline();
+  }, [
+    selectedUnitId,
+    selectedSegment,
+    selectedSeriesId,
+    units.length,
+    visibleUnits.length,
+    isCentralUser,
+    dateFilterType,
+    customStartDate,
+    customEndDate,
+  ]);
+
+  useEffect(() => {
     if (units.length > 0 && classes.length > 0) {
-      fetchAllData();
+      fetchConversionRate();
+      fetchAverageDiscount();
+      fetchAverageMonthlyFee();
+      fetchInterviewerConversion();
+      fetchInterviewStats();
+      fetchRegistrationSources();
+      fetchTrackingSources();
+      fetchContactAttemptStats();
+      fetchAverageContactsPerEnrolled();
+      fetchExamAttendanceStats();
+      fetchAverageTimeToEnrollment();
+      fetchDropoutReasonsStats();
+      fetchContactsPerAttendant();
     }
-  }, [selectedUnitId, selectedSegment, selectedSeriesId, units.length, classes.length, series.length]);
+  }, [
+    selectedUnitId,
+    selectedSegment,
+    selectedSeriesId,
+    units.length,
+    classes.length,
+    series.length,
+    isCentralUser,
+    dateFilterType,
+    customStartDate,
+    customEndDate,
+  ]);
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Relatórios Avançados</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Relatórios Estratégicos</h2>
         <p className="text-gray-600">Análises detalhadas a nível gerencial</p>
       </div>
 
@@ -1386,7 +1823,7 @@ export const AdvancedReportsTab = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
-          <CardDescription>Selecione unidade, segmento e/ou série para análise específica</CardDescription>
+          <CardDescription>Selecione unidade, segmento, série e período para análise específica</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -1448,6 +1885,43 @@ export const AdvancedReportsTab = () => {
             </div>
 
             <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Período
+              </label>
+              <Select value={dateFilterType} onValueChange={setDateFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o período..." />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="default">Selecione o período...</SelectItem>
+                  <SelectItem value="all">Todo o período</SelectItem>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="7days">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30days">Últimos 30 dias</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateFilterType === 'custom' && (
+              <div className="flex items-center gap-2 lg:col-span-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="flex h-10 w-full max-w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                <span className="text-sm text-gray-500">até</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="flex h-10 w-full max-w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+            )}
+
+            <div className={dateFilterType === 'custom' ? 'lg:col-span-2' : ''}>
               <Button
                 onClick={fetchAllData}
                 variant="outline"
@@ -1458,6 +1932,34 @@ export const AdvancedReportsTab = () => {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Visão por Unidade</CardTitle>
+          <CardDescription>
+            Situação de cada unidade por status no período selecionado
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UnitsStatusOverviewTable
+            rows={unitStatusRows}
+            totals={unitStatusTotals}
+            loading={unitStatusLoading}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inscritos e Matriculados ao Longo do Tempo</CardTitle>
+          <CardDescription>
+            Evolução diária ou semanal conforme o volume de dados no período filtrado
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EnrollmentTimelineChart data={enrollmentTimeline} />
         </CardContent>
       </Card>
 
