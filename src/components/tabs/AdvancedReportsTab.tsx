@@ -644,6 +644,17 @@ export const AdvancedReportsTab = () => {
         const statusCounts: Record<string, number> = {};
 
         unitStudents.forEach((student) => {
+          if (student.status === 'matriculado') {
+            const enrollmentDate = resolveEnrollmentDate(
+              student.id,
+              enrollmentDates,
+              student.updated_at,
+              student.created_at
+            );
+            if (!matchesEnrollmentDateFilter(enrollmentDate)) return;
+          } else if (!matchesActivityDateFilter(student.created_at, student.updated_at)) {
+            return;
+          }
           statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
         });
 
