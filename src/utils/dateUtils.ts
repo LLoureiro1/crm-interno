@@ -43,6 +43,21 @@ export const formatTimeForDisplay = (timeString: string): string => {
   return timeString.substring(0, 5); // Remove seconds if present
 };
 
+/** Horário local da inscrição a partir de created_at (ISO). */
+export const formatRegistrationTimeForDisplay = (
+  dateTimeString: string | null | undefined
+): string => {
+  if (!dateTimeString) return '';
+  const date = new Date(dateTimeString);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+};
+
 // Função para converter uma data para string no formato YYYY-MM-DD usando fuso horário local
 export const dateToLocalString = (date: Date): string => {
   const year = date.getFullYear();

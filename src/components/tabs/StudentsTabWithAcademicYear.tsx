@@ -14,7 +14,8 @@ import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { AcademicYearFilter } from '@/components/ui/AcademicYearFilter';
 import type { Tables } from '@/integrations/supabase/types';
-import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
+import { formatCpf } from '@/utils/cpf';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -188,12 +189,9 @@ export const StudentsTabWithAcademicYear = () => {
     const exportData = filteredStudents.map(student => ({
       'Nome do Aluno': student.student_name,
       'Responsável': student.responsible_name,
+      'CPF do Responsável': student.responsible_cpf ? formatCpf(student.responsible_cpf) : '',
       'Email': student.email,
       'Telefone': student.phone,
-      'Data de Nascimento': student.birth_date,
-      'Cidade': student.city || '',
-      'Bairro': student.neighborhood,
-      'Escola de Origem': student.origin_school,
       'Status': student.status,
       'Tag': student.tag || '',
       'Ano Letivo': student.ano_letivo || '',
@@ -203,7 +201,9 @@ export const StudentsTabWithAcademicYear = () => {
       'Data da Prova': student.exam_date || '',
       'Nota Unificada': student.final_grade || '',
       'Data de Entrevista': student.interview_date || '',
-      'Data de Criação': formatDateForDisplay(student.created_at)
+      'Data de Inscrição': formatDateForDisplay(student.created_at),
+      'Horário da Inscrição': formatRegistrationTimeForDisplay(student.created_at),
+      'Tracking Code': student.tracking_code || '',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);

@@ -11,7 +11,8 @@ import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import type { Tables } from '@/integrations/supabase/types';
-import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
+import { formatDateForDisplay, formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
+import { formatCpf } from '@/utils/cpf';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
@@ -370,12 +371,9 @@ export const StudentsTab = () => {
       'Código': student.code,
       'Nome do Aluno': student.student_name,
       'Nome do Responsável': student.responsible_name,
-      'Data de Nascimento': student.birth_date ? new Date(student.birth_date).toLocaleDateString('pt-BR') : '',
+      'CPF do Responsável': student.responsible_cpf ? formatCpf(student.responsible_cpf) : '',
       'Telefone': student.phone,
       'Email': student.email,
-      'Cidade': student.city,
-      'Bairro': student.neighborhood,
-      'Escola de Origem': student.origin_school,
       'Série': student.classes?.series?.name || '',
       'Unidade': student.classes?.units?.name || '',
       'Status': student.status,
@@ -383,6 +381,8 @@ export const StudentsTab = () => {
       'Data da Entrevista': student.interview_date ? formatDateForDisplay(student.interview_date) : '',
       'Nota Unificada': student.final_grade || '',
       'Data de Inscrição': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
+      'Horário da Inscrição': formatRegistrationTimeForDisplay(student.created_at),
+      'Tracking Code': student.tracking_code || '',
       'Percentual de Desconto': student.discount_percentage !== null ? `${student.discount_percentage}%` : '-',
       'Ano Letivo': student.ano_letivo || '',
       'Tag': student.tag || ''
