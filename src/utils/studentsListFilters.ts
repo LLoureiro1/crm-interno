@@ -6,7 +6,9 @@ export type StudentsListFiltersState = {
   seriesFilter: string[];
   examDateFilter: string[];
   academicYearFilter: string[];
+  sortField: 'created_at' | 'engagement_score';
   sortOrder: 'desc' | 'asc';
+  scoreFilter: string[];
   contactAttemptsFilter: 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5';
   currentPage: number;
 };

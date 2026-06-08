@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
 import { loadStudentsListFilters, saveStudentsListFilters } from '@/utils/studentsListFilters';
+import { EngagementScoreBadge } from '@/components/EngagementScoreBadge';
+import { matchesScoreTierFilter } from '@/utils/engagementScore';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -53,7 +55,11 @@ export const StudentsTab = () => {
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
+  const [sortField, setSortField] = useState<'created_at' | 'engagement_score'>(
+    cachedFilters?.sortField ?? 'created_at'
+  );
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>(cachedFilters?.sortOrder ?? 'desc');
+  const [scoreFilter, setScoreFilter] = useState<string[]>(cachedFilters?.scoreFilter ?? []);
   const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>(
     cachedFilters?.contactAttemptsFilter ?? 'all'
   );
@@ -87,7 +93,7 @@ export const StudentsTab = () => {
 
   useEffect(() => {
     filterStudents();
-  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter, contactCounts]);
+  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, scoreFilter, contactAttemptsFilter, contactCounts]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
@@ -102,7 +108,7 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortOrder, contactAttemptsFilter]);
+  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, scoreFilter, contactAttemptsFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
@@ -113,7 +119,9 @@ export const StudentsTab = () => {
       seriesFilter,
       examDateFilter,
       academicYearFilter,
+      sortField,
       sortOrder,
+      scoreFilter,
       contactAttemptsFilter,
       currentPage,
     });
@@ -125,7 +133,9 @@ export const StudentsTab = () => {
     seriesFilter,
     examDateFilter,
     academicYearFilter,
+    sortField,
     sortOrder,
+    scoreFilter,
     contactAttemptsFilter,
     currentPage,
   ]);
@@ -357,7 +367,20 @@ export const StudentsTab = () => {
       }
     }
 
+    // Filtro por score de engajamento
+    if (scoreFilter.length > 0) {
+      filtered = filtered.filter((student) =>
+        matchesScoreTierFilter(student.engagement_score, scoreFilter)
+      );
+    }
+
     filtered = filtered.slice().sort((a, b) => {
+      if (sortField === 'engagement_score') {
+        const aScore = a.engagement_score ?? -1;
+        const bScore = b.engagement_score ?? -1;
+        return sortOrder === 'desc' ? bScore - aScore : aScore - bScore;
+      }
+
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
       return sortOrder === 'desc' ? bTime - aTime : aTime - bTime;
@@ -377,6 +400,7 @@ export const StudentsTab = () => {
       'Série': student.classes?.series?.name || '',
       'Unidade': student.classes?.units?.name || '',
       'Status': student.status,
+      'Score de Engajamento': student.engagement_score ?? '',
       'Data da Prova': student.exam_date ? formatDateForDisplay(student.exam_date) : '',
       'Data da Entrevista': student.interview_date ? formatDateForDisplay(student.interview_date) : '',
       'Nota Unificada': student.final_grade || '',
@@ -452,7 +476,9 @@ export const StudentsTab = () => {
       seriesFilter,
       examDateFilter,
       academicYearFilter,
+      sortField,
       sortOrder,
+      scoreFilter,
       contactAttemptsFilter,
       currentPage,
     });
@@ -633,17 +659,42 @@ export const StudentsTab = () => {
               />
             </div>
 
-            {/* Ordem de inscrição */}
+            {/* Ordenação */}
             <div className="md:col-span-1">
-              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'desc' | 'asc')}>
+              <Select
+                value={`${sortField}:${sortOrder}`}
+                onValueChange={(v) => {
+                  const [field, order] = v.split(':') as ['created_at' | 'engagement_score', 'desc' | 'asc'];
+                  setSortField(field);
+                  setSortOrder(order);
+                }}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Ordem de inscrição" />
+                  <SelectValue placeholder="Ordenar por" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc">Inscrições mais recentes primeiro</SelectItem>
-                  <SelectItem value="asc">Inscrições mais antigas primeiro</SelectItem>
+                  <SelectItem value="created_at:desc">Inscrições mais recentes</SelectItem>
+                  <SelectItem value="created_at:asc">Inscrições mais antigas</SelectItem>
+                  <SelectItem value="engagement_score:desc">Prioridade de engajamento (maior)</SelectItem>
+                  <SelectItem value="engagement_score:asc">Prioridade de engajamento (menor)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Score de engajamento */}
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={[
+                  { value: 'alto', label: 'Score alto (≥70)' },
+                  { value: 'medio', label: 'Score médio (40–69)' },
+                  { value: 'baixo', label: 'Score baixo (<40)' },
+                  { value: 'sem', label: 'Sem score' },
+                ]}
+                selected={scoreFilter}
+                onChange={setScoreFilter}
+                placeholder="Score engajamento"
+                className="w-full"
+              />
             </div>
 
             {/* Tentativas de contato */}
@@ -704,9 +755,12 @@ export const StudentsTab = () => {
                       <p className="text-sm text-gray-600">Código: {student.code}</p>
                     </div>
 
-                    <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
+                  <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
                       <p className="break-words">{seriesName}</p>
                       <p className="break-words">{unitName}</p>
+                      <div className="pt-0.5">
+                        <EngagementScoreBadge score={student.engagement_score} size="compact" />
+                      </div>
                     </div>
 
                     {(student.exam_date || student.interview_date) && (
@@ -718,8 +772,8 @@ export const StudentsTab = () => {
                           </p>
                         )}
                         {student.interview_date && (
-                          <p className="flex items-center gap-1 text-sm text-blue-600">
-                            <Calendar className="h-3 w-3 shrink-0" />
+                          <p className="flex items-center gap-1 text-[11px] leading-tight text-blue-600">
+                            <Calendar className="h-2.5 w-2.5 shrink-0" />
                             <span>Entrevista: {formatDateForDisplay(student.interview_date)}</span>
                           </p>
                         )}
@@ -750,7 +804,7 @@ export const StudentsTab = () => {
                     </div>
                   </div>
 
-                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_10rem_minmax(8.5rem,10rem)_auto] lg:items-stretch lg:gap-x-4">
+                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_9rem_1.5rem_minmax(8rem,9.5rem)_auto] lg:items-stretch lg:gap-x-3">
                     <div className="min-w-0">
                       <h3 className="font-medium text-gray-900">{student.student_name}</h3>
                       <p className="text-sm text-gray-600">Código: {student.code}</p>
@@ -765,18 +819,18 @@ export const StudentsTab = () => {
                       </p>
                     </div>
 
-                    <div className="flex min-w-[10rem] flex-col justify-center gap-1 self-stretch">
+                    <div className="flex min-w-0 flex-col justify-center gap-0.5 self-stretch">
                       {student.exam_date && (
-                        <p className="flex items-center gap-1 text-sm text-gray-600">
-                          <Calendar className="h-3 w-3 shrink-0" />
+                        <p className="flex items-center gap-1 text-xs text-gray-600">
+                          <Calendar className="h-2.5 w-2.5 shrink-0" />
                           <span className="whitespace-nowrap">
                             Prova: {formatDateForDisplay(student.exam_date)}
                           </span>
                         </p>
                       )}
                       {student.interview_date && (
-                        <p className="flex items-center gap-1 text-sm text-blue-600">
-                          <Calendar className="h-3 w-3 shrink-0" />
+                        <p className="flex items-center gap-1 text-[11px] leading-tight text-blue-600">
+                          <Calendar className="h-2.5 w-2.5 shrink-0" />
                           <span className="whitespace-nowrap">
                             Entrevista: {formatDateForDisplay(student.interview_date)}
                           </span>
@@ -784,8 +838,15 @@ export const StudentsTab = () => {
                       )}
                     </div>
 
-                    <div className="flex min-w-[8.5rem] items-center justify-center self-stretch">
-                      {getStatusBadge(student.status)}
+                    <div className="flex w-6 shrink-0 items-center justify-center self-stretch">
+                      <EngagementScoreBadge score={student.engagement_score} size="compact" />
+                    </div>
+
+                    <div className="flex min-w-[8rem] items-center justify-center self-stretch">
+                      {getStatusBadge(
+                        student.status,
+                        'max-w-full whitespace-nowrap px-2 py-1 text-[11px]'
+                      )}
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5 self-stretch">

@@ -40,6 +40,7 @@ import {
   UnitsStatusOverviewTable,
   type UnitStatusOverviewRow,
 } from '@/components/reports/UnitsStatusOverviewTable';
+import { EngagementReportsSection } from '@/components/reports/EngagementReportsSection';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -1973,6 +1974,16 @@ export const AdvancedReportsTab = () => {
           <EnrollmentTimelineChart data={enrollmentTimeline} />
         </CardContent>
       </Card>
+
+      <EngagementReportsSection
+        visibleUnits={visibleUnits}
+        classes={classes}
+        series={series}
+        selectedUnitId={selectedUnitId}
+        selectedSeriesId={selectedSeriesId}
+        selectedSegment={selectedSegment}
+        currentAcademicYear={getCurrentAcademicYear()}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>

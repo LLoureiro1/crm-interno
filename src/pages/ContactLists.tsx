@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Enums, Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { EngagementScoreBadge } from '@/components/EngagementScoreBadge';
+import { getScoreTier, getScoreTierLabel } from '@/utils/engagementScore';
 
 type Unit = Tables<'units'>;
 type Serie = Tables<'series'>;
@@ -61,6 +63,7 @@ const ContactLists = () => {
   type ProfileWithUnit = Tables<'profiles'> & { units?: Tables<'units'> | null };
   const [profilesOptions, setProfilesOptions] = useState<ProfileWithUnit[]>([]);
   const [activeCounts, setActiveCounts] = useState<Record<string, number>>({});
+  const [itemsSortMode, setItemsSortMode] = useState<'entered_at' | 'engagement_score'>('entered_at');
 
   const [formName, setFormName] = useState('');
   const [formStatus, setFormStatus] = useState<Enums<'student_status'>[]>([]);
@@ -347,7 +350,24 @@ const ContactLists = () => {
   };
 
   const activeCount = useMemo(() => listItems.filter(i => !i.left_at).length, [listItems]);
-  const lastEntries = useMemo(() => listItems.slice(0, 10), [listItems]);
+
+  const sortedListItems = useMemo(() => {
+    const items = [...listItems];
+    if (itemsSortMode === 'engagement_score') {
+      items.sort((a, b) => {
+        const aScore = a.students?.engagement_score ?? -1;
+        const bScore = b.students?.engagement_score ?? -1;
+        return bScore - aScore;
+      });
+      return items;
+    }
+    items.sort(
+      (a, b) => new Date(b.entered_at).getTime() - new Date(a.entered_at).getTime()
+    );
+    return items;
+  }, [listItems, itemsSortMode]);
+
+  const lastEntries = useMemo(() => sortedListItems.slice(0, 10), [sortedListItems]);
 
   if (!isAdmin) {
     return (
@@ -540,9 +560,23 @@ const ContactLists = () => {
               </div>
 
               <div className="md:col-span-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <h3 className="font-semibold">Itens da Lista</h3>
-                  <Badge variant="outline">Ativos: {activeCount}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={itemsSortMode}
+                      onValueChange={(v) => setItemsSortMode(v as 'entered_at' | 'engagement_score')}
+                    >
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Ordenar itens" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entered_at">Entrada mais recente</SelectItem>
+                        <SelectItem value="engagement_score">Prioridade de engajamento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Badge variant="outline">Ativos: {activeCount}</Badge>
+                  </div>
                 </div>
 
                 <div className="mt-2 text-sm text-gray-600">Quem entrou por último:</div>
@@ -559,6 +593,7 @@ const ContactLists = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Aluno</TableHead>
+                        <TableHead>Score</TableHead>
                         <TableHead>Unidade / Série / Turma</TableHead>
                         <TableHead>Designado</TableHead>
                         <TableHead>Entrou</TableHead>
@@ -566,9 +601,12 @@ const ContactLists = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {listItems.map(item => (
+                      {sortedListItems.map(item => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.students?.student_name || item.student_id}</TableCell>
+                          <TableCell>
+                            <EngagementScoreBadge score={item.students?.engagement_score} size="compact" />
+                          </TableCell>
                           <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
                           <TableCell className="text-sm">{item.profiles?.name || item.assigned_user_id || '-'}</TableCell>
                           <TableCell className="text-sm">{new Date(item.entered_at).toLocaleString('pt-BR')}</TableCell>

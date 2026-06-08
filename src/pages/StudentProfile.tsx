@@ -32,6 +32,8 @@ import { CalendarIcon } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCpf, stripCpf, isValidCpf } from '@/utils/cpf';
+import { EngagementScoreCard } from '@/components/EngagementScoreCard';
+import type { EngagementScoreBreakdown } from '@/utils/engagementScore';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -2469,6 +2471,14 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </div>
               </CardContent>
             </Card>
+
+            <EngagementScoreCard
+              score={student.engagement_score}
+              breakdown={student.engagement_score_breakdown as EngagementScoreBreakdown | null}
+              scoreAt={student.engagement_score_at}
+              scoreSource={student.engagement_score_source}
+              modelVersion={student.engagement_model_version}
+            />
 
             {/* Relações por telefone (discreto, ao final da ficha) */}
             {relatedByPhone.length > 0 && (

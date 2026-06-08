@@ -377,6 +377,93 @@ export type Database = {
           },
         ]
       }
+      engagement_feature_snapshots: {
+        Row: {
+          id: string
+          student_id: string
+          unit_id: string
+          snapshot_at: string
+          status_at_snapshot: Database["public"]["Enums"]["student_status"]
+          days_since_signup: number
+          features: Json
+          heuristic_score: number | null
+          heuristic_breakdown: Json | null
+          outcome_label: string | null
+          outcome_at: string | null
+          snapshot_kind: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          unit_id: string
+          snapshot_at?: string
+          status_at_snapshot: Database["public"]["Enums"]["student_status"]
+          days_since_signup?: number
+          features?: Json
+          heuristic_score?: number | null
+          heuristic_breakdown?: Json | null
+          outcome_label?: string | null
+          outcome_at?: string | null
+          snapshot_kind?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          unit_id?: string
+          snapshot_at?: string
+          status_at_snapshot?: Database["public"]["Enums"]["student_status"]
+          days_since_signup?: number
+          features?: Json
+          heuristic_score?: number | null
+          heuristic_breakdown?: Json | null
+          outcome_label?: string | null
+          outcome_at?: string | null
+          snapshot_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_feature_snapshots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_feature_snapshots_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engagement_model_versions: {
+        Row: {
+          id: string
+          version: string
+          coefficients: Json
+          metrics: Json | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          version: string
+          coefficients?: Json
+          metrics?: Json | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          version?: string
+          coefficients?: Json
+          metrics?: Json | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       interviewer_availability: {
         Row: {
           created_at: string
@@ -637,6 +724,11 @@ export type Database = {
           discount_percentage: number | null
           discount_material: number | null
           dropout_reason: Database["public"]["Enums"]["dropout_reason"] | null
+          engagement_model_version: string
+          engagement_score: number | null
+          engagement_score_at: string | null
+          engagement_score_breakdown: Json | null
+          engagement_score_source: string
           invalid_reason: Database["public"]["Enums"]["invalid_reason"] | null
           email: string
           exam_date: string | null
@@ -672,6 +764,11 @@ export type Database = {
           discount_percentage?: number | null
           discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          engagement_model_version?: string
+          engagement_score?: number | null
+          engagement_score_at?: string | null
+          engagement_score_breakdown?: Json | null
+          engagement_score_source?: string
           invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
           email: string
           exam_date?: string | null
@@ -707,6 +804,11 @@ export type Database = {
           discount_percentage?: number | null
           discount_material?: number | null
           dropout_reason?: Database["public"]["Enums"]["dropout_reason"] | null
+          engagement_model_version?: string
+          engagement_score?: number | null
+          engagement_score_at?: string | null
+          engagement_score_breakdown?: Json | null
+          engagement_score_source?: string
           invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
           email?: string
           exam_date?: string | null
