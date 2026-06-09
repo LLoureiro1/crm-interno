@@ -1,11 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { EngagementScoreBadge } from '@/components/EngagementScoreBadge';
 import {
   ENGAGEMENT_WEIGHTS,
@@ -34,12 +33,12 @@ export function EngagementScoreCard({
   const daysSinceTouch =
     breakdown && typeof breakdown === 'object'
       ? Number(
-          'days_since_successful_contact' in breakdown
-            ? breakdown.days_since_successful_contact
-            : 'days_since_touch' in breakdown
-              ? breakdown.days_since_touch
-              : undefined
-        )
+        'days_since_successful_contact' in breakdown
+          ? breakdown.days_since_successful_contact
+          : 'days_since_touch' in breakdown
+            ? breakdown.days_since_touch
+            : undefined
+      )
       : undefined;
   const showColdWarning = getRecencyWarning(daysSinceTouch);
 
@@ -68,22 +67,19 @@ export function EngagementScoreCard({
           <div className="flex items-center space-x-2">
             <Activity className="h-4 w-4" />
             <span>Engajamento</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" className="text-muted-foreground hover:text-foreground">
-                    <Info className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>
-                    Score heurístico (0–100) com base em auto-agendamento, e-mails, comparecimento,
-                    recência de contato, funil e contatos outbound. Pesos fixos no MVP (
-                    {modelVersion ?? 'heuristic_v1'}).
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="max-w-xs text-sm">
+                <p>
+                  Score heurístico (0–100) com base em auto-agendamento, e-mails, comparecimento,
+                  recência de contato, funil e contatos.
+                </p>
+              </PopoverContent>
+            </Popover>
           </div>
           <EngagementScoreBadge score={score} showTier size="compact" />
         </CardTitle>
