@@ -845,7 +845,7 @@ export const StudentsTab = () => {
                     <div className="flex min-w-[8rem] items-center justify-center self-stretch">
                       {getStatusBadge(
                         student.status,
-                        'max-w-full whitespace-nowrap px-2 py-1 text-[11px]'
+                        'h-auto max-w-full whitespace-normal text-center leading-tight px-2 py-1 text-[11px]'
                       )}
                     </div>
 
