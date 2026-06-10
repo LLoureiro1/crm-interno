@@ -30,11 +30,19 @@ function StackedBar({
   onSegmentClick?: ClassesStatusChartProps['onSegmentClick'];
 }) {
   const widthPct = maxTotal > 0 ? Math.max((row.total / maxTotal) * 100, row.total > 0 ? 4 : 0) : 0;
+  const studentDividerStyle =
+    row.total > 1
+      ? {
+          backgroundImage:
+            'linear-gradient(to right, transparent, transparent calc(100% - 1px), rgba(255, 255, 255, 0.72) calc(100% - 1px), rgba(255, 255, 255, 0.72) 100%)',
+          backgroundSize: `${100 / row.total}% 100%`,
+        }
+      : undefined;
 
   return (
     <div className="relative h-7 flex-1 overflow-hidden rounded bg-slate-100">
       {row.total > 0 ? (
-        <div className="flex h-full min-w-[2rem]" style={{ width: `${widthPct}%` }}>
+        <div className="relative flex h-full min-w-[2rem]" style={{ width: `${widthPct}%` }}>
           {row.segments.map((seg) => (
             <button
               key={seg.status}
@@ -53,6 +61,13 @@ function StackedBar({
               }
             />
           ))}
+          {studentDividerStyle ? (
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={studentDividerStyle}
+              aria-hidden
+            />
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -99,7 +114,7 @@ export function ClassesStatusChart({
 
   return (
     <div className="space-y-4">
-      <div className="max-h-[min(70vh,720px)] space-y-5 overflow-y-auto pr-1">
+      <div className="max-h-[min(70vh,720px)] space-y-5 overflow-y-auto pr-4 sm:pr-6">
         {rowsWithLabels.map((group) => (
           <section key={group.unitId}>
             <div className="rounded bg-[#1437cc] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white">
@@ -112,7 +127,7 @@ export function ClassesStatusChart({
               {group.rows.map((row) => (
                 <div
                   key={row.classId}
-                  className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_2.25rem] items-center gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,2.5fr)_2.5rem]"
+                  className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_3rem] items-center gap-3 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,2.5fr)_3.5rem]"
                 >
                   <span className="truncate text-slate-700" title={row.rowLabel}>
                     {row.rowLabel}
@@ -125,7 +140,7 @@ export function ClassesStatusChart({
                   />
                   <span
                     className={cn(
-                      'text-right font-semibold tabular-nums',
+                      'justify-self-center text-center font-semibold tabular-nums',
                       row.total === 0 ? 'text-slate-400' : 'text-slate-900'
                     )}
                   >
