@@ -819,43 +819,41 @@ export const AdvancedReportsTab = () => {
         new Set([...inscritosByDate.keys(), ...matriculadosByDate.keys()])
       ).sort();
 
-      const useWeeklyBuckets = allDates.length > 60;
-      const bucketMap = new Map<string, EnrollmentTimelinePoint>();
+      if (allDates.length === 0) {
+        setEnrollmentTimeline([]);
+        return;
+      }
 
-      const addToBucket = (date: string, field: 'inscritos' | 'matriculados', value: number) => {
-        let bucketKey = date;
-        let label = new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', {
+      const formatTimelineLabel = (date: string) =>
+        new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', {
           day: '2-digit',
           month: '2-digit',
         });
 
-        if (useWeeklyBuckets) {
-          const d = new Date(date + 'T00:00:00');
-          const day = d.getDay();
-          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-          const weekStart = new Date(d);
-          weekStart.setDate(diff);
-          bucketKey = weekStart.toISOString().substring(0, 10);
-          label = `Sem. ${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
-        }
-
-        if (!bucketMap.has(bucketKey)) {
-          bucketMap.set(bucketKey, {
-            date: bucketKey,
-            label,
-            inscritos: 0,
-            matriculados: 0,
-          });
-        }
-        bucketMap.get(bucketKey)![field] += value;
+      const addDaysToIsoDate = (date: string, days: number) => {
+        const base = new Date(`${date}T00:00:00Z`);
+        base.setUTCDate(base.getUTCDate() + days);
+        return base.toISOString().substring(0, 10);
       };
 
-      inscritosByDate.forEach((count, date) => addToBucket(date, 'inscritos', count));
-      matriculadosByDate.forEach((count, date) => addToBucket(date, 'matriculados', count));
+      const startDate = allDates[0];
+      const endDate = allDates[allDates.length - 1];
+      const timeline: EnrollmentTimelinePoint[] = [];
 
-      setEnrollmentTimeline(
-        Array.from(bucketMap.values()).sort((a, b) => a.date.localeCompare(b.date))
-      );
+      for (
+        let currentDate = startDate;
+        currentDate <= endDate;
+        currentDate = addDaysToIsoDate(currentDate, 1)
+      ) {
+        timeline.push({
+          date: currentDate,
+          label: formatTimelineLabel(currentDate),
+          inscritos: inscritosByDate.get(currentDate) || 0,
+          matriculados: matriculadosByDate.get(currentDate) || 0,
+        });
+      }
+
+      setEnrollmentTimeline(timeline);
     } catch (error) {
       console.error('Erro ao calcular linha do tempo:', error);
       setEnrollmentTimeline([]);
