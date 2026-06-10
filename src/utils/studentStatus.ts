@@ -52,10 +52,10 @@ export const STUDENT_STATUS_LABELS: Record<string, string> = {
 export const STUDENT_STATUS_COLORS: Record<string, string> = {
   nao_confirmado: '#94a3b8',
   confirmado: '#64748b',
-  ausente: '#690218',
+  ausente: '#F87171',
   nenhum_agendamento: '#cbd5e1',
   atendimento_agendado: '#64748b',
-  faltou_ao_atendimento: '#9333ea',
+  faltou_ao_atendimento: '#A78BFA',
   atendimento_recentemente: '#1437cc',
   atendimento_ha_mais_de_uma_semana: '#f97316',
   desistente: '#ef4444',

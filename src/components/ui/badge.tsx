@@ -17,7 +17,7 @@ const badgeVariants = cva(
         success:
           "border-transparent bg-green-500 text-primary-foreground hover:bg-green-500/80",
         purple:
-          "border-transparent bg-purple-500 text-primary-foreground hover:bg-purple-500/80",
+          "border-transparent text-white hover:opacity-80",
         warning:
           "border-transparent bg-orange-500 text-primary-foreground hover:bg-orange-500/80",
         ausente:
@@ -41,7 +41,8 @@ export interface BadgeProps
 
 function Badge({ className, variant, ...props }: BadgeProps) {
   const getStyle = () => {
-    if (variant === 'ausente') return { backgroundColor: '#690218' };
+    if (variant === 'ausente') return { backgroundColor: '#F87171' };
+    if (variant === 'purple') return { backgroundColor: '#A78BFA' };
     if (variant === 'cadastro_invalido') return { backgroundColor: '#000000' };
     if (variant === 'processo_anos_anteriores') return { backgroundColor: '#999999' };
     return undefined;
