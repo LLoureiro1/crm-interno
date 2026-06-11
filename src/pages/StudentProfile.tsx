@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen, Pen, FileText } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, Clock, ArrowLeft, ArrowUp, Home, Edit, Save, X, Trash2, DollarSign, CreditCard, BookOpen, Pen, FileText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
@@ -34,6 +34,66 @@ import { ptBR } from 'date-fns/locale';
 import { formatCpf, stripCpf, isValidCpf } from '@/utils/cpf';
 import { EngagementScoreCard } from '@/components/EngagementScoreCard';
 import type { EngagementScoreBreakdown } from '@/utils/engagementScore';
+import { getScoreTier } from '@/utils/engagementScore';
+import { cn } from '@/lib/utils';
+
+const PROFILE_SECTIONS = [
+  { id: 'dados-pessoais', label: 'Dados pessoais' },
+  { id: 'academico', label: 'Acadêmico' },
+  { id: 'proposta', label: 'Proposta' },
+  { id: 'agendar-entrevista', label: 'Agendar Entrevista' },
+  { id: 'contatos', label: 'Contatos' },
+  { id: 'atualizar-status', label: 'Atualizar Status' },
+  { id: 'adicionar-comentario', label: 'Adicionar Comentário' },
+  { id: 'historico', label: 'Histórico' },
+  { id: 'engajamento', label: 'Engajamento' },
+] as const;
+
+type ProfileSectionId = (typeof PROFILE_SECTIONS)[number]['id'];
+
+function EngagementHeaderWidget({ score }: { score: number | null | undefined }) {
+  const displayScore = score ?? 0;
+  const tier = getScoreTier(score);
+  const ringRadius = 18;
+  const circumference = 2 * Math.PI * ringRadius;
+  const strokeOffset = circumference - (displayScore / 100) * circumference;
+
+  const tierStyles = {
+    alto: { ring: 'text-green-600', border: 'border-green-200', text: 'text-green-600' },
+    medio: { ring: 'text-yellow-600', border: 'border-yellow-200', text: 'text-yellow-600' },
+    baixo: { ring: 'text-destructive', border: 'border-destructive/30', text: 'text-destructive' },
+    sem: { ring: 'text-muted-foreground', border: 'border-border', text: 'text-muted-foreground' },
+  }[tier];
+
+  return (
+    <div className={cn('flex items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 shadow-sm', tierStyles.border)}>
+      <svg className="h-12 w-12 shrink-0" viewBox="0 0 40 40" aria-hidden>
+        <circle cx="20" cy="20" r={ringRadius} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/30" />
+        <circle
+          cx="20"
+          cy="20"
+          r={ringRadius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeOffset}
+          strokeLinecap="round"
+          className={tierStyles.ring}
+          transform="rotate(-90 20 20)"
+        />
+      </svg>
+      <div>
+        <p className={cn('text-xl font-bold tabular-nums leading-none', tierStyles.text)}>
+          {score === null || score === undefined ? '—' : `${displayScore}/100`}
+        </p>
+        <p className={cn('mt-1 text-[10px] font-semibold uppercase tracking-wider', tierStyles.text)}>
+          Engajamento
+        </p>
+      </div>
+    </div>
+  );
+}
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -96,6 +156,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
   // Filtro para histórico unificado
   const [historyFilter, setHistoryFilter] = useState<'all' | 'interactions' | 'contacts'>('all');
+  const [activeSection, setActiveSection] = useState<string>(PROFILE_SECTIONS[0].id);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Relações por telefone
   const [relatedByPhone, setRelatedByPhone] = useState<{ id: string; student_name: string }[]>([]);
@@ -207,6 +269,63 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
     fetchRelatedByResponsibleCpf();
   }, [student?.id, student?.responsible_cpf]);
+
+  useEffect(() => {
+    if (!student) return;
+
+    const navOffset = 140;
+
+    const getActiveSectionId = () => {
+      const sections = PROFILE_SECTIONS.map(({ id }) => ({
+        id,
+        element: document.getElementById(id),
+      })).filter((section): section is { id: ProfileSectionId; element: HTMLElement } => !!section.element);
+
+      if (sections.length === 0) return PROFILE_SECTIONS[0].id;
+
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+      const atPageBottom = pageBottom - scrollBottom <= 80;
+
+      if (atPageBottom) {
+        return sections[sections.length - 1].id;
+      }
+
+      let activeId = sections[0].id;
+
+      for (const { id, element } of sections) {
+        if (element.getBoundingClientRect().top <= navOffset) {
+          activeId = id;
+        }
+      }
+
+      return activeId;
+    };
+
+    const handleScroll = () => {
+      setActiveSection(getActiveSectionId());
+      setShowBackToTop(window.scrollY > 300);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [student?.id]);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSection(sectionId);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActiveSection(PROFILE_SECTIONS[0].id);
+  }, []);
 
   // Helpers e estrutura para histórico unificado
   const channelLabel = (ch?: Enums<'contact_channel'> | null) =>
@@ -1165,7 +1284,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
     setBirthDateDisplay('');
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
       const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
@@ -1182,12 +1301,36 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       };
 
       const config = statusMap[status] || { label: status, variant: 'outline' as const };
+
+      if (placement === 'header') {
+        const headerTone: Record<string, string> = {
+          destructive: 'border-destructive/20 bg-destructive/10 text-destructive',
+          success: 'border-green-200 bg-green-50 text-green-700',
+          warning: 'border-orange-200 bg-orange-50 text-orange-700',
+          default: 'border-primary/20 bg-primary/10 text-primary',
+          secondary: 'border-blue-200 bg-blue-50 text-blue-700',
+          outline: 'border-border bg-muted text-muted-foreground',
+        };
+        return (
+          <Badge
+            variant="outline"
+            className={cn(
+              'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
+              headerTone[config.variant] ?? headerTone.outline
+            )}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+            {config.label}
+          </Badge>
+        );
+      }
+
       return <Badge variant={config.variant}>{config.label}</Badge>;
     };
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
           <p className="mt-2 text-gray-600">Carregando...</p>
@@ -1202,8 +1345,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-blue-50 py-8 px-4">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-slate-50 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center">Carregando...</div>
         </div>
       </div>
@@ -1211,51 +1354,71 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <Button 
-              onClick={() => navigate('/')} 
-              variant="outline" 
-              className="flex items-center space-x-2 w-full sm:w-auto"
-            >
-              <Home className="h-4 w-4" />
-              <span>Tela Inicial</span>
-            </Button>
-            <Button 
-              onClick={() => navigate('/', { state: { activeTab: 'students' } })} 
-              variant="outline" 
-              className="flex items-center space-x-2 w-full sm:w-auto"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Voltar para Lista de Inscritos</span>
-            </Button>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
-            <User className="h-6 w-6" />
-            <span>Ficha do Aluno - {student.student_name}</span>
-          </h1>
-          <div className="flex items-center space-x-2 mt-2">
-            <span className="text-gray-600">Código: {student.code}</span>
-            <span>|</span>
-            <span>Status: {getStatusBadge(student.status)}</span>
-          </div>
+    <div className="min-h-screen bg-slate-50 py-6 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            onClick={() => navigate('/')}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start px-0 text-muted-foreground hover:text-foreground sm:w-auto"
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Tela Inicial
+          </Button>
+          <Button
+            onClick={() => navigate('/', { state: { activeTab: 'students' } })}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start px-0 text-muted-foreground hover:text-foreground sm:w-auto"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para Lista de Inscritos
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Student Information */}
-          <div className="space-y-4">
-            {/* Student Reactivation */}
-            <ReactivateStudentButton 
-              student={student} 
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-primary sm:text-3xl">{student.student_name}</h1>
+              {getStatusBadge(student.status, 'header')}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Código {student.code} • {student.classes.series.name} • {student.classes.units.name}
+            </p>
+          </div>
+          <EngagementHeaderWidget score={student.engagement_score} />
+        </div>
+
+        <nav className="sticky top-0 z-20 -mx-1 mb-6 flex flex-wrap gap-2 bg-slate-50/95 px-1 py-2 backdrop-blur">
+          {PROFILE_SECTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => scrollToSection(id)}
+              className={cn(
+                'rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-150',
+                activeSection === id
+                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                  : 'border-primary/20 bg-white text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-md'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="space-y-8">
+          <section id="dados-pessoais" className="scroll-mt-28 space-y-4">
+            <ReactivateStudentButton
+              student={student}
               onSuccess={fetchStudent}
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-base">
+                  <div className="flex items-center gap-2 text-primary">
                     <User className="h-4 w-4" />
                     <span>Dados Pessoais</span>
                   </div>
@@ -1264,7 +1427,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       variant="outline"
                       size="sm"
                       onClick={showPersonalDataEditor ? cancelEditingPersonalData : startEditingPersonalData}
-                      className="flex items-center space-x-1"
+                      className="flex items-center gap-1 border-primary/30 text-primary hover:bg-primary/5"
                     >
                       {showPersonalDataEditor ? (
                         <>
@@ -1450,46 +1613,50 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col space-y-2 sm:grid sm:grid-cols-2 sm:gap-3 text-sm">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <span className="font-medium">Nome do Aluno:</span>
-                      <p>{student.student_name}</p>
+                      <p className="text-xs text-muted-foreground">Nome do Aluno</p>
+                      <p className="text-sm font-medium text-foreground">{student.student_name}</p>
                     </div>
                     <div>
-                      <span className="font-medium">Responsável:</span>
-                      <p>{student.responsible_name}</p>
+                      <p className="text-xs text-muted-foreground">Responsável</p>
+                      <p className="text-sm font-medium text-foreground">{student.responsible_name || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
                     <div>
-                      <span className="font-medium">Data de Nascimento:</span>
-                      <p>{formatDateForDisplay(student.birth_date)}</p>
+                      <p className="text-xs text-muted-foreground">Data de Nascimento</p>
+                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.birth_date) || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
                     <div>
-                      <span className="font-medium">CPF do Responsável:</span>
-                      <p>{student.responsible_cpf ? formatCpf(student.responsible_cpf) : 'Não informado'}</p>
+                      <p className="text-xs text-muted-foreground">CPF do Responsável</p>
+                      <p className="text-sm font-medium text-foreground">{student.responsible_cpf ? formatCpf(student.responsible_cpf) : <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
                     <div className="sm:col-span-2">
-                      <StudentPhoneManager 
+                      <StudentPhoneManager
                         studentId={student.id}
                         disabled={!canEditPersonalData}
                       />
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="font-medium">Email:</span>
-                      <p>{student.email}</p>
+                    <div className="flex items-start gap-2 sm:col-span-2">
+                      <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="text-sm font-medium text-foreground">{student.email || <span className="italic text-muted-foreground">Não informado</span>}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <MapPin className="h-3 w-3" />
-                      <span className="font-medium">Cidade:</span>
-                      <p>{student.city || 'Não informado'}</p>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Cidade</p>
+                        <p className="text-sm font-medium text-foreground">{student.city || <span className="italic text-muted-foreground">Não informado</span>}</p>
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">Bairro:</span>
-                      <p>{student.neighborhood}</p>
+                      <p className="text-xs text-muted-foreground">Bairro</p>
+                      <p className="text-sm font-medium text-foreground">{student.neighborhood || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
-                    <div>
-                      <span className="font-medium">Escola de Origem:</span>
-                      <p>{student.origin_school}</p>
+                    <div className="sm:col-span-2">
+                      <p className="text-xs text-muted-foreground">Escola de Origem</p>
+                      <p className="text-sm font-medium text-foreground">{student.origin_school || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
                   </div>
                 )}
@@ -1511,45 +1678,47 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 )}
               </CardContent>
             </Card>
+          </section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <GraduationCap className="h-4 w-4" />
-                  <span>Dados Acadêmicos</span>
+          <section id="academico" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-base">
+                  <div className="flex items-center gap-2 text-primary">
+                    <GraduationCap className="h-4 w-4" />
+                    <span>Dados Acadêmicos</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      fetchAvailableUnits();
+                      fetchAvailableSeries();
+                      setShowSeriesUnitEditor(!showSeriesUnitEditor);
+                    }}
+                    className="border-primary/30 text-primary hover:bg-primary/5"
+                  >
+                    {showSeriesUnitEditor ? 'Cancelar' : 'Alterar'}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <span className="font-medium">Série:</span>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <p>{student.classes.series.name}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          fetchAvailableUnits();
-                          fetchAvailableSeries();
-                          setShowSeriesUnitEditor(!showSeriesUnitEditor);
-                        }}
-                      >
-                        {showSeriesUnitEditor ? 'Cancelar' : 'Alterar'}
-                      </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">Série</p>
+                    <p className="text-sm font-medium text-foreground">{student.classes.series.name}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Unidade:</span>
-                    <p>{student.classes.units.name}</p>
+                    <p className="text-xs text-muted-foreground">Unidade</p>
+                    <p className="text-sm font-medium text-foreground">{student.classes.units.name}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Turma:</span>
-                    <p>{student.classes.name}</p>
+                    <p className="text-xs text-muted-foreground">Turma</p>
+                    <p className="text-sm font-medium text-foreground">{student.classes.name}</p>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span className="font-medium">Data da Inscrição:</span>
-                    <p>{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Data da Inscrição</p>
+                    <p className="text-sm font-medium text-foreground">{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
                   </div>
                   
                   {/* Editor de série e unidade */}
@@ -1741,15 +1910,13 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </div>
               </CardContent>
             </Card>
+          </section>
 
-
-
-
-            {/* Financial Data */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="flex items-center space-x-2">
+          <section id="proposta" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex flex-col gap-2 text-base sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-primary">
                     <Pen className="h-4 w-4" />
                     <span>Proposta</span>
                   </div>
@@ -1917,10 +2084,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </div>
               </CardContent>
             </Card>
+          </section>
 
-            {/* Registrar Atendimento — logo abaixo de Proposta */}
-            {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
-            <Card>
+          {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
                 <CardTitle>Registrar Atendimento</CardTitle>
               </CardHeader>
@@ -2060,10 +2227,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
               </Card>
             )}
 
-            {/* Interview Scheduling */}
-            <Card>
+          <section id="agendar-entrevista" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <Calendar className="h-4 w-4" />
                   <span>Agendar Entrevista</span>
                 </CardTitle>
@@ -2195,11 +2362,71 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </Button>
               </CardContent>
             </Card>
+          </section>
 
-            {/* Status Update */}
-            <Card>
+          <section id="contatos" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
-                <CardTitle>Atualizar Status</CardTitle>
+                <CardTitle className="text-base text-primary">Contatos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Canal *</Label>
+                    <Select value={newContactChannel} onValueChange={(v) => setNewContactChannel(v as Enums<'contact_channel'>)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        <SelectItem value="phone">Ligação</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="in_person">Presencial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Motivo de Contato *</Label>
+                    <Select value={newContactReason} onValueChange={(v) => setNewContactReason(v as Enums<'contact_reason'>)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent side="bottom">
+                        <SelectItem value="agendamento">Agendamento</SelectItem>
+                        <SelectItem value="reagendamento">Reagendamento</SelectItem>
+                        <SelectItem value="confirmacao_prova">Confirmação de Prova</SelectItem>
+                        <SelectItem value="convidar_ausentes">Convidar Ausentes</SelectItem>
+                        <SelectItem value="followup_pos_atendimento">Follow-up Pós Atendimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-1 pt-4 md:pt-0">
+                    <Checkbox
+                      id="contato-sucedido"
+                      checked={newContactSucceeded}
+                      onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
+                    />
+                    <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
+                      Conseguimos alcançar o responsável
+                    </Label>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Comentário</Label>
+                    <Textarea value={newContactComment} onChange={(e) => setNewContactComment(e.target.value)} placeholder="Breve comentário sobre o contato" />
+                  </div>
+                </div>
+                <Button onClick={handleAddContactAttempt} className="w-full bg-orange-500 hover:bg-orange-600">
+                  Registrar Contato
+                </Button>
+                <div className="pt-2 text-xs text-gray-500">O histórico de contatos aparece no card “Histórico”.</div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section id="atualizar-status" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base text-primary">Atualizar Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
@@ -2322,85 +2549,21 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                   </div>
                 )}
 
-                <Button 
+                <Button
                   onClick={handleUpdateStatus}
-                  className="w-full"
+                  className="w-full bg-orange-500 hover:bg-orange-600"
                   disabled={newStatus === student.status}
                 >
                   Atualizar Status
                 </Button>
               </CardContent>
             </Card>
+          </section>
 
-            
-          </div>
-
-          {/* Interactions */}
-          <div className="space-y-4">
-            {/* Contact Attempts (movido para a coluna direita acima de Adicionar Comentário) */}
-            <Card>
+          <section id="adicionar-comentario" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
-                <CardTitle>Contatos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Canal *</Label>
-                    <Select value={newContactChannel} onValueChange={(v) => setNewContactChannel(v as Enums<'contact_channel'>)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent side="bottom">
-                        <SelectItem value="phone">Ligação</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="in_person">Presencial</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Motivo de Contato *</Label>
-                    <Select value={newContactReason} onValueChange={(v) => setNewContactReason(v as Enums<'contact_reason'>)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent side="bottom">
-                        <SelectItem value="agendamento">Agendamento</SelectItem>
-                        <SelectItem value="reagendamento">Reagendamento</SelectItem>
-                        <SelectItem value="confirmacao_prova">Confirmação de Prova</SelectItem>
-                        <SelectItem value="convidar_ausentes">Convidar Ausentes</SelectItem>
-                        <SelectItem value="followup_pos_atendimento">Follow-up Pós Atendimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-1 pt-4 md:pt-0">
-                    <Checkbox 
-                      id="contato-sucedido"
-                      checked={newContactSucceeded}
-                      onCheckedChange={(checked) => setNewContactSucceeded(!!checked)}
-                    />
-                    <Label htmlFor="contato-sucedido" className="cursor-pointer text-sm font-normal">
-                      Conseguimos alcançar o responsável
-                    </Label>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label>Comentário</Label>
-                    <Textarea value={newContactComment} onChange={(e) => setNewContactComment(e.target.value)} placeholder="Breve comentário sobre o contato" />
-                  </div>
-                </div>
-
-                <Button onClick={handleAddContactAttempt} className="w-full bg-orange-500 hover:bg-orange-600">
-                  Registrar Contato
-                </Button>
-
-                <div className="pt-2 text-xs text-gray-500">O histórico de contatos aparece no card “Histórico”.</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Adicionar Comentário</CardTitle>
+                <CardTitle className="text-base text-primary">Adicionar Comentário</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Textarea
@@ -2409,7 +2572,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                   placeholder="Adicione um comentário sobre o aluno..."
                   rows={3}
                 />
-                <Button 
+                <Button
                   onClick={handleAddInteraction}
                   className="w-full bg-orange-500 hover:bg-orange-600"
                 >
@@ -2417,11 +2580,13 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </Button>
               </CardContent>
             </Card>
+          </section>
 
-            <Card>
+          <section id="historico" className="scroll-mt-28">
+            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Histórico</CardTitle>
+                  <CardTitle className="text-base">Histórico</CardTitle>
                   <div className="w-48">
                     <Select value={historyFilter} onValueChange={(v) => setHistoryFilter(v as 'all' | 'interactions' | 'contacts')}>
                       <SelectTrigger className="h-8">
@@ -2471,25 +2636,27 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </div>
               </CardContent>
             </Card>
+          </section>
 
+          <section id="engajamento" className="scroll-mt-28 space-y-4">
             <EngagementScoreCard
               score={student.engagement_score}
               breakdown={student.engagement_score_breakdown as EngagementScoreBreakdown | null}
               scoreAt={student.engagement_score_at}
               scoreSource={student.engagement_score_source}
               modelVersion={student.engagement_model_version}
+              className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm"
             />
 
-            {/* Relações por telefone (discreto, ao final da ficha) */}
             {relatedByPhone.length > 0 && (
-              <div className="p-2 bg-gray-50 rounded border border-gray-200 text-xs">
-                <p className="text-gray-600">Este cadastro possui um número de telefone em comum com:</p>
+              <div className="rounded-lg border border-slate-200 bg-muted/40 p-3 text-xs">
+                <p className="text-muted-foreground">Este cadastro possui um número de telefone em comum com:</p>
                 <div className="mt-1 space-y-1">
                   {relatedByPhone.map((s) => (
                     <a
                       key={s.id}
                       href={`/student/${s.id}`}
-                      className="block text-blue-600 hover:underline"
+                      className="block text-primary hover:underline"
                     >
                       {s.student_name}
                     </a>
@@ -2497,7 +2664,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
 
         {/* Modal de Resumo da Proposta */}
@@ -2527,6 +2694,18 @@ type ContactAttempt = Tables<'contact_attempts'> & {
             />
         )}
       </div>
+
+      {showBackToTop && (
+        <Button
+          type="button"
+          onClick={scrollToTop}
+          size="icon"
+          className="fixed bottom-6 right-6 z-30 rounded-full bg-primary shadow-lg hover:bg-primary/90"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 };

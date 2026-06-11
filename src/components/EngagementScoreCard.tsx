@@ -13,6 +13,7 @@ import {
   type EngagementScoreBreakdown,
 } from '@/utils/engagementScore';
 import { Activity, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type EngagementScoreCardProps = {
   score: number | null | undefined;
@@ -20,6 +21,7 @@ type EngagementScoreCardProps = {
   scoreAt?: string | null;
   scoreSource?: string | null;
   modelVersion?: string | null;
+  className?: string;
 };
 
 export function EngagementScoreCard({
@@ -28,6 +30,7 @@ export function EngagementScoreCard({
   scoreAt,
   scoreSource,
   modelVersion,
+  className,
 }: EngagementScoreCardProps) {
   const items = formatScoreBreakdown(breakdown);
   const daysSinceTouch =
@@ -44,7 +47,7 @@ export function EngagementScoreCard({
 
   if (score === null || score === undefined) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-base">
             <Activity className="h-4 w-4" />
@@ -61,7 +64,7 @@ export function EngagementScoreCard({
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2 text-base">
           <div className="flex items-center space-x-2">
