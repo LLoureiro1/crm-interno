@@ -1,12 +1,12 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, UserPlus, ClipboardList, CheckCircle2, Users, Calendar, Target } from 'lucide-react';
+import { BarChart3, UserPlus, ClipboardList, CheckCircle2, Users, Calendar, Target, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
@@ -18,6 +18,11 @@ import {
 } from '@/utils/reportDateFilter';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  REPORT_SECTIONS,
+  type ReportSectionId,
+  useDashboardNav,
+} from '@/contexts/DashboardNavContext';
 import {
   getSegmentLabel,
   getSeriesIdsForSegment,
@@ -65,6 +70,7 @@ interface ReportData {
 
 export const ReportsTab = () => {
   const { profile } = useAuth();
+  const { setReportsActiveSection, reportsScrollToSectionRef } = useDashboardNav();
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
@@ -137,6 +143,7 @@ export const ReportsTab = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState<string>('');
   const [dialogStudents, setDialogStudents] = useState<Student[]>([]);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     fetchSeries();
@@ -173,6 +180,68 @@ export const ReportsTab = () => {
   useEffect(() => {
     fetchReportData();
   }, [selectedUnit, selectedSegment, selectedSeries, isCentralUser, profile?.unit_id, dateFilterType, customStartDate, customEndDate]);
+
+  useEffect(() => {
+    const navOffset = 64;
+
+    const getActiveSectionId = (): ReportSectionId => {
+      const sections = REPORT_SECTIONS.map(({ id }) => ({
+        id,
+        element: document.getElementById(id),
+      })).filter((section): section is { id: ReportSectionId; element: HTMLElement } => !!section.element);
+
+      if (sections.length === 0) return REPORT_SECTIONS[0].id;
+
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+      const atPageBottom = pageBottom - scrollBottom <= 80;
+
+      if (atPageBottom) {
+        return sections[sections.length - 1].id;
+      }
+
+      let activeId = sections[0].id;
+
+      for (const { id, element } of sections) {
+        if (element.getBoundingClientRect().top <= navOffset) {
+          activeId = id;
+        }
+      }
+
+      return activeId;
+    };
+
+    const handleScroll = () => {
+      setReportsActiveSection(getActiveSectionId());
+      setShowBackToTop(window.scrollY > 300);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [setReportsActiveSection]);
+
+  const scrollToSection = useCallback((sectionId: ReportSectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setReportsActiveSection(sectionId);
+  }, [setReportsActiveSection]);
+
+  useEffect(() => {
+    reportsScrollToSectionRef.current = scrollToSection;
+    return () => {
+      reportsScrollToSectionRef.current = null;
+    };
+  }, [scrollToSection, reportsScrollToSectionRef]);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setReportsActiveSection(REPORT_SECTIONS[0].id);
+  }, [setReportsActiveSection]);
 
   const fetchUnits = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
@@ -545,8 +614,8 @@ export const ReportsTab = () => {
   const goalRingOffset = goalRingCirc - (goalPct / 100) * goalRingCirc;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="relative -mt-2 md:-mt-4 lg:-mt-6">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
             <BarChart3 className="h-5 w-5 text-primary-foreground" />
@@ -582,7 +651,7 @@ export const ReportsTab = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      <div className="space-y-6">
       <div className="flex flex-wrap gap-3">
         <Select value={selectedUnit} onValueChange={setSelectedUnit}>
           <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
@@ -655,6 +724,7 @@ export const ReportsTab = () => {
         )}
       </div>
 
+      <section id="kpis" className="scroll-mt-20 space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
@@ -732,7 +802,9 @@ export const ReportsTab = () => {
           </Card>
         </div>
       </div>
+      </section>
 
+      <section id="meta" className="scroll-mt-20">
       {/* Goal Card */}
       <div className="grid grid-cols-1">
         <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
@@ -772,7 +844,9 @@ export const ReportsTab = () => {
           </CardContent>
         </Card>
       </div>
+      </section>
 
+      <section id="status" className="scroll-mt-20">
       {/* Status Breakdown */}
       <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
@@ -814,7 +888,9 @@ export const ReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+      </section>
 
+      <section id="funil" className="scroll-mt-20">
       <StatusFunnelChart
         statusCounts={reportData.statusCounts}
         statusLabels={statusLabels}
@@ -842,6 +918,7 @@ export const ReportsTab = () => {
           )
         }
       />
+      </section>
 
       {/* Único Dialog global para exibir a tabela de alunos */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -852,6 +929,19 @@ export const ReportsTab = () => {
           <StudentsTable students={dialogStudents} statusLabels={statusLabels} />
         </DialogContent>
       </Dialog>
+
+      {showBackToTop && (
+        <Button
+          type="button"
+          onClick={scrollToTop}
+          size="icon"
+          className="fixed bottom-6 right-6 z-30 rounded-full bg-primary shadow-lg hover:bg-primary/90"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
+      </div>
     </div>
   );
 };
