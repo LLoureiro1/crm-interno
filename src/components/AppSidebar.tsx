@@ -28,9 +28,15 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 const menuButtonClass =
-  'rounded-lg text-white/90 transition-colors hover:!bg-[#ffac1a]/75 hover:!text-white focus-visible:!bg-[#ffac1a]/75 focus-visible:!text-white focus-visible:!ring-[#ffac1a]/40 active:!bg-[#ffac1a]/90 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-sm';
+  'group/nav-btn relative h-auto gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm text-white/90 shadow-none transition-all hover:bg-white/10 hover:!text-white hover:shadow-sm focus-visible:bg-white/10 focus-visible:!text-white focus-visible:ring-2 focus-visible:ring-[#ffac1a]/40 active:bg-white/15 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-md group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-1.5';
+
+const navIconBoxClass =
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 transition-colors group-data-[active=true]/nav-btn:bg-white/20 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:rounded-sm group-data-[collapsible=icon]:bg-transparent';
+
+const sectionCardClass = 'rounded-lg bg-white/[0.04] p-1.5 ring-1 ring-white/10 shadow-sm';
 
 type NavItem = {
   id: string;
@@ -104,31 +110,46 @@ export function AppSidebar() {
     computeInscricaoLink();
   }, [profile?.unit_id]);
 
+  const renderNavItem = (item: NavItem) => {
+    const isActive = activeTab === item.id;
+
+    return (
+      <SidebarMenuItem key={item.id}>
+        <SidebarMenuButton
+          isActive={isActive}
+          size="default"
+          onClick={() => handleNavClick(item.id)}
+          tooltip={isMobile ? undefined : item.label}
+          className={menuButtonClass}
+        >
+          {isActive && (
+            <span
+              className="absolute left-0 top-0 h-full w-1 rounded-r bg-white/50 group-data-[collapsible=icon]:hidden"
+              aria-hidden
+            />
+          )}
+          <span className={navIconBoxClass}>
+            <item.icon className="h-3.5 w-3.5 shrink-0" />
+          </span>
+          <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   const renderNavGroup = (label: string, items: NavItem[]) => {
     if (items.length === 0) return null;
 
     return (
-      <SidebarGroup>
-        <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-wider text-white/45 px-3">
-          {label}
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {items.map((item) => (
-              <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton
-                  isActive={activeTab === item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  tooltip={isMobile ? undefined : item.label}
-                  className={menuButtonClass}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
+      <SidebarGroup className="px-2 py-0">
+        <div className={sectionCardClass}>
+          <SidebarGroupLabel className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+            {label}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">{items.map(renderNavItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </div>
       </SidebarGroup>
     );
   };
@@ -138,68 +159,88 @@ export function AppSidebar() {
       collapsible="icon"
       className="border-r border-[#132856] [&_[data-sidebar=sidebar]]:bg-[#1b3472]"
     >
-      <SidebarHeader className="border-b border-white/10 p-3">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white p-1.5 md:h-9 md:w-9 md:group-data-[collapsible=icon]:h-8 md:group-data-[collapsible=icon]:w-8 md:group-data-[collapsible=icon]:p-1">
-            <img
-              src="/logo_apogeu_nobg.png"
-              alt="Apogeu"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
-            <p className="truncate text-[11px] text-white/60">CRM Parceiros</p>
+      <SidebarHeader className="p-2">
+        <div className={cn(sectionCardClass, 'p-2')}>
+          <div className="flex items-center gap-2">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm ring-1 ring-white/20 md:group-data-[collapsible=icon]:h-8 md:group-data-[collapsible=icon]:w-8">
+              <img
+                src="/logo_apogeu_nobg.png"
+                alt="Apogeu"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+              <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
+              <p className="truncate text-[11px] text-white/60">CRM Parceiros</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="hidden h-7 w-7 shrink-0 rounded-md text-white/70 hover:bg-white/10 hover:text-white md:flex group-data-[collapsible=icon]:md:hidden"
+              title={state === 'expanded' ? 'Recolher menu' : 'Expandir menu'}
+            >
+              {state === 'expanded' ? (
+                <ChevronLeft className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-1 py-2">
+      <SidebarContent className="flex flex-col gap-2 overflow-hidden px-1 py-1">
         {renderNavGroup('Gestão', gestaoItems)}
         {renderNavGroup('Sistema', sistemaItems)}
 
-        <SidebarGroup className="mt-2 group-data-[collapsible=icon]:hidden">
-          <SidebarGroupContent className="px-2">
-            <a
-              href={inscricaoLink}
-              onClick={closeMobileMenu}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#ffac1a] px-3 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#e89b0f]"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Nova Inscrição</span>
-            </a>
-          </SidebarGroupContent>
+        <SidebarGroup className="px-2 py-0 group-data-[collapsible=icon]:hidden">
+          <div className={sectionCardClass}>
+            <SidebarGroupContent>
+              <a
+                href={inscricaoLink}
+                onClick={closeMobileMenu}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#ffac1a] px-2 py-2 text-xs font-semibold text-white shadow-md ring-1 ring-[#ffac1a]/30 transition-all hover:bg-[#e89b0f] hover:shadow-lg"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>Nova Inscrição</span>
+              </a>
+            </SidebarGroupContent>
+          </div>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-white/10 p-2">
-        <div className="flex flex-col gap-2 px-1 group-data-[collapsible=icon]:items-center">
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-medium text-white">{profile?.name}</p>
-            <p className="truncate text-xs capitalize text-white/55">{profile?.profile}</p>
+      <SidebarFooter className="p-2">
+        <div className={cn(sectionCardClass, 'space-y-1.5')}>
+          <div className="rounded-lg bg-white/[0.06] px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+            <p className="truncate text-xs font-medium text-white">{profile?.name}</p>
+            <p className="truncate text-[10px] capitalize text-white/55">{profile?.profile}</p>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => signOut()}
-            className="w-full justify-start text-white/80 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+            className="h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
           >
-            <LogOut className="h-4 w-4" />
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:bg-transparent">
+              <LogOut className="h-3.5 w-3.5" />
+            </span>
             <span className="group-data-[collapsible=icon]:hidden">Sair</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="hidden w-full justify-start text-white/70 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 md:flex"
-            title={state === 'expanded' ? 'Recolher Menu' : 'Expandir menu'}
+            className="hidden h-auto w-full justify-center rounded-lg px-2 py-1.5 text-white/70 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0 md:group-data-[collapsible=icon]:flex"
+            title={state === 'expanded' ? 'Recolher menu' : 'Expandir menu'}
           >
-            {state === 'expanded' ? (
-              <ChevronLeft className="h-4 w-4 shrink-0" />
-            ) : (
-              <ChevronRight className="h-4 w-4 shrink-0" />
-            )}
-            <span className="group-data-[collapsible=icon]:hidden">Recolher Menu</span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:bg-transparent">
+              {state === 'expanded' ? (
+                <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+              )}
+            </span>
           </Button>
         </div>
       </SidebarFooter>
