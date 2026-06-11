@@ -264,11 +264,11 @@ export function StatusFunnelChart({
   }, [selectedUnit, selectedSegment, selectedSeries, visibleUnits, filteredSeriesOptions]);
 
   return (
-    <Card>
+    <Card className="border-0 shadow-sm ring-1 ring-gray-100">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Funil por status</CardTitle>
+            <CardTitle className="text-primary">Funil por Status</CardTitle>
             <CardDescription>
               {chartView === 'classes'
                 ? `Turmas por unidade · filtre unidade, segmento, série ou status · ${filterSummary}`
@@ -276,7 +276,7 @@ export function StatusFunnelChart({
             </CardDescription>
           </div>
           <Select value={chartView} onValueChange={(v) => setChartView(v as ChartView)}>
-            <SelectTrigger className="w-full sm:w-52">
+            <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white shadow-sm sm:w-52">
               <SelectValue placeholder="Tipo de gráfico" />
             </SelectTrigger>
             <SelectContent side="bottom">
@@ -291,7 +291,7 @@ export function StatusFunnelChart({
 
         <div className="flex flex-wrap gap-3">
           <Select value={selectedUnit} onValueChange={onUnitChange}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white shadow-sm sm:w-48">
               <SelectValue placeholder="Unidade" />
             </SelectTrigger>
             <SelectContent side="bottom">
@@ -305,7 +305,7 @@ export function StatusFunnelChart({
           </Select>
 
           <Select value={selectedSegment} onValueChange={onSegmentChange}>
-            <SelectTrigger className="w-full sm:w-52">
+            <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white shadow-sm sm:w-52">
               <SelectValue placeholder="Segmento" />
             </SelectTrigger>
             <SelectContent side="bottom">
@@ -319,7 +319,7 @@ export function StatusFunnelChart({
           </Select>
 
           <Select value={selectedSeries} onValueChange={onSeriesChange}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white shadow-sm sm:w-48">
               <SelectValue placeholder="Série" />
             </SelectTrigger>
             <SelectContent side="bottom">
@@ -334,7 +334,7 @@ export function StatusFunnelChart({
 
           {chartView === 'classes' && (
             <Select value={selectedClassStatus} onValueChange={setSelectedClassStatus}>
-              <SelectTrigger className="w-full sm:w-52">
+              <SelectTrigger className="w-full rounded-xl border-gray-200 bg-white shadow-sm sm:w-52">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent side="bottom">

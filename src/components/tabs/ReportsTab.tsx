@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, BookOpen, GraduationCap, Target } from 'lucide-react';
+import { BarChart3, UserPlus, ClipboardList, CheckCircle2, Users, Calendar, Target } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import {
@@ -519,17 +519,56 @@ export const ReportsTab = () => {
     return 'Agendamentos Hoje';
   };
 
+  const goalPct =
+    reportData.totalGoal > 0
+      ? Math.min((reportData.globalMatriculados / reportData.totalGoal) * 100, 100)
+      : 0;
+  const goalRingRadius = 16;
+  const goalRingCirc = 2 * Math.PI * goalRingRadius;
+  const goalRingOffset = goalRingCirc - (goalPct / 100) * goalRingCirc;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">Relatórios Gerais</h2>
-        <p className="text-gray-600">Visão geral das inscrições e status dos alunos</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
+            <BarChart3 className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-primary">Painel Operacional</h2>
+            <p className="text-sm text-muted-foreground">Visão geral das inscrições e status dos alunos</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2.5 shadow-sm">
+          <svg className="h-10 w-10 shrink-0" viewBox="0 0 40 40" aria-hidden>
+            <circle cx="20" cy="20" r={goalRingRadius} fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-200" />
+            <circle
+              cx="20"
+              cy="20"
+              r={goalRingRadius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeDasharray={goalRingCirc}
+              strokeDashoffset={goalRingOffset}
+              strokeLinecap="round"
+              className="text-primary"
+              transform="rotate(-90 20 20)"
+            />
+          </svg>
+          <div>
+            <p className="text-lg font-bold tabular-nums leading-none text-primary">
+              {reportData.globalMatriculados}/{reportData.totalGoal}
+            </p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Meta Anual</p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-3">
         <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
             <SelectValue placeholder="Selecione a unidade" />
           </SelectTrigger>
           <SelectContent side="bottom">
@@ -541,7 +580,7 @@ export const ReportsTab = () => {
         </Select>
 
         <Select value={selectedSegment} onValueChange={handleSegmentChange}>
-          <SelectTrigger className="w-52">
+          <SelectTrigger className="w-52 rounded-xl border-gray-200 bg-white shadow-sm">
             <SelectValue placeholder="Selecione o segmento" />
           </SelectTrigger>
           <SelectContent side="bottom">
@@ -555,7 +594,7 @@ export const ReportsTab = () => {
         </Select>
 
         <Select value={selectedSeries} onValueChange={setSelectedSeries}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
             <SelectValue placeholder="Selecione a série" />
           </SelectTrigger>
           <SelectContent side="bottom">
@@ -567,7 +606,7 @@ export const ReportsTab = () => {
         </Select>
 
         <Select value={dateFilterType} onValueChange={setDateFilterType}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
             <SelectValue placeholder="Período" />
           </SelectTrigger>
           <SelectContent side="bottom">
@@ -586,77 +625,92 @@ export const ReportsTab = () => {
               type="date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="flex h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <span className="text-sm text-gray-500">até</span>
+            <span className="text-sm text-muted-foreground">até</span>
             <input
               type="date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="flex h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
         )}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
-          <Card className="h-full flex flex-col justify-between">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Inscrições</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
+          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Inscrições</CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                <Users className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.totalInscricoes}</div>
+              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.totalInscricoes}</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
-          <Card className="h-full flex flex-col justify-between">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Inscritos Hoje</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
+          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Inscritos Hoje</CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                <UserPlus className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.inscritosHoje}</div>
+              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.inscritosHoje}</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
-          <Card className="h-full flex flex-col justify-between">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Próxima Prova</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
+          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Próxima Prova</CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                <ClipboardList className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.alunosProximaProva}</div>
+              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.alunosProximaProva}</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(todayAppointmentsStudents, getAgendamentosLabel())}>
-          <Card className="h-full flex flex-col justify-between">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{getAgendamentosLabel()}</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(todayAppointmentsStudents, getAgendamentosLabel())}>
+          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{getAgendamentosLabel()}</CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                <Calendar className="h-4 w-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.agendamentosHoje}</div>
+              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.agendamentosHoje}</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="h-full cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
-          <Card className="h-full flex flex-col justify-between">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Matriculados</CardTitle>
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
+          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+            <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Matriculados</CardTitle>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{reportData.matriculados}</div>
+              <div className="text-3xl font-bold tabular-nums text-emerald-700">{reportData.matriculados}</div>
             </CardContent>
           </Card>
         </div>
@@ -664,43 +718,52 @@ export const ReportsTab = () => {
 
       {/* Goal Card */}
       <div className="grid grid-cols-1">
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-900">Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)</CardTitle>
-            <Target className="h-4 w-4 text-blue-600" />
+        <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+          <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
+          <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
+            <Target className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium text-gray-700">
+              Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-baseline justify-between mt-1">
-              <div className="flex items-baseline space-x-2">
-                <span className="text-3xl font-bold text-blue-700">{reportData.globalMatriculados}</span>
-                <span className="text-lg font-medium text-blue-500">/ {reportData.totalGoal}</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold tabular-nums text-primary">{reportData.globalMatriculados}</span>
+                <span className="text-xl font-medium text-muted-foreground">/ {reportData.totalGoal}</span>
               </div>
               {reportData.totalGoal > 0 && (
-                <span className="text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-md">
-                  {((reportData.globalMatriculados / reportData.totalGoal) * 100).toFixed(1).replace('.', ',')}%
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-primary">
+                  {goalPct.toFixed(1).replace('.', ',')}%
                 </span>
               )}
             </div>
             {reportData.totalGoal > 0 && (
-              <div className="mt-4 h-2 w-full bg-blue-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 transition-all duration-500 ease-in-out"
-                  style={{ width: `${Math.min((reportData.globalMatriculados / reportData.totalGoal) * 100, 100)}%` }}
-                />
-              </div>
+              <>
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500 ease-in-out"
+                    style={{ width: `${goalPct}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                  <span>0</span>
+                  <span>Meta: {reportData.totalGoal} matrículas</span>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Status Breakdown */}
-      <Card>
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
-          <CardTitle>Alunos por Status</CardTitle>
+          <CardTitle className="text-primary">Alunos por Status</CardTitle>
           <CardDescription>Distribuição detalhada dos status dos alunos</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
             {(() => {
               const statusOrder = [
                 'nao_confirmado',
@@ -719,10 +782,10 @@ export const ReportsTab = () => {
                 .map(status => (
                   <div
                     key={status}
-                    className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:shadow-lg transition-shadow"
+                    className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 text-center ring-1 ring-gray-100 transition-shadow hover:shadow-md"
                     onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                    <div className="text-lg font-semibold text-gray-900">{reportData.statusCounts[status]}</div>
-                    <div className="text-xs text-gray-600">{statusLabels[status] || status}</div>
+                    <div className="text-2xl font-bold tabular-nums text-gray-900">{reportData.statusCounts[status]}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{statusLabels[status] || status}</div>
                   </div>
                 ));
             })()}
