@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart3, UserPlus, ClipboardList, CheckCircle2, Users, Calendar, Target } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import {
@@ -503,6 +504,22 @@ export const ReportsTab = () => {
     'matriculado': 'Matriculado'
   };
 
+  const getStatusCardStyle = (status: string) => {
+    const styles: Record<string, { card: string; count: string; label: string }> = {
+      nao_confirmado: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-400', label: 'text-slate-500' },
+      confirmado: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-500', label: 'text-slate-600' },
+      ausente: { card: 'border-red-100 bg-red-50/60', count: 'text-red-400', label: 'text-red-500' },
+      nenhum_agendamento: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-300', label: 'text-slate-400' },
+      atendimento_agendado: { card: 'border-slate-200 bg-slate-100/80', count: 'text-slate-500', label: 'text-slate-600' },
+      faltou_ao_atendimento: { card: 'border-violet-100 bg-violet-50/60', count: 'text-violet-400', label: 'text-violet-500' },
+      atendimento_recentemente: { card: 'border-blue-100 bg-blue-50', count: 'text-[#1437cc]', label: 'text-[#1437cc]' },
+      atendimento_ha_mais_de_uma_semana: { card: 'border-orange-100 bg-orange-50', count: 'text-orange-500', label: 'text-orange-600' },
+      desistente: { card: 'border-red-100 bg-red-50', count: 'text-red-600', label: 'text-red-600' },
+      matriculado: { card: 'border-green-100 bg-green-50', count: 'text-green-500', label: 'text-green-600' },
+    };
+    return styles[status] ?? { card: 'border-gray-200 bg-gray-50', count: 'text-gray-900', label: 'text-gray-600' };
+  };
+
   const openDialog = (students: Student[], title: string) => {
     setDialogStudents(students);
     setDialogTitle(title);
@@ -779,15 +796,20 @@ export const ReportsTab = () => {
               ];
               return statusOrder
                 .filter(status => reportData.statusCounts[status] !== undefined)
-                .map(status => (
+                .map(status => {
+                  const style = getStatusCardStyle(status);
+                  return (
                   <div
                     key={status}
-                    className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 text-center ring-1 ring-gray-100 transition-shadow hover:shadow-md"
+                    className={cn(
+                      'cursor-pointer rounded-lg border p-4 text-center transition-shadow hover:shadow-md',
+                      style.card
+                    )}
                     onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                    <div className="text-2xl font-bold tabular-nums text-gray-900">{reportData.statusCounts[status]}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{statusLabels[status] || status}</div>
+                    <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status]}</div>
+                    <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>{statusLabels[status] || status}</div>
                   </div>
-                ));
+                );})
             })()}
           </div>
         </CardContent>
