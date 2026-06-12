@@ -10,6 +10,7 @@ import {
   useDashboardNav,
 } from '@/contexts/DashboardNavContext';
 import { AppSidebar } from '@/components/AppSidebar';
+import { MobileTabNav } from '@/components/MobileTabNav';
 import { cn } from '@/lib/utils';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
@@ -113,9 +114,10 @@ export const Layout = ({ children }: LayoutProps) => {
         <AppSidebar />
         <SidebarInset className="min-h-svh min-w-0 bg-slate-50">
           <LayoutHeader />
-          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8">
+          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6 lg:p-8 lg:pb-8">
             {children}
           </main>
+          <MobileTabNav />
         </SidebarInset>
       </SidebarProvider>
     </DashboardNavProvider>
