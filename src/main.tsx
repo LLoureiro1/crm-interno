@@ -10,6 +10,22 @@ declare global {
   }
 }
 
+const showBootError = (message: string) => {
+  const root = document.getElementById('root')
+  if (!root || root.childElementCount > 0) return
+  root.innerHTML = `<div style="padding:1.5rem;font-family:system-ui,sans-serif;color:#1e293b"><h2 style="margin:0 0 .5rem;font-size:1.1rem">Erro ao carregar</h2><p style="margin:0 0 1rem;font-size:.9rem;color:#64748b">${message}</p><button type="button" onclick="location.reload()" style="padding:.5rem 1rem;border:0;border-radius:.5rem;background:#1437cc;color:#fff">Recarregar</button></div>`
+}
+
+window.addEventListener('error', (event) => {
+  showBootError(event.message || 'Falha inesperada ao iniciar o app.')
+})
+
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason
+  const message = reason instanceof Error ? reason.message : String(reason)
+  showBootError(message)
+})
+
 createRoot(document.getElementById("root")!).render(<App />);
 
 if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {

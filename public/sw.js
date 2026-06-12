@@ -1,7 +1,7 @@
-const CACHE_NAME = "laurel-cache-v1";
+const CACHE_NAME = "laurel-cache-v2";
 const OFFLINE_URL = "/offline.html";
 
-const ASSET_CACHE = "laurel-assets-v1";
+const ASSET_CACHE = "laurel-assets-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -74,16 +74,17 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(ASSET_CACHE);
-        const cached = await cache.match(request);
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          })
-          .catch(() => null);
-        return cached || fetchPromise || fetch(request);
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          throw new Error("Asset unavailable offline");
+        }
       })()
     );
     return;

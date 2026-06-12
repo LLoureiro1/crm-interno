@@ -11,8 +11,9 @@ import {
 } from '@/contexts/DashboardNavContext';
 import { AppSidebar } from '@/components/AppSidebar';
 import { MobileTabNav } from '@/components/MobileTabNav';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { cn } from '@/lib/utils';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
 interface LayoutProps {
   children: ReactNode;
@@ -54,6 +55,7 @@ function LayoutHeader() {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 shadow-sm sm:gap-2 sm:px-4">
+      <SidebarTrigger className="shrink-0 md:hidden" />
       <nav
         className={cn(
           'flex min-w-0 shrink items-center gap-1.5 text-sm text-slate-500',
@@ -114,10 +116,12 @@ export const Layout = ({ children }: LayoutProps) => {
         <AppSidebar />
         <SidebarInset className="min-h-svh min-w-0 bg-slate-50">
           <LayoutHeader />
-          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6 lg:p-8 lg:pb-8">
+          <div className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 pb-20 max-md:pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-6 lg:p-8">
             {children}
-          </main>
-          <MobileTabNav />
+          </div>
+          <ErrorBoundary>
+            <MobileTabNav />
+          </ErrorBoundary>
         </SidebarInset>
       </SidebarProvider>
     </DashboardNavProvider>
