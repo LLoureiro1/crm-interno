@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp, MapPin } from 'lucide-react';
+import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp, MapPin, LineChart, Trophy, Percent, Phone, Share2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
@@ -46,6 +46,14 @@ import {
   type UnitStatusOverviewRow,
 } from '@/components/reports/UnitsStatusOverviewTable';
 import { EngagementReportsSection } from '@/components/reports/EngagementReportsSection';
+import {
+  ReportSubsectionLabel,
+  MetricKpiCard,
+  ReportAccentInnerCard,
+  ProgressBarRow,
+  ReportCountLink,
+  SummaryStatBox,
+} from '@/components/reports/AdvancedReportLayout';
 import { cn } from '@/lib/utils';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
@@ -127,6 +135,50 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
   );
 };
 
+
+type ReportSectionCardProps = {
+  accent?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  contentClassName?: string;
+};
+
+function ReportSectionCard({
+  accent,
+  icon: Icon,
+  title,
+  description,
+  children,
+  contentClassName,
+}: ReportSectionCardProps) {
+  return (
+    <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+      {accent && <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />}
+      <CardHeader className={cn('border-b border-gray-100 pb-3', accent && 'pl-5')}>
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 shrink-0 text-primary" />}
+          <div
+            className={cn(
+              Icon && 'flex flex-wrap items-baseline gap-x-2 gap-y-0.5',
+              accent && !Icon && 'space-y-1'
+            )}
+          >
+            <CardTitle className={Icon || accent ? 'text-base' : undefined}>{title}</CardTitle>
+            <CardDescription className={Icon || accent ? 'text-sm' : undefined}>
+              {description}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className={cn(Icon && 'pt-0', accent && 'pl-5', contentClassName)}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Função para calcular o ano letivo atual
 const getCurrentAcademicYear = () => {
   const now = new Date();
@@ -147,6 +199,8 @@ export const AdvancedReportsTab = () => {
     useDashboardNav();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [conversionRate, setConversionRate] = useState(0);
+  const [conversionEnrolled, setConversionEnrolled] = useState(0);
+  const [conversionTotal, setConversionTotal] = useState(0);
   const [averageDiscount, setAverageDiscount] = useState(0);
   const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
   const [interviewerStats, setInterviewerStats] = useState<Array<{ name: string, conversion: number, total: number, enrolled: number }>>([]);
@@ -1106,12 +1160,18 @@ export const AdvancedReportsTab = () => {
 
       if (totalStudents > 0) {
         setConversionRate((enrolledStudents / totalStudents) * 100);
+        setConversionEnrolled(enrolledStudents);
+        setConversionTotal(totalStudents);
       } else {
         setConversionRate(0);
+        setConversionEnrolled(0);
+        setConversionTotal(0);
       }
     } catch (error) {
       console.error('Erro ao calcular taxa de conversão:', error);
       setConversionRate(0);
+      setConversionEnrolled(0);
+      setConversionTotal(0);
     }
   };
 
@@ -1913,14 +1973,11 @@ export const AdvancedReportsTab = () => {
 
       <div className="space-y-6">
       <section id="filtros" className="scroll-mt-20">
-      {/* Filtros */}
-      <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-        <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-          <CardDescription>Selecione unidade, segmento, série e período para análise específica</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <ReportSectionCard
+        accent
+        title="Filtros"
+        description="Selecione unidade, segmento, série e período para análise específica"
+      >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -2027,48 +2084,39 @@ export const AdvancedReportsTab = () => {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </ReportSectionCard>
       </section>
 
       <section id="visao-unidade" className="scroll-mt-20">
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 shrink-0 text-primary" />
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <CardTitle className="text-base">Visão por Unidade</CardTitle>
-              <CardDescription className="text-sm">
-                Situação de cada unidade por status
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
+      <ReportSectionCard
+        icon={MapPin}
+        title="Visão por Unidade"
+        description="Situação de cada unidade por status"
+      >
           <UnitsStatusOverviewTable
             rows={unitStatusRows}
             totals={unitStatusTotals}
             loading={unitStatusLoading}
           />
-        </CardContent>
-      </Card>
+      </ReportSectionCard>
       </section>
 
       <section id="evolucao" className="scroll-mt-20">
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle>Inscritos e Matriculados ao Longo do Tempo</CardTitle>
-          <CardDescription>
-            Evolução diária ou semanal conforme o volume de dados no período filtrado
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <ReportSectionCard
+        icon={LineChart}
+        title="Inscritos e Matriculados ao Longo do Tempo"
+        description="Evolução diária ou semanal conforme o volume de dados no período filtrado"
+      >
           <EnrollmentTimelineChart data={enrollmentTimeline} />
-        </CardContent>
-      </Card>
+      </ReportSectionCard>
       </section>
 
       <section id="top-leads" className="scroll-mt-20">
+      <ReportSectionCard
+        icon={Trophy}
+        title="Top Leads"
+        description="Inscritos com maior engajamento por unidade"
+      >
       <EngagementReportsSection
         visibleUnits={visibleUnits}
         classes={classes}
@@ -2078,139 +2126,131 @@ export const AdvancedReportsTab = () => {
         selectedSegment={selectedSegment}
         currentAcademicYear={getCurrentAcademicYear()}
       />
+      </ReportSectionCard>
       </section>
 
-      <section id="conversao" className="scroll-mt-20 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversão de Matrículas</CardTitle>
-            <CardDescription>Taxa de conversão por período</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{conversionRate.toFixed(2)}%</div>
-            <p className="text-sm text-muted-foreground">Conversão de referência: 25%</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Desconto Médio</CardTitle>
-            <CardDescription>Percentual médio de desconto concedido</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageDiscount.toFixed(1)}%</div>
-            <p className="text-sm text-muted-foreground">
-              {averageDiscount > 0 ? 'Baseado em alunos matriculados' : 'Nenhum desconto aplicado'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Mensalidade Média</CardTitle>
-            <CardDescription>Valor médio após descontos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {averageMonthlyFee > 0 ? `R$ ${averageMonthlyFee.toFixed(0)}` : 'R$ 0'}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {averageMonthlyFee > 0 ? 'Valor após aplicação de descontos' : 'Nenhum aluno matriculado'}
-            </p>
-          </CardContent>
-        </Card>
+      <section id="conversao" className="scroll-mt-20">
+      <ReportSectionCard
+        icon={Percent}
+        title="Conversão"
+        description="Matrículas, entrevistas, provas e desistências"
+      >
+      <div className="space-y-6">
+      <ReportSubsectionLabel>Métricas de Conversão</ReportSubsectionLabel>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <MetricKpiCard
+          label="Conversão de Matrículas"
+          value={`${conversionRate.toFixed(1)}%`}
+          subtext={`${conversionEnrolled} matriculados de ${conversionTotal} inscritos`}
+        />
+        <MetricKpiCard
+          label="Desconto Médio"
+          value={`${averageDiscount.toFixed(0)}%`}
+          subtext={averageDiscount > 0 ? 'Desconto médio aplicado' : 'Nenhum desconto aplicado'}
+        />
+        <MetricKpiCard
+          label="Mensalidade Média"
+          value={averageMonthlyFee > 0 ? `R$ ${averageMonthlyFee.toFixed(0)}` : 'R$ 0'}
+          subtext={averageMonthlyFee > 0 ? 'Valor médio por matriculado' : 'Nenhum aluno matriculado'}
+        />
       </div>
 
-      {/* Seção de Estatísticas de Entrevistas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Entrevistas Marcadas</CardTitle>
-            <CardDescription>Alunos com data de entrevista definida</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scheduledInterviews}</div>
-            <p className="text-sm text-muted-foreground">Data de entrevista preenchida</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Entrevistas Realizadas</CardTitle>
-            <CardDescription>Alunos com desconto/atendimento registrado</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completedInterviews}</div>
-            <p className="text-sm text-muted-foreground">Campo discount_percentage preenchido</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Taxa de Realização</CardTitle>
-            <CardDescription>Percentual de entrevistas efetivadas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{interviewCompletionRate.toFixed(1)}%</div>
-            <p className="text-sm text-muted-foreground">Realizadas ÷ Marcadas</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <MetricKpiCard compact label="Entrevistas Marcadas" value={scheduledInterviews} />
+        <MetricKpiCard compact label="Entrevistas Realizadas" value={completedInterviews} />
+        <MetricKpiCard compact label="Taxa de Realização" value={`${interviewCompletionRate.toFixed(1)}%`} />
       </div>
 
-      {/* Presença em Provas (Datas Passadas) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Presença em Provas (Datas Passadas)</CardTitle>
-          <CardDescription>Inscritos vs comparecimentos por data de exame</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <ReportAccentInnerCard
+        icon={Users}
+        title="Presença em Provas"
+        description="Inscritos vs comparecimentos por data de exame"
+      >
           {examAttendanceStats.length > 0 ? (
-            <div className="space-y-3">
-              {examAttendanceStats.map(item => (
-                <div key={`${item.exam_date}-${item.unit_name}`} className="border rounded-lg p-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">
-                        {new Date(item.exam_date + 'T00:00:00').toLocaleDateString('pt-BR')} • {item.unit_name}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <button
-                          onClick={() => fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'registered')}
-                          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
-                        >
-                          <Users className="h-3.5 w-3.5" />
-                          <span>{item.registered} inscritos</span>
-                        </button>
-                        <span className="text-gray-300">•</span>
-                        <button
-                          onClick={() => fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'attended')}
-                          className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors cursor-pointer"
-                        >
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          <span>{item.attended} comparecimentos</span>
-                        </button>
-                      </div>
-                    </div>
-                    <div className={`text-lg font-semibold ${item.attendance_rate >= 70 ? 'text-green-600' : item.attendance_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                      {item.attendance_rate.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${item.registered > 0 ? (item.attended / item.registered) * 100 : 0}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            examAttendanceStats.map((item) => (
+              <ProgressBarRow
+                key={`${item.exam_date}-${item.unit_name}`}
+                label={`${new Date(item.exam_date + 'T00:00:00').toLocaleDateString('pt-BR')} · ${item.unit_name}`}
+                links={
+                  <>
+                    <ReportCountLink
+                      count={item.registered}
+                      label="inscritos"
+                      onClick={() =>
+                        fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'registered')
+                      }
+                    />
+                    <span className="text-gray-300">·</span>
+                    <ReportCountLink
+                      count={item.attended}
+                      label="presentes"
+                      tone="green"
+                      onClick={() =>
+                        fetchStudentsForExam(item.exam_date, item.unit_id, item.unit_name, 'attended')
+                      }
+                    />
+                  </>
+                }
+                value={`${item.attendance_rate.toFixed(1)}%`}
+                valueLabel="Comparecimento"
+                percentage={item.registered > 0 ? (item.attended / item.registered) * 100 : 0}
+              />
+            ))
           ) : (
-            <p className="text-gray-500">Nenhuma presença registrada para datas passadas</p>
+            <p className="text-sm text-gray-500">Nenhuma presença registrada para datas passadas</p>
           )}
-        </CardContent>
-      </Card>
+      </ReportAccentInnerCard>
+
+      <MetricKpiCard
+        label="Tempo Médio até Matrícula"
+        value={`${averageEnrollmentTimeDays.toFixed(1)} dias`}
+        subtext="Entre cadastro e matrícula"
+      />
+
+      <ReportAccentInnerCard icon={Users} title="Conversão por Entrevistador">
+        {interviewerStats.length > 0 ? (
+          interviewerStats.map((interviewer) => (
+            <ProgressBarRow
+              key={interviewer.name}
+              label={interviewer.name}
+              value={`${interviewer.conversion.toFixed(1)}%`}
+              valueLabel="Conversão"
+              percentage={interviewer.conversion}
+            />
+          ))
+        ) : (
+          <p className="text-sm text-gray-500">Nenhum dado de entrevistador disponível</p>
+        )}
+      </ReportAccentInnerCard>
+
+      <ReportAccentInnerCard
+        icon={AlertTriangle}
+        title="Motivos de Desistência"
+        description="Distribuição dos motivos registrados"
+      >
+        {dropoutReasonStats.length > 0 ? (
+          dropoutReasonStats.map((item) => (
+            <div
+              key={item.reason}
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer"
+              onClick={() => fetchStudentsForDropoutReason(item.reason_key, item.reason)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchStudentsForDropoutReason(item.reason_key, item.reason)}
+            >
+              <ProgressBarRow
+                label={item.reason}
+                value={item.count}
+                percentage={item.percentage}
+              />
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-gray-500">Nenhum caso de desistência encontrado</p>
+        )}
+      </ReportAccentInnerCard>
+      </div>
+      </ReportSectionCard>
 
       {/* Dialog: lista de alunos inscritos/comparecimentos por prova */}
       <Dialog open={examStudentsDialog.open} onOpenChange={(open) => setExamStudentsDialog(prev => ({ ...prev, open }))}>
@@ -2258,195 +2298,90 @@ export const AdvancedReportsTab = () => {
           )}
         </DialogContent>
       </Dialog>
+      </section>
 
-      {/* Tempo médio entre cadastro e matrícula */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tempo Médio até Matrícula</CardTitle>
-          <CardDescription>Dias entre cadastro e matrícula</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{averageEnrollmentTimeDays.toFixed(1)} dias</div>
-          <p className="text-sm text-muted-foreground">Baseado em interações de matrícula e última atualização</p>
-        </CardContent>
-      </Card>
+      <section id="contatos" className="scroll-mt-20">
+      <ReportSectionCard
+        icon={Phone}
+        title="Contatos"
+        description="Tentativas por atendente, canal e motivo"
+      >
+      <div className="space-y-6">
+      <ReportSubsectionLabel>Análise de Contatos</ReportSubsectionLabel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Conversão por Entrevistador</CardTitle>
-          <CardDescription>Performance individual dos entrevistadores</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {interviewerStats.length > 0 ? (
-              interviewerStats.map((interviewer, index) => (
-                <div key={interviewer.name} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{interviewer.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {interviewer.enrolled}/{interviewer.total} alunos
-                    </span>
-                  </div>
-                  <span className={`font-semibold ${interviewer.conversion >= 70 ? 'text-green-600' :
-                      interviewer.conversion >= 50 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                    {interviewer.conversion.toFixed(1)}%
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-500 py-4">
-                Nenhum dado de entrevistador disponível
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <ReportAccentInnerCard icon={Phone} title="Contatos por Atendente">
+        {contactsByAttendant.length > 0 ? (
+          contactsByAttendant.map((att) => {
+            const maxTotal = Math.max(...contactsByAttendant.map((a) => a.total), 1);
+            return (
+              <ProgressBarRow
+                key={att.attendant_name}
+                label={att.attendant_name}
+                value={att.total}
+                percentage={(att.total / maxTotal) * 100}
+              />
+            );
+          })
+        ) : (
+          <p className="text-sm text-gray-500">Nenhuma tentativa encontrada</p>
+        )}
+      </ReportAccentInnerCard>
 
-      {/* Motivos de Desistência */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Motivos de Desistência</CardTitle>
-          <CardDescription>Distribuição dos motivos registrados</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dropoutReasonStats.length > 0 ? (
-            <div className="space-y-3">
-              {dropoutReasonStats.map((item) => (
-                <div
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <MetricKpiCard
+          label="Média de Contatos por Matrícula"
+          value={avgContactsPerEnrolled.toFixed(1)}
+          subtext="Inclui alunos com 0 tentativas"
+        />
+
+        <ReportAccentInnerCard icon={MessageCircle} title="Contatos por Canal">
+          {contactsByChannel.length > 0 ? (
+            contactsByChannel.map((item) => {
+              const maxTotal = Math.max(...contactsByChannel.map((c) => c.total), 1);
+              return (
+                <ProgressBarRow
+                  key={item.channel}
+                  label={item.channel}
+                  value={item.total}
+                  percentage={(item.total / maxTotal) * 100}
+                />
+              );
+            })
+          ) : (
+            <p className="text-sm text-gray-500">Nenhuma tentativa encontrada</p>
+          )}
+        </ReportAccentInnerCard>
+
+        <ReportAccentInnerCard icon={Phone} title="Contatos por Motivo">
+          {contactsByReason.length > 0 ? (
+            contactsByReason.map((item) => {
+              const maxTotal = Math.max(...contactsByReason.map((r) => r.total), 1);
+              return (
+                <ProgressBarRow
                   key={item.reason}
-                  className="border rounded-lg p-3 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all"
-                  onClick={() => fetchStudentsForDropoutReason(item.reason_key, item.reason)}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{item.reason}</span>
-                    <span className="text-sm text-blue-600 font-semibold">{item.count} alunos ({item.percentage.toFixed(1)}%)</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${item.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  label={item.reason}
+                  value={`${item.succeeded}/${item.total}`}
+                  percentage={(item.total / maxTotal) * 100}
+                />
+              );
+            })
           ) : (
-            <p className="text-gray-500">Nenhum caso de desistência encontrado</p>
+            <p className="text-sm text-gray-500">Nenhuma tentativa encontrada</p>
           )}
-        </CardContent>
-      </Card>
-      </section>
-
-      <section id="contatos" className="scroll-mt-20 space-y-6">
-      {/* Contatos por Atendente */}
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle>Contatos por Atendente</CardTitle>
-          <CardDescription>Número de tentativas registradas por atendente</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {contactsByAttendant.length > 0 ? (
-            <div className="space-y-3">
-              {contactsByAttendant.map((att) => (
-                <div key={att.attendant_name} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="font-medium">{att.attendant_name}</span>
-                  <span className="text-sm text-gray-700">{att.total} contatos</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500">Nenhuma tentativa encontrada</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Relatório de Contatos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Média de Contatos por Matrícula</CardTitle>
-            <CardDescription>Tentativas médias por aluno matriculado</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgContactsPerEnrolled.toFixed(1)}</div>
-            <p className="text-sm text-muted-foreground">Inclui alunos com 0 tentativas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contatos por Canal</CardTitle>
-            <CardDescription>Tentativas e sucesso por canal</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {contactsByChannel.length > 0 ? (
-              <div className="space-y-3">
-                {contactsByChannel.map((item) => (
-                  <div key={item.channel} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium capitalize">{item.channel}</span>
-                      <span className="text-sm text-gray-600">
-                        {item.succeeded}/{item.total} com sucesso
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${item.total > 0 ? (item.succeeded / item.total) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">Nenhuma tentativa encontrada</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contatos por Motivo</CardTitle>
-            <CardDescription>Tentativas e sucesso por motivo</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {contactsByReason.length > 0 ? (
-              <div className="space-y-3">
-                {contactsByReason.map((item) => (
-                  <div key={item.reason} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium capitalize">{item.reason}</span>
-                      <span className="text-sm text-gray-600">
-                        {item.succeeded}/{item.total} com sucesso
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${item.total > 0 ? (item.succeeded / item.total) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">Nenhuma tentativa encontrada</p>
-            )}
-          </CardContent>
-        </Card>
+        </ReportAccentInnerCard>
       </div>
+      </div>
+      </ReportSectionCard>
       </section>
 
-      <section id="origens" className="scroll-mt-20 space-y-6">
-      {/* Relatório de Origens de Inscrição */}
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle>Origens de Inscrição</CardTitle>
-          <CardDescription>Análise de canais de captação de alunos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      <section id="origens" className="scroll-mt-20">
+      <ReportSectionCard
+        icon={Share2}
+        title="Origens"
+        description="Canais de captação e códigos de tracking"
+      >
+      <div className="space-y-6">
+      <ReportAccentInnerCard icon={Share2} title="Origens de Inscrição" description="Análise de canais de captação">
             {registrationSources.length > 0 ? (
               <Tabs defaultValue="lista" className="space-y-4">
                 <TabsList>
@@ -2454,71 +2389,44 @@ export const AdvancedReportsTab = () => {
                   <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
-                  {/* Resumo geral */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {registrationSources.length}
-                      </div>
-                      <div className="text-sm text-blue-600">Canais Ativos</div>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {registrationSources.reduce((sum, source) => sum + source.total_students, 0)}
-                      </div>
-                      <div className="text-sm text-green-600">Total de Inscrições</div>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {registrationSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
-                      </div>
-                      <div className="text-sm text-purple-600">Alunos Matriculados</div>
-                    </div>
+                  <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <SummaryStatBox label="Canais Ativos" value={registrationSources.length} />
+                    <SummaryStatBox
+                      label="Total de Inscrições"
+                      value={registrationSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    />
+                    <SummaryStatBox
+                      label="Alunos Matriculados"
+                      tone="green"
+                      value={registrationSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    />
                   </div>
 
-                  {/* Lista detalhada */}
-                  <div className="space-y-3">
-                    {registrationSources.map((source, index) => (
-                      <div key={source.source_label} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{source.source_label}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                              <button
-                                onClick={() => fetchStudentsForSource(source.source_label, 'all')}
-                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                              >
-                                <Users className="h-3.5 w-3.5" />
-                                <span>{source.total_students} inscrições</span>
-                              </button>
-                              <span className="text-gray-300">•</span>
-                              <button
-                                onClick={() => fetchStudentsForSource(source.source_label, 'enrolled')}
-                                className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors"
-                              >
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                <span>{source.enrolled_students} matriculados</span>
-                              </button>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`text-lg font-bold ${source.conversion_rate >= 70 ? 'text-green-600' :
-                                source.conversion_rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-                              }`}>
-                              {source.conversion_rate.toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-gray-500">Taxa de Conversão</div>
-                          </div>
-                        </div>
-
-                        {/* Barra de progresso */}
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${source.percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                  <div className="space-y-1">
+                    {registrationSources.map((source) => (
+                      <ProgressBarRow
+                        key={source.source_label}
+                        label={source.source_label}
+                        links={
+                          <>
+                            <ReportCountLink
+                              count={source.total_students}
+                              label="inscrições"
+                              onClick={() => fetchStudentsForSource(source.source_label, 'all')}
+                            />
+                            <span className="text-gray-300">·</span>
+                            <ReportCountLink
+                              count={source.enrolled_students}
+                              label="matriculados"
+                              tone="green"
+                              onClick={() => fetchStudentsForSource(source.source_label, 'enrolled')}
+                            />
+                          </>
+                        }
+                        value={`${source.conversion_rate.toFixed(1)}%`}
+                        valueLabel="Conversão"
+                        percentage={source.percentage}
+                      />
                     ))}
                   </div>
                 </TabsContent>
@@ -2539,20 +2447,13 @@ export const AdvancedReportsTab = () => {
                 </div>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+      </ReportAccentInnerCard>
 
-      {/* Relatório de Tracking Codes */}
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle>Relatório de Fontes de Inscrições</CardTitle>
-          <CardDescription>
-            Análise de cadastros e matrículas por código de fonte
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      <ReportAccentInnerCard
+        icon={Share2}
+        title="Fontes de Inscrições"
+        description="Cadastros e matrículas por código de tracking"
+      >
             {trackingSources.length > 0 ? (
               <Tabs defaultValue="lista" className="space-y-4">
                 <TabsList>
@@ -2560,78 +2461,44 @@ export const AdvancedReportsTab = () => {
                   <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
-                  {/* Resumo geral */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {trackingSources.length}
-                      </div>
-                      <div className="text-sm text-blue-600">Códigos Ativos</div>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
-                      </div>
-                      <div className="text-sm text-green-600">Total de Alunos com Código</div>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {trackingSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
-                      </div>
-                      <div className="text-sm text-purple-600">Alunos Matriculados</div>
-                    </div>
+                  <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <SummaryStatBox label="Códigos Ativos" value={trackingSources.length} />
+                    <SummaryStatBox
+                      label="Total de Alunos com Código"
+                      value={trackingSources.reduce((sum, source) => sum + source.total_students, 0)}
+                    />
+                    <SummaryStatBox
+                      label="Alunos Matriculados"
+                      tone="green"
+                      value={trackingSources.reduce((sum, source) => sum + source.enrolled_students, 0)}
+                    />
                   </div>
 
-                  {/* Lista detalhada */}
-                  <div className="space-y-3">
-                    {trackingSources.map((source, index) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              Código: {source.tracking_code}
-                            </h4>
-                            <div className="flex items-center gap-3 mt-1">
-                              <button
-                                onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'all')}
-                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                              >
-                                <Users className="h-3.5 w-3.5" />
-                                <span>{source.total_students} cadastros</span>
-                              </button>
-                              <span className="text-gray-300">•</span>
-                              <button
-                                onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'enrolled')}
-                                className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 hover:underline transition-colors"
-                              >
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                <span>{source.enrolled_students} matriculados</span>
-                              </button>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-semibold text-gray-900">
-                              {source.conversion_rate.toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-gray-500">conversão</div>
-                          </div>
-                        </div>
-
-                        {/* Barra de progresso */}
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{ width: `${source.percentage}%` }}
-                          ></div>
-                        </div>
-
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>{source.percentage.toFixed(1)}% do total rastreado</span>
-                          <span>
-                            {source.enrolled_students}/{source.total_students} matriculados
-                          </span>
-                        </div>
-                      </div>
+                  <div className="space-y-1">
+                    {trackingSources.map((source) => (
+                      <ProgressBarRow
+                        key={source.tracking_code}
+                        label={`Código: ${source.tracking_code}`}
+                        links={
+                          <>
+                            <ReportCountLink
+                              count={source.total_students}
+                              label="cadastros"
+                              onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'all')}
+                            />
+                            <span className="text-gray-300">·</span>
+                            <ReportCountLink
+                              count={source.enrolled_students}
+                              label="matriculados"
+                              tone="green"
+                              onClick={() => fetchStudentsForTrackingCode(source.tracking_code, 'enrolled')}
+                            />
+                          </>
+                        }
+                        value={`${source.conversion_rate.toFixed(1)}%`}
+                        valueLabel="Conversão"
+                        percentage={source.percentage}
+                      />
                     ))}
                   </div>
                 </TabsContent>
@@ -2652,9 +2519,9 @@ export const AdvancedReportsTab = () => {
                 </div>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+      </ReportAccentInnerCard>
+      </div>
+      </ReportSectionCard>
       </section>
 
       </div>

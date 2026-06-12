@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LineChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EngagementScoreBadge } from '@/components/EngagementScoreBadge';
+import { ReportAccentInnerCard } from '@/components/reports/AdvancedReportLayout';
 import {
   getScoreTier,
   getScoreTierLabel,
 } from '@/utils/engagementScore';
 import { getClassIdsForSeriesFilter } from '@/utils/educationLevel';
+import { STUDENT_STATUS_LABELS } from '@/utils/studentStatus';
+import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
 type EngagementLead = {
@@ -196,105 +199,111 @@ export function EngagementReportsSection({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Top leads por engajamento</CardTitle>
-          <CardDescription>
-            Até {TOP_N_PER_UNIT} inscritos ativos com maior score por unidade (exclui matriculados e desistentes)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : !hasData || topLeadsByUnit.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum lead com score disponível.</p>
-          ) : (
-            <div className="space-y-6">
-              {topLeadsByUnit.map((unitBlock) => (
-                <div key={unitBlock.unitId}>
-                  <h4 className="mb-2 font-semibold text-gray-900">{unitBlock.unitName}</h4>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Aluno</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Atualizado</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {unitBlock.leads.map((lead) => (
-                          <TableRow key={lead.id}>
-                            <TableCell>
-                              <Link
-                                to={`/student/${lead.id}`}
-                                className="font-medium text-blue-600 hover:underline"
-                              >
-                                {lead.student_name}
-                              </Link>
-                            </TableCell>
-                            <TableCell>
-                              <EngagementScoreBadge score={lead.engagement_score} size="compact" />
-                            </TableCell>
-                            <TableCell className="text-sm">{lead.status}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {lead.engagement_score_at
-                                ? new Date(lead.engagement_score_at).toLocaleString('pt-BR')
-                                : '—'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Distribuição de engajamento por unidade</CardTitle>
-          <CardDescription>
-            Quantidade de inscritos ativos em cada faixa de score
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : distribution.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem dados para exibir.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Unidade</TableHead>
-                    <TableHead className="text-center">{getScoreTierLabel('alto')}</TableHead>
-                    <TableHead className="text-center">{getScoreTierLabel('medio')}</TableHead>
-                    <TableHead className="text-center">{getScoreTierLabel('baixo')}</TableHead>
-                    <TableHead className="text-center">{getScoreTierLabel('sem')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {distribution.map((row) => (
-                    <TableRow key={row.unitId}>
-                      <TableCell className="font-medium">{row.unitName}</TableCell>
-                      <TableCell className="text-center">{row.alto}</TableCell>
-                      <TableCell className="text-center">{row.medio}</TableCell>
-                      <TableCell className="text-center">{row.baixo}</TableCell>
-                      <TableCell className="text-center">{row.sem}</TableCell>
+      <ReportAccentInnerCard
+        icon={LineChart}
+        title="Top leads por engajamento"
+        description={`Até ${TOP_N_PER_UNIT} inscritos ativos com maior score por unidade`}
+      >
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : !hasData || topLeadsByUnit.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum lead com score disponível.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="table-fixed w-full">
+              <colgroup>
+                <col className="w-[26%]" />
+                <col className="w-[28%]" />
+                <col className="w-[12%]" />
+                <col className="w-[22%]" />
+                <col className="w-[12%]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs text-gray-500">Unidade</TableHead>
+                  <TableHead className="text-xs text-gray-500">Aluno</TableHead>
+                  <TableHead className="text-xs text-gray-500">Score</TableHead>
+                  <TableHead className="text-xs text-gray-500">Status</TableHead>
+                  <TableHead className="text-xs text-gray-500">Atualizado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {topLeadsByUnit.flatMap((unitBlock, unitIndex) =>
+                  unitBlock.leads.map((lead, index) => (
+                    <TableRow
+                      key={lead.id}
+                      className={cn(
+                        'hover:bg-transparent',
+                        index === 0 && unitIndex > 0 && 'border-t border-gray-200'
+                      )}
+                    >
+                      <TableCell className="py-2 align-top text-sm font-medium text-gray-900">
+                        {index === 0 ? unitBlock.unitName : ''}
+                      </TableCell>
+                      <TableCell className="py-2 align-top">
+                        <Link
+                          to={`/student/${lead.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {lead.student_name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="py-2 align-top">
+                        <EngagementScoreBadge score={lead.engagement_score} size="compact" />
+                      </TableCell>
+                      <TableCell className="py-2 align-top text-sm text-gray-500">
+                        {STUDENT_STATUS_LABELS[lead.status] ?? lead.status}
+                      </TableCell>
+                      <TableCell className="py-2 align-top text-sm text-gray-500">
+                        {lead.engagement_score_at
+                          ? new Date(lead.engagement_score_at).toLocaleDateString('pt-BR')
+                          : '—'}
+                      </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </ReportAccentInnerCard>
+
+      <ReportAccentInnerCard
+        icon={LineChart}
+        title="Distribuição de engajamento por unidade"
+        description="Inscritos ativos em cada faixa de score"
+      >
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : distribution.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem dados para exibir.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs text-gray-500">Unidade</TableHead>
+                  <TableHead className="text-center text-xs text-gray-500">{getScoreTierLabel('alto')}</TableHead>
+                  <TableHead className="text-center text-xs text-gray-500">{getScoreTierLabel('medio')}</TableHead>
+                  <TableHead className="text-center text-xs text-gray-500">{getScoreTierLabel('baixo')}</TableHead>
+                  <TableHead className="text-center text-xs text-gray-500">{getScoreTierLabel('sem')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {distribution.map((row) => (
+                  <TableRow key={row.unitId} className="hover:bg-transparent">
+                    <TableCell className="py-2 font-medium">{row.unitName}</TableCell>
+                    <TableCell className="py-2 text-center">{row.alto}</TableCell>
+                    <TableCell className="py-2 text-center">{row.medio}</TableCell>
+                    <TableCell className="py-2 text-center">{row.baixo}</TableCell>
+                    <TableCell className="py-2 text-center">{row.sem}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </ReportAccentInnerCard>
     </div>
   );
 }
