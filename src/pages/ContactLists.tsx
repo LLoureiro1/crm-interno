@@ -594,7 +594,7 @@ const ContactLists = () => {
                       <TableRow>
                         <TableHead>Aluno</TableHead>
                         <TableHead>Score</TableHead>
-                        <TableHead>Unidade / Série / Turma</TableHead>
+                        <TableHead>Unidade / Série</TableHead>
                         <TableHead>Designado</TableHead>
                         <TableHead>Entrou</TableHead>
                         <TableHead>Saiu</TableHead>
@@ -607,7 +607,7 @@ const ContactLists = () => {
                           <TableCell>
                             <EngagementScoreBadge score={item.students?.engagement_score} size="compact" />
                           </TableCell>
-                          <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'} / {item.students?.classes?.name || '-'}</TableCell>
+                          <TableCell className="text-sm">{item.students?.classes?.units?.name || '-'} / {item.students?.classes?.series?.name || '-'}</TableCell>
                           <TableCell className="text-sm">{item.profiles?.name || item.assigned_user_id || '-'}</TableCell>
                           <TableCell className="text-sm">{new Date(item.entered_at).toLocaleString('pt-BR')}</TableCell>
                           <TableCell className="text-sm">{item.left_at ? new Date(item.left_at).toLocaleString('pt-BR') : '-'}</TableCell>

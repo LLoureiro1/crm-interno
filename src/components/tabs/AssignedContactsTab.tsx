@@ -299,8 +299,7 @@ export const AssignedContactsTab = () => {
                       </p>
                       <p className="text-sm text-gray-600 break-words">
                         {item.students?.classes?.units?.name || '-'} /{' '}
-                        {item.students?.classes?.series?.name || '-'} /{' '}
-                        {item.students?.classes?.name || '-'}
+                        {item.students?.classes?.series?.name || '-'}
                       </p>
                       <Button
                         variant="outline"
@@ -322,7 +321,7 @@ export const AssignedContactsTab = () => {
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</TableHead>
-                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série / Turma</TableHead>
+                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série</TableHead>
                         <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -334,8 +333,7 @@ export const AssignedContactsTab = () => {
                           </TableCell>
                           <TableCell className="py-3 text-sm text-gray-600">
                             {item.students?.classes?.units?.name || '-'} /{' '}
-                            {item.students?.classes?.series?.name || '-'} /{' '}
-                            {item.students?.classes?.name || '-'}
+                            {item.students?.classes?.series?.name || '-'}
                           </TableCell>
                           <TableCell className="py-3 text-sm">
                             <Button
