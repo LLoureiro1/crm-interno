@@ -10,6 +10,7 @@ import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Tables } from '@/integrations/supabase/types';
 import { formatDateForDisplay, formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { formatCpf } from '@/utils/cpf';
@@ -419,7 +420,7 @@ export const StudentsTab = () => {
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
     return (
-      <Badge variant={config.variant} className={className}>
+      <Badge variant={config.variant} className={className} title={config.label}>
         {config.label}
       </Badge>
     );
@@ -677,14 +678,7 @@ export const StudentsTab = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="min-w-0 pt-4">
-          <div className="mb-3 hidden lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_9rem_minmax(8rem,9.5rem)_auto] lg:gap-x-3 lg:border-b lg:border-gray-100 lg:pb-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</span>
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série</span>
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Datas</span>
-            <span className="text-center text-xs font-medium uppercase tracking-wide text-gray-400">Status</span>
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Ações</span>
-          </div>
-          <div className="min-w-0 space-y-0 divide-y divide-gray-100">
+          <div className="min-w-0 space-y-0 lg:hidden divide-y divide-gray-100">
             {currentStudents.map((student) => {
               const seriesName = student.classes?.series?.name || '-';
               const unitName = student.classes?.units?.name || '-';
@@ -694,7 +688,7 @@ export const StudentsTab = () => {
                   key={student.id}
                   className="min-w-0 py-4 first:pt-0 hover:bg-gray-50/50"
                 >
-                  <div className="flex min-w-0 flex-col gap-3 lg:hidden">
+                  <div className="flex min-w-0 flex-col gap-3">
                     <div className="w-full">
                       {getStatusBadge(
                         student.status,
@@ -754,74 +748,108 @@ export const StudentsTab = () => {
                       </Button>
                     </div>
                   </div>
-
-                  <div className="hidden min-w-0 lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_9rem_minmax(8rem,9.5rem)_auto] lg:items-stretch lg:gap-x-3">
-                    <div className="min-w-0">
-                      <h3 className="font-medium text-gray-900">{student.student_name}</h3>
-                      <p className="text-sm text-gray-600">Código: {student.code}</p>
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 text-sm leading-snug text-gray-600" title={seriesName}>
-                        {seriesName}
-                      </p>
-                      <p className="line-clamp-2 text-sm leading-snug text-gray-600" title={unitName}>
-                        {unitName}
-                      </p>
-                    </div>
-
-                    <div className="flex min-w-0 flex-col justify-center gap-0.5 self-stretch">
-                      {student.exam_date && (
-                        <p className="flex items-center gap-1 text-xs text-gray-600">
-                          <Calendar className="h-2.5 w-2.5 shrink-0" />
-                          <span className="whitespace-nowrap">
-                            Prova: {formatDateForDisplay(student.exam_date)}
-                          </span>
-                        </p>
-                      )}
-                      {student.interview_date && (
-                        <p className="flex items-center gap-1 text-xs leading-tight text-blue-600">
-                          <Calendar className="h-2.5 w-2.5 shrink-0" />
-                          <span className="whitespace-nowrap">
-                            Entrevista: {formatDateForDisplay(student.interview_date)}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex min-w-[8rem] items-center justify-center self-stretch">
-                      {getStatusBadge(
-                        student.status,
-                        'h-auto max-w-full whitespace-normal text-center leading-tight px-2 py-1 text-[11px]'
-                      )}
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1.5 self-stretch">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewStudent(student)}
-                        className="h-8 px-2 text-xs"
-                      >
-                        <Eye className="mr-1 h-3.5 w-3.5 shrink-0" />
-                        Resumo
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenStudentPage(student.id)}
-                        onContextMenu={(e) => handleContextMenu(e, student.id)}
-                        title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
-                        className="h-8 px-2 text-xs"
-                      >
-                        <ExternalLink className="mr-1 h-3.5 w-3.5 shrink-0" />
-                        Abrir ficha
-                      </Button>
-                    </div>
-                  </div>
                 </div>
               );
             })}
+          </div>
+
+          <div className="hidden min-w-0 lg:block [&>div]:overflow-x-hidden">
+            <Table className="table-fixed w-full">
+              <colgroup>
+                <col className="w-[19%]" />
+                <col className="w-[26%]" />
+                <col className="w-[11%]" />
+                <col className="w-[18%]" />
+                <col className="w-[26%]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Datas</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Status</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentStudents.map((student) => {
+                  const seriesName = student.classes?.series?.name || '-';
+                  const unitName = student.classes?.units?.name || '-';
+
+                  return (
+                    <TableRow key={student.id} className="hover:bg-gray-50/50">
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
+                        <p className="line-clamp-2 font-medium leading-snug text-gray-900" title={student.student_name}>
+                          {student.student_name}
+                        </p>
+                        <p className="truncate text-sm text-gray-600">Código: {student.code}</p>
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
+                        <div
+                          className="line-clamp-3 text-sm leading-snug text-gray-600"
+                          title={`${seriesName}\n${unitName}`}
+                        >
+                          <span className="block">{seriesName}</span>
+                          <span className="block">{unitName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
+                        <div className="line-clamp-3 space-y-1">
+                          {student.exam_date && (
+                            <p className="flex items-start gap-1 text-xs leading-tight text-gray-600">
+                              <Calendar className="mt-0.5 h-2.5 w-2.5 shrink-0" />
+                              <span>
+                                <span className="block">Prova:</span>
+                                <span className="block">{formatDateForDisplay(student.exam_date)}</span>
+                              </span>
+                            </p>
+                          )}
+                          {student.interview_date && (
+                            <p className="flex items-start gap-1 text-xs leading-tight text-blue-600">
+                              <Calendar className="mt-0.5 h-2.5 w-2.5 shrink-0" />
+                              <span>
+                                <span className="block">Entrevista:</span>
+                                <span className="block">{formatDateForDisplay(student.interview_date)}</span>
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-1.5 py-3 align-top">
+                        {getStatusBadge(
+                          student.status,
+                          'block h-auto w-full max-w-full whitespace-normal break-words rounded-md px-1.5 py-0.5 text-center text-[10px] leading-tight line-clamp-3'
+                        )}
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewStudent(student)}
+                            className="h-7 min-w-0 flex-1 px-1.5 text-[10px]"
+                          >
+                            <Eye className="mr-0.5 h-3 w-3 shrink-0" />
+                            <span className="truncate">Resumo</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenStudentPage(student.id)}
+                            onContextMenu={(e) => handleContextMenu(e, student.id)}
+                            title="Clique esquerdo: abrir na mesma aba | Clique direito: abrir em nova aba"
+                            className="h-7 min-w-0 flex-1 border-primary/25 px-1.5 text-[10px] text-primary hover:bg-primary/5"
+                          >
+                            <ExternalLink className="mr-0.5 h-3 w-3 shrink-0" />
+                            <span className="truncate">Abrir ficha</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
           
           {/* Componente de Paginação */}
