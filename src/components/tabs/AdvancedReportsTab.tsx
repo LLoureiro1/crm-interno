@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp } from 'lucide-react';
+import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp, MapPin } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
@@ -2033,13 +2033,18 @@ export const AdvancedReportsTab = () => {
 
       <section id="visao-unidade" className="scroll-mt-20">
       <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle>Visão por Unidade</CardTitle>
-          <CardDescription>
-            Situação de cada unidade por status no período selecionado
-          </CardDescription>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 shrink-0 text-primary" />
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <CardTitle className="text-base">Visão por Unidade</CardTitle>
+              <CardDescription className="text-sm">
+                Situação de cada unidade por status
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <UnitsStatusOverviewTable
             rows={unitStatusRows}
             totals={unitStatusTotals}
