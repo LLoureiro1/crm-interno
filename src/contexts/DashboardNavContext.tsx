@@ -29,6 +29,13 @@ export const ADVANCED_REPORT_SECTIONS = [
 
 export type AdvancedReportSectionId = (typeof ADVANCED_REPORT_SECTIONS)[number]['id'];
 
+export const APPOINTMENT_SECTIONS = [
+  { id: 'calendar', label: 'Calendário' },
+  { id: 'list', label: 'Agendamentos' },
+] as const;
+
+export type AppointmentSectionId = (typeof APPOINTMENT_SECTIONS)[number]['id'];
+
 type DashboardNavContextType = {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -38,6 +45,9 @@ type DashboardNavContextType = {
   advancedReportsActiveSection: AdvancedReportSectionId;
   setAdvancedReportsActiveSection: (section: AdvancedReportSectionId) => void;
   advancedReportsScrollToSectionRef: React.MutableRefObject<((id: string) => void) | null>;
+  appointmentsActiveSection: AppointmentSectionId;
+  setAppointmentsActiveSection: (section: AppointmentSectionId) => void;
+  appointmentsScrollToSectionRef: React.MutableRefObject<((id: string) => void) | null>;
 };
 
 const DashboardNavContext = createContext<DashboardNavContextType | null>(null);
@@ -50,6 +60,10 @@ export function DashboardNavProvider({ children }: { children: ReactNode }) {
     ADVANCED_REPORT_SECTIONS[0].id
   );
   const advancedReportsScrollToSectionRef = useRef<((id: string) => void) | null>(null);
+  const [appointmentsActiveSection, setAppointmentsActiveSection] = useState<AppointmentSectionId>(
+    APPOINTMENT_SECTIONS[0].id
+  );
+  const appointmentsScrollToSectionRef = useRef<((id: string) => void) | null>(null);
 
   return (
     <DashboardNavContext.Provider
@@ -62,6 +76,9 @@ export function DashboardNavProvider({ children }: { children: ReactNode }) {
         advancedReportsActiveSection,
         setAdvancedReportsActiveSection,
         advancedReportsScrollToSectionRef,
+        appointmentsActiveSection,
+        setAppointmentsActiveSection,
+        appointmentsScrollToSectionRef,
       }}
     >
       {children}

@@ -1,21 +1,21 @@
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, ClipboardList } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentDate } from '@/utils/dateUtils';
-
-const tabTriggerClassName = cn(
-  'flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-none transition-colors',
-  'data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm',
-  'data-[state=inactive]:border-gray-200 data-[state=inactive]:bg-white data-[state=inactive]:text-gray-600'
-);
+import {
+  APPOINTMENT_SECTIONS,
+  type AppointmentSectionId,
+  useDashboardNav,
+} from '@/contexts/DashboardNavContext';
 
 export const AppointmentsTab = () => {
   const [todayCount, setTodayCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
+  const {
+    setAppointmentsActiveSection,
+    appointmentsScrollToSectionRef,
+  } = useDashboardNav();
 
   useEffect(() => {
     const fetchTodayCount = async () => {
@@ -32,6 +32,66 @@ export const AppointmentsTab = () => {
 
     fetchTodayCount();
   }, []);
+
+  useEffect(() => {
+    const navOffset = 64;
+
+    const getActiveSectionId = (): AppointmentSectionId => {
+      const sections = APPOINTMENT_SECTIONS.map(({ id }) => ({
+        id,
+        element: document.getElementById(id),
+      })).filter((section): section is { id: AppointmentSectionId; element: HTMLElement } => !!section.element);
+
+      if (sections.length === 0) return APPOINTMENT_SECTIONS[0].id;
+
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+      const atPageBottom = pageBottom - scrollBottom <= 80;
+
+      if (atPageBottom) {
+        return sections[sections.length - 1].id;
+      }
+
+      let activeId = sections[0].id;
+
+      for (const { id, element } of sections) {
+        if (element.getBoundingClientRect().top <= navOffset) {
+          activeId = id;
+        }
+      }
+
+      return activeId;
+    };
+
+    const handleScroll = () => {
+      setAppointmentsActiveSection(getActiveSectionId());
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [setAppointmentsActiveSection]);
+
+  const scrollToSection = useCallback((sectionId: AppointmentSectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setAppointmentsActiveSection(sectionId);
+  }, [setAppointmentsActiveSection]);
+
+  useEffect(() => {
+    appointmentsScrollToSectionRef.current = scrollToSection;
+    return () => {
+      appointmentsScrollToSectionRef.current = null;
+    };
+  }, [scrollToSection, appointmentsScrollToSectionRef]);
+
+  useEffect(() => {
+    setAppointmentsActiveSection(APPOINTMENT_SECTIONS[0].id);
+  }, [setAppointmentsActiveSection]);
 
   return (
     <div className="relative -mt-2 min-w-0 w-full max-w-none md:-mt-4 lg:-mt-6">
@@ -54,29 +114,7 @@ export const AppointmentsTab = () => {
         </div>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as 'calendar' | 'list')}
-        className="min-w-0 space-y-4"
-      >
-        <TabsList className="h-auto gap-2 bg-transparent p-0">
-          <TabsTrigger value="calendar" className={tabTriggerClassName}>
-            <Calendar className="h-4 w-4 shrink-0" />
-            <span>Calendário</span>
-          </TabsTrigger>
-          <TabsTrigger value="list" className={tabTriggerClassName}>
-            <ClipboardList className="h-4 w-4 shrink-0" />
-            <span>Agendamentos</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="calendar" className="mt-0">
-          <AppointmentCalendar view="full" onTodayCountChange={setTodayCount} />
-        </TabsContent>
-        <TabsContent value="list" className="mt-0">
-          <AppointmentCalendar view="list" onTodayCountChange={setTodayCount} />
-        </TabsContent>
-      </Tabs>
+      <AppointmentCalendar view="full" onTodayCountChange={setTodayCount} />
     </div>
   );
 };

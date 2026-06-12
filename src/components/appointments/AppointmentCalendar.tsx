@@ -701,6 +701,7 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
   return (
     <div className="space-y-6">
       {view === 'full' && (
+        <section id="calendar" className="scroll-mt-20">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-8">
             {accentBar}
@@ -735,9 +736,11 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
 
           <div className="xl:col-span-4">{filtersPanel}</div>
         </div>
+        </section>
       )}
 
       {view === 'list' && (
+        <section id="calendar" className="scroll-mt-20">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-8">
             {accentBar}
@@ -761,8 +764,10 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
           </Card>
           <div className="xl:col-span-4">{filtersPanel}</div>
         </div>
+        </section>
       )}
 
+      <section id="list" className="scroll-mt-20">
       <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {accentBar}
         <CardHeader className="border-b border-gray-100 pb-3 pl-5">
@@ -902,6 +907,7 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
           )}
         </CardContent>
       </Card>
+      </section>
 
       <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">

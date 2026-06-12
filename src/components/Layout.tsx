@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   DashboardNavProvider,
   ADVANCED_REPORT_SECTIONS,
+  APPOINTMENT_SECTIONS,
   REPORT_SECTIONS,
   TAB_LABELS,
   useDashboardNav,
@@ -24,20 +25,31 @@ function LayoutHeader() {
     reportsScrollToSectionRef,
     advancedReportsActiveSection,
     advancedReportsScrollToSectionRef,
+    appointmentsActiveSection,
+    appointmentsScrollToSectionRef,
   } = useDashboardNav();
   const pageTitle = TAB_LABELS[activeTab] ?? 'Dashboard';
   const isReportsTab = activeTab === 'reports';
   const isAdvancedReportsTab = activeTab === 'advanced-reports';
-  const showSectionNav = isReportsTab || isAdvancedReportsTab;
+  const isAppointmentsTab = activeTab === 'appointments';
+  const showSectionNav = isReportsTab || isAdvancedReportsTab || isAppointmentsTab;
   const headerSections: readonly { id: string; label: string; shortLabel?: string }[] = isReportsTab
     ? REPORT_SECTIONS
     : isAdvancedReportsTab
       ? ADVANCED_REPORT_SECTIONS
-      : [];
-  const headerActiveSection = isReportsTab ? reportsActiveSection : advancedReportsActiveSection;
-  const headerScrollRef: React.MutableRefObject<((id: string) => void) | null> = isReportsTab
-    ? reportsScrollToSectionRef
-    : advancedReportsScrollToSectionRef;
+      : isAppointmentsTab
+        ? APPOINTMENT_SECTIONS
+        : [];
+  const headerActiveSection = isReportsTab
+    ? reportsActiveSection
+    : isAdvancedReportsTab
+      ? advancedReportsActiveSection
+      : appointmentsActiveSection;
+  const handleSectionClick = (id: string) => {
+    if (isReportsTab) reportsScrollToSectionRef.current?.(id);
+    else if (isAdvancedReportsTab) advancedReportsScrollToSectionRef.current?.(id);
+    else if (isAppointmentsTab) appointmentsScrollToSectionRef.current?.(id);
+  };
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 shadow-sm sm:gap-2 sm:px-4">
@@ -62,7 +74,7 @@ function LayoutHeader() {
             <button
               key={id}
               type="button"
-              onClick={() => headerScrollRef.current?.(id)}
+              onClick={() => handleSectionClick(id)}
               title={label}
               className={cn(
                 'shrink-0 rounded-full border font-medium transition-all duration-150',
