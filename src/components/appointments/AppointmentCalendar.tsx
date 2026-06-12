@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign, AlertCircle } from 'lucide-react';
+import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign, AlertCircle, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateForDisplay, formatTimeForDisplay, getCurrentDate, dateToLocalString } from '@/utils/dateUtils';
@@ -17,6 +17,8 @@ import type { Tables } from '@/integrations/supabase/types';
 import { MaterialPaymentSelector, type MaterialPaymentType } from '@/components/ui/MaterialPaymentSelector';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { getSegmentLabel, getSeriesIdsForSegment, sortSegments } from '@/utils/educationLevel';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 
 type Appointment = Tables<'appointments'> & {
   students?: Tables<'students'> & {
@@ -28,7 +30,7 @@ type Appointment = Tables<'appointments'> & {
       unit_id?: string;
     };
   };
-  profiles?: Tables<'profiles'>;
+  profiles?: Pick<Tables<'profiles'>, 'name'>;
   unit?: { id: string; name: string };
   series?: { id: string; name: string };
   interviewer?: { id: string; name: string };
@@ -36,9 +38,11 @@ type Appointment = Tables<'appointments'> & {
 
 interface AppointmentCalendarProps {
   onDateSelect?: (date: string) => void;
+  view?: 'full' | 'list';
+  onTodayCountChange?: (count: number) => void;
 }
 
-export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) {
+export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountChange }: AppointmentCalendarProps) {
   // Inicializa com a data atual
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
@@ -67,7 +71,7 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
   }, []);
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
-  const [interviewers, setInterviewers] = useState<Tables<'profiles'>[]>([]);
+  const [interviewers, setInterviewers] = useState<Tables<'staff_directory'>[]>([]);
   const [filters, setFilters] = useState({ unit: 'all', segment: 'all', series: 'all', interviewer: 'all' });
 
   const availableSegments = useMemo(
@@ -124,6 +128,15 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
     console.log('Current filters:', filters);
     applyFilters();
   }, [appointments, filters]);
+
+  useEffect(() => {
+    if (!onTodayCountChange) return;
+    const todayStr = getCurrentDate();
+    const selectedStr = dateToLocalString(selectedDate);
+    if (selectedStr === todayStr) {
+      onTodayCountChange(filteredAppointments.length);
+    }
+  }, [filteredAppointments, selectedDate, onTodayCountChange]);
   
   // Log filtered appointments whenever they change
   useEffect(() => {
@@ -175,7 +188,7 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
       setUnits(unitsData.data || []);
       setSeries(seriesData.data || []);
       // Sanitize entrevistadores para evitar itens nulos e manter apenas válidos
-      const sanitizedInterviewers = (interviewersData.data || []).filter((p: any) => p && p.id);
+      const sanitizedInterviewers = (interviewersData.data || []).filter((p) => p?.id);
       setInterviewers(sanitizedInterviewers);
       
       console.log('Filters loaded:', {
@@ -547,9 +560,13 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
     
     switch (status) {
       case 'agendado':
-        return <Badge variant="secondary">Agendado</Badge>;
       case 'scheduled':
-        return <Badge variant="secondary">Agendado</Badge>;
+        return (
+          <Badge className="gap-1.5 border-0 bg-blue-50 font-medium text-primary hover:bg-blue-50">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            Agendado
+          </Badge>
+        );
       case 'cancelado':
         return <Badge variant="destructive">Cancelado</Badge>;
       case 'faltou':
@@ -561,151 +578,220 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
     }
   };
 
+  const accentBar = <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />;
+
+  const calendarClassNames = {
+    months: 'flex w-full flex-col',
+    month: 'w-full space-y-5',
+    caption: 'relative mb-2 flex items-center justify-center pt-1',
+    caption_label: 'text-lg font-semibold text-gray-900',
+    nav: 'flex items-center space-x-1',
+    nav_button: cn(
+      buttonVariants({ variant: 'outline' }),
+      'h-9 w-9 rounded-lg border-gray-200 bg-transparent p-0 opacity-80 hover:opacity-100'
+    ),
+    nav_button_previous: 'absolute left-0',
+    nav_button_next: 'absolute right-0',
+    table: 'w-full border-collapse',
+    head_row: 'mb-2 flex w-full',
+    head_cell: 'flex-1 text-center text-sm font-medium capitalize text-muted-foreground',
+    row: 'mt-1 flex w-full',
+    cell: 'relative flex-1 p-1 text-center',
+    day: cn(
+      buttonVariants({ variant: 'ghost' }),
+      'mx-auto h-11 w-11 rounded-lg p-0 text-base font-medium aria-selected:opacity-100'
+    ),
+    day_selected:
+      'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
+    day_today: 'font-semibold text-primary',
+    day_outside: 'text-muted-foreground opacity-40',
+  };
+
+  const filtersPanel = (
+    <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {accentBar}
+      <CardHeader className="border-b border-gray-100 pb-3 pl-5">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Filter className="h-5 w-5 shrink-0 text-primary" />
+          <span>Filtros</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 pl-5 pt-4">
+        {filtersLoading ? (
+          <div className="flex h-48 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Unidade</label>
+              <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                <SelectTrigger className="mt-1 rounded-xl border-gray-200 bg-white shadow-sm">
+                  <SelectValue placeholder="Todas as unidades" />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="all">Todas as unidades</SelectItem>
+                  {units.map(unit => (
+                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Segmento</label>
+              <Select value={filters.segment} onValueChange={handleSegmentChange}>
+                <SelectTrigger className="mt-1 rounded-xl border-gray-200 bg-white shadow-sm">
+                  <SelectValue placeholder="Todos os segmentos" />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="all">Todos os segmentos</SelectItem>
+                  {availableSegments.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {getSegmentLabel(level)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Série</label>
+              <Select value={filters.series} onValueChange={(value) => setFilters(prev => ({ ...prev, series: value }))}>
+                <SelectTrigger className="mt-1 rounded-xl border-gray-200 bg-white shadow-sm">
+                  <SelectValue placeholder="Todas as séries" />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="all">Todas as séries</SelectItem>
+                  {filteredSeriesOptions.map(serie => (
+                    <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Entrevistador</label>
+              <Select value={filters.interviewer} onValueChange={(value) => setFilters(prev => ({ ...prev, interviewer: value }))}>
+                <SelectTrigger className="mt-1 rounded-xl border-gray-200 bg-white shadow-sm">
+                  <SelectValue placeholder="Todos os entrevistadores" />
+                </SelectTrigger>
+                <SelectContent side="bottom">
+                  <SelectItem value="all">Todos os entrevistadores</SelectItem>
+                  {interviewers.map(interviewer => (
+                    <SelectItem key={interviewer.id} value={interviewer.id}>{interviewer.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={() => setFilters({ unit: 'all', segment: 'all', series: 'all', interviewer: 'all' })}
+              variant="outline"
+              className="w-full rounded-xl border-gray-200"
+            >
+              Limpar Filtros
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Calendar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <CalendarIcon className="h-5 w-5" />
-              <span>Selecionar Data</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading && appointments.length === 0 ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            ) : (
+      {view === 'full' && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-8">
+            {accentBar}
+            <CardHeader className="border-b border-gray-100 pb-3 pl-5">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
+                <CalendarIcon className="h-5 w-5 shrink-0 text-primary" />
+                <span>Calendário de Agendamentos</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pl-5 pt-5">
+              <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                Selecionar Data
+              </p>
+              {loading && appointments.length === 0 ? (
+                <div className="flex h-80 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  className="w-full max-w-none rounded-xl border-2 border-primary/25 p-4 md:p-6"
+                  classNames={calendarClassNames}
+                  initialFocus
+                  today={today}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="xl:col-span-4">{filtersPanel}</div>
+        </div>
+      )}
+
+      {view === 'list' && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-8">
+            {accentBar}
+            <CardHeader className="border-b border-gray-100 pb-3 pl-5">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
+                <CalendarIcon className="h-5 w-5 shrink-0 text-primary" />
+                <span>Selecionar Data</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pl-5 pt-5">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateSelect}
-                className="w-full rounded-md border p-3"
+                className="w-full max-w-none rounded-xl border-2 border-primary/25 p-4 md:p-6"
+                classNames={calendarClassNames}
                 initialFocus
                 today={today}
               />
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <div className="xl:col-span-4">{filtersPanel}</div>
+        </div>
+      )}
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filtros</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {filtersLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="text-sm font-medium">Unidade</label>
-                  <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as unidades" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      <SelectItem value="all">Todas as unidades</SelectItem>
-                      {units.map(unit => (
-                        <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Segmento</label>
-                  <Select value={filters.segment} onValueChange={handleSegmentChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos os segmentos" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      <SelectItem value="all">Todos os segmentos</SelectItem>
-                      {availableSegments.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {getSegmentLabel(level)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Série</label>
-                  <Select value={filters.series} onValueChange={(value) => setFilters(prev => ({ ...prev, series: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas as séries" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      <SelectItem value="all">Todas as séries</SelectItem>
-                      {filteredSeriesOptions.map(serie => (
-                        <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Entrevistador</label>
-                  <Select value={filters.interviewer} onValueChange={(value) => setFilters(prev => ({ ...prev, interviewer: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos os entrevistadores" />
-                    </SelectTrigger>
-                    <SelectContent side="bottom">
-                      <SelectItem value="all">Todos os entrevistadores</SelectItem>
-                      {interviewers.map(interviewer => (
-                        <SelectItem key={interviewer.id} value={interviewer.id}>{interviewer.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button 
-                  onClick={() => setFilters({ unit: 'all', segment: 'all', series: 'all', interviewer: 'all' })}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Limpar Filtros
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Appointments List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <ClipboardList className="h-5 w-5" />
+      <Card className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        {accentBar}
+        <CardHeader className="border-b border-gray-100 pb-3 pl-5">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
+            <ClipboardList className="h-5 w-5 shrink-0 text-primary" />
             <span>Agendamentos para {formatDateForDisplay(dateToLocalString(selectedDate))}</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pl-5 pt-4">
           {loading ? (
               <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                 <span className="ml-2 text-gray-500">Carregando agendamentos...</span>
               </div>
             ) : filteredAppointments && filteredAppointments.length > 0 ? (
-              <div className="space-y-4">
+              <div className="divide-y divide-gray-100">
                 {filteredAppointments.map((appointment) => (
-                <div key={appointment.id} className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
+                <div key={appointment.id} className="space-y-3 py-5 first:pt-0 last:pb-0">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-500" />
-                        <span className="font-medium">
+                        <span className="text-base font-semibold">
                           {appointment.appointment_time ? formatTimeForDisplay(appointment.appointment_time) : 'Horário não definido'}
                         </span>
                       </div>
                       {getStatusBadge(appointment.status || '', appointment.attended || false, appointment.students?.status)}
                     </div>
-                    <div className="mt-2 sm:mt-0 flex w-full sm:w-auto flex-col sm:flex-row gap-2 sm:space-x-2 sm:justify-end">
+                    <div className="flex w-full flex-col gap-2 sm:mt-0 sm:w-auto sm:flex-row sm:justify-end">
                       {appointment.status !== 'realizado' && 
                        appointment.status !== 'faltou' && 
                        appointment.students?.status !== 'atendimento_recentemente' && ( 
@@ -714,7 +800,7 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
                             size="sm"
                             onClick={() => handleStatusUpdate(appointment.id, 'faltou')}
                             variant="outline"
-                            className="text-red-600 w-full sm:w-auto"
+                            className="w-full border-red-300 text-red-600 hover:bg-red-50 sm:w-auto"
                             disabled={loading}
                           >
                             Marcar Falta
@@ -722,7 +808,7 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
                           <Button
                             size="sm"
                             onClick={() => handleOpenAttendanceModal(appointment)}
-                            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+                            className="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
                             disabled={loading || profile?.profile === 'padrao'}
                             title={profile?.profile === 'padrao' ? 'Usuários com perfil "Padrão" não podem realizar atendimentos' : 'Registrar atendimento'}
                           >
@@ -747,60 +833,63 @@ export function AppointmentCalendar({ onDateSelect }: AppointmentCalendarProps) 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">Aluno:</span>
+                  <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-gray-700">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 shrink-0 text-gray-500" />
+                      <span className="font-medium text-gray-900">Aluno:</span>
                       <span>{appointment.students?.student_name || 'Não informado'}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Building2 className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">Unidade:</span>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 shrink-0 text-gray-500" />
+                      <span className="font-medium text-gray-900">Unidade:</span>
                       <span>
-                        {appointment.students?.classes?.units?.name || 
-                         appointment.unit?.name || 
+                        {appointment.students?.classes?.units?.name ||
+                         appointment.unit?.name ||
                          'Não informada'}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <GraduationCap className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">Série:</span>
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4 shrink-0 text-gray-500" />
+                      <span className="font-medium text-gray-900">Série:</span>
                       <span>
-                        {appointment.students?.classes?.series?.name || 
-                         appointment.series?.name || 
+                        {appointment.students?.classes?.series?.name ||
+                         appointment.series?.name ||
                          'Não informada'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm">
-                      <span className="font-medium">Entrevistador: </span> 
-                      {appointment.profiles?.name || 
-                       appointment.interviewer?.name || 
-                       'Não informado'}
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
+                    <div>
+                      <span className="font-semibold text-gray-900">Entrevistador: </span>
+                      <span className="text-gray-700">
+                        {appointment.profiles?.name ||
+                         appointment.interviewer?.name ||
+                         'Não informado'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">Formato:</span>
+                      <Badge
+                        variant="outline"
+                        className="border-gray-200 bg-gray-50 font-normal text-gray-700"
+                      >
+                        {appointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
+                      </Badge>
                     </div>
                   </div>
 
                   {appointment.comments && (
-                    <div className="text-sm">
-                      <span className="font-medium">Comentários:</span> {appointment.comments}
+                    <div className="text-sm text-gray-700">
+                      <span className="font-semibold text-gray-900">Comentários:</span> {appointment.comments}
                     </div>
                   )}
 
-                  {appointment.discount_percentage && (
-                    <div className="text-sm">
-                      <span className="font-medium">Desconto:</span> {appointment.discount_percentage}%
+                  {appointment.discount_percentage ? (
+                    <div className="text-sm text-gray-700">
+                      <span className="font-semibold text-gray-900">Desconto:</span> {appointment.discount_percentage}%
                     </div>
-                  )}
-
-                  {/* Formato em linha separada ao final do card */}
-                  <div className="flex items-center space-x-2 text-sm">
-                    <span className="font-medium">Formato:</span>
-                    <Badge variant={appointment.formato_entrevista === 'a_distancia' ? 'secondary' : 'outline'}>
-                      {appointment.formato_entrevista === 'a_distancia' ? 'A Distância' : 'Presencial'}
-                    </Badge>
-                  </div>
+                  ) : null}
                 </div>
               ))}
             </div>
