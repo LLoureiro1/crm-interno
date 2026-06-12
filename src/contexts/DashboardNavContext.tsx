@@ -64,7 +64,6 @@ export function DashboardNavProvider({ children }: { children: ReactNode }) {
     APPOINTMENT_SECTIONS[0].id
   );
   const appointmentsScrollToSectionRef = useRef<((id: string) => void) | null>(null);
-
   return (
     <DashboardNavContext.Provider
       value={{

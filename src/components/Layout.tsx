@@ -52,6 +52,7 @@ function LayoutHeader() {
     else if (isAdvancedReportsTab) advancedReportsScrollToSectionRef.current?.(id);
     else if (isAppointmentsTab) appointmentsScrollToSectionRef.current?.(id);
   };
+  const useCompactSectionNav = isAdvancedReportsTab;
 
   return (
     <header
@@ -64,7 +65,7 @@ function LayoutHeader() {
       <nav
         className={cn(
           'flex min-w-0 shrink items-center gap-1.5 text-sm text-slate-500',
-          showSectionNav && isAdvancedReportsTab && 'hidden lg:flex'
+          showSectionNav && useCompactSectionNav && 'hidden lg:flex'
         )}
       >
         <Home className="h-4 w-4 shrink-0 text-[#1437cc]" />
@@ -76,7 +77,7 @@ function LayoutHeader() {
           className={cn(
             'flex min-w-0 w-full basis-full flex-wrap items-center justify-center gap-1 overflow-visible py-0.5',
             'md:w-auto md:basis-auto md:flex-1 md:flex-nowrap md:overflow-hidden md:py-0',
-            isAdvancedReportsTab ? 'md:gap-0.5 lg:gap-1' : 'md:gap-1 md:overflow-x-auto md:px-1 sm:gap-1.5'
+            useCompactSectionNav ? 'md:gap-0.5 lg:gap-1' : 'md:gap-1 md:overflow-x-auto md:px-1 sm:gap-1.5'
           )}
         >
           {headerSections.map(({ id, label, shortLabel }) => (
@@ -87,7 +88,7 @@ function LayoutHeader() {
               title={label}
               className={cn(
                 'shrink-0 rounded-full border font-medium transition-all duration-150',
-                isAdvancedReportsTab
+                useCompactSectionNav
                   ? 'px-1.5 py-0.5 text-[10px] sm:px-2 sm:text-[11px] lg:px-2.5 lg:text-xs'
                   : 'px-3 py-1 text-xs sm:px-4 sm:py-1.5 sm:text-sm',
                 headerActiveSection === id
@@ -95,7 +96,7 @@ function LayoutHeader() {
                   : 'border-primary/20 bg-white text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground'
               )}
             >
-              {isAdvancedReportsTab && shortLabel ? shortLabel : label}
+              {useCompactSectionNav && shortLabel ? shortLabel : label}
             </button>
           ))}
         </nav>

@@ -1,5 +1,6 @@
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserManagement } from '@/components/management/UserManagement';
@@ -14,6 +15,7 @@ import { RegistrationSourceManagement } from '@/components/management/Registrati
 import { EmailAutomationManagement } from '@/components/management/EmailAutomationManagement';
 import { GoalManagement } from '@/components/management/GoalManagement';
 import ContactLists from '@/pages/ContactLists';
+import { cn } from '@/lib/utils';
 
 const CONFIG_SECTION_TABS = [
   { value: 'users', label: 'Usuários' },
@@ -30,13 +32,18 @@ const CONFIG_SECTION_TABS = [
   { value: 'goals', label: 'Metas' },
 ] as const;
 
-const tabTriggerClassName =
-  'h-auto min-h-9 whitespace-normal px-2 py-2 text-center text-xs leading-snug sm:min-h-10 sm:text-sm';
+type ConfigSection = (typeof CONFIG_SECTION_TABS)[number]['value'];
+
+const tabTriggerClassName = cn(
+  'rounded-none border-b-2 border-transparent px-3 py-2 text-sm font-medium text-gray-500 shadow-none sm:px-4 sm:py-2.5',
+  'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
+);
 
 const configCardClassName = 'min-w-0 overflow-hidden';
 
 export const ConfigTab = () => {
   const isMounted = useRef<boolean>(true);
+  const [active, setActive] = useState<ConfigSection>('users');
 
   useEffect(() => {
     isMounted.current = true;
@@ -58,16 +65,25 @@ export const ConfigTab = () => {
   }, []);
 
   return (
-    <div className="min-w-0 w-full max-w-full space-y-4 sm:space-y-6">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">Configurações</h2>
-        <p className="text-sm text-gray-600 sm:text-base">
-          Gerencie usuários, unidades, turmas e configurações do sistema
-        </p>
+    <div className="relative -mt-2 min-w-0 w-full max-w-none md:-mt-4 lg:-mt-6">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
+          <Settings className="h-5 w-5 text-primary-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-primary">Configurações</h2>
+          <p className="text-sm text-muted-foreground">
+            Gerencie usuários, unidades, turmas e configurações do sistema
+          </p>
+        </div>
       </div>
 
-      <Tabs defaultValue="users" className="min-w-0 space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-white p-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      <Tabs
+        value={active}
+        onValueChange={(v) => setActive(v as ConfigSection)}
+        className="min-w-0 space-y-4"
+      >
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-0 rounded-none border-b border-gray-200 bg-transparent p-0">
           {CONFIG_SECTION_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className={tabTriggerClassName}>
               {tab.label}
@@ -75,13 +91,11 @@ export const ConfigTab = () => {
           ))}
         </TabsList>
 
-        <TabsContent value="users" className="min-w-0">
+        <TabsContent value="users" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Gerenciamento de Usuários</CardTitle>
-              <CardDescription>
-                Adicione e gerencie usuários do sistema
-              </CardDescription>
+              <CardDescription>Adicione e gerencie usuários do sistema</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <UserManagement />
@@ -89,13 +103,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="units" className="min-w-0">
+        <TabsContent value="units" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Gerenciamento de Unidades</CardTitle>
-              <CardDescription>
-                Cadastre e gerencie as unidades da escola
-              </CardDescription>
+              <CardDescription>Cadastre e gerencie as unidades da escola</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <UnitManagement />
@@ -103,13 +115,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="classes" className="min-w-0">
+        <TabsContent value="classes" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Gerenciamento de Turmas</CardTitle>
-              <CardDescription>
-                Configure turmas, séries e mensalidades
-              </CardDescription>
+              <CardDescription>Configure turmas, séries e mensalidades</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <ClassManagement />
@@ -117,13 +127,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="exam-dates" className="min-w-0">
+        <TabsContent value="exam-dates" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Datas de Provas</CardTitle>
-              <CardDescription>
-                Configure as datas, horários e unidades das provas
-              </CardDescription>
+              <CardDescription>Configure as datas, horários e unidades das provas</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <ExamDateManagement />
@@ -131,13 +139,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="availability" className="min-w-0">
+        <TabsContent value="availability" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Disponibilidade de Entrevistadores</CardTitle>
-              <CardDescription>
-                Configure a disponibilidade dos entrevistadores
-              </CardDescription>
+              <CardDescription>Configure a disponibilidade dos entrevistadores</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <InterviewerAvailability />
@@ -145,13 +151,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="grades" className="min-w-0">
+        <TabsContent value="grades" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Upload de Notas</CardTitle>
-              <CardDescription>
-                Faça upload das notas dos alunos via planilha
-              </CardDescription>
+              <CardDescription>Faça upload das notas dos alunos via planilha</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <GradeUpload />
@@ -159,13 +163,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sources" className="min-w-0">
+        <TabsContent value="sources" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Origens de Inscrição</CardTitle>
-              <CardDescription>
-                Configure as opções de origem das inscrições por unidade
-              </CardDescription>
+              <CardDescription>Configure as opções de origem das inscrições por unidade</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <RegistrationSourceManagement />
@@ -173,17 +175,15 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="import" className="min-w-0">
+        <TabsContent value="import" className="mt-0 min-w-0">
           <StudentImport />
         </TabsContent>
 
-        <TabsContent value="enrollment" className="min-w-0">
+        <TabsContent value="enrollment" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Importação de Matrículas</CardTitle>
-              <CardDescription>
-                Importe dados de alunos matriculados no sistema ERP
-              </CardDescription>
+              <CardDescription>Importe dados de alunos matriculados no sistema ERP</CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <EnrollmentImport />
@@ -191,11 +191,11 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="contact-lists" className="min-w-0">
+        <TabsContent value="contact-lists" className="mt-0 min-w-0">
           <ContactLists />
         </TabsContent>
 
-        <TabsContent value="emails" className="min-w-0">
+        <TabsContent value="emails" className="mt-0 min-w-0">
           <Card className={configCardClassName}>
             <CardHeader>
               <CardTitle>Automação de E-mails</CardTitle>
@@ -209,7 +209,7 @@ export const ConfigTab = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="goals" className="min-w-0">
+        <TabsContent value="goals" className="mt-0 min-w-0">
           <div className={configCardClassName}>
             <GoalManagement />
           </div>
