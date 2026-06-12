@@ -54,7 +54,12 @@ function LayoutHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 shadow-sm sm:gap-2 sm:px-4">
+    <header
+      className={cn(
+        'sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 shadow-sm sm:gap-2 sm:px-4',
+        showSectionNav ? 'min-h-14 h-auto flex-wrap py-2 md:h-14 md:flex-nowrap md:py-0' : 'h-14'
+      )}
+    >
       <SidebarTrigger className="shrink-0 md:hidden" />
       <nav
         className={cn(
@@ -69,8 +74,9 @@ function LayoutHeader() {
       {showSectionNav && (
         <nav
           className={cn(
-            'flex min-w-0 flex-1 items-center justify-center overflow-hidden',
-            isAdvancedReportsTab ? 'gap-0.5 lg:gap-1' : 'gap-1 overflow-x-auto px-1 sm:gap-1.5'
+            'flex min-w-0 w-full basis-full flex-wrap items-center justify-center gap-1 overflow-visible py-0.5',
+            'md:w-auto md:basis-auto md:flex-1 md:flex-nowrap md:overflow-hidden md:py-0',
+            isAdvancedReportsTab ? 'md:gap-0.5 lg:gap-1' : 'md:gap-1 md:overflow-x-auto md:px-1 sm:gap-1.5'
           )}
         >
           {headerSections.map(({ id, label, shortLabel }) => (
@@ -114,7 +120,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <DashboardNavProvider>
       <SidebarProvider defaultOpen>
         <AppSidebar />
-        <SidebarInset className="min-h-svh min-w-0 bg-slate-50">
+        <SidebarInset className="min-h-svh min-w-0 bg-slate-50 max-md:[&_button.fixed.bottom-6.right-6]:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]">
           <LayoutHeader />
           <div className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 pb-20 max-md:pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-6 lg:p-8">
             {children}
