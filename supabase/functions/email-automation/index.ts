@@ -738,14 +738,41 @@ async function queueMissedRescheduleEmail(
     };
   }
 
-  const todayStr = formatIsoDate(new Date());
-  const idempotencyKey = `missed_appointment_reschedule:${studentId}:${todayStr}`;
+  const interviewDate = String(record.interview_date ?? "").trim() ||
+    formatIsoDate(new Date());
+  const idempotencyKey =
+    `missed_appointment_reschedule:${studentId}:${interviewDate}`;
+
+  const { data: existingItem } = await supabase
+    .from("email_queue")
+    .select("id, status")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+
+  if (existingItem) {
+    logEmailEvent("info", "missed_reschedule_duplicate_skipped", {
+      runId,
+      studentId,
+      idempotencyKey,
+      existingStatus: existingItem.status,
+    });
+    return {
+      skipped: true,
+      reason: "e-mail de reagendamento já enfileirado para esta falta",
+    };
+  }
+
+  const scheduledFor = resolveScheduledForFromTemplate(template);
 
   logEmailEvent("info", "missed_reschedule_queued", {
     runId,
     studentId,
     toEmail: email,
     rescheduleLink: context.reschedule_link,
+    scheduledFor,
+    sendAtHour: template.send_at_hour,
+    sendAtMinute: template.send_at_minute,
+    idempotencyKey,
   });
 
   return insertQueueItem(supabase, {
@@ -757,7 +784,7 @@ async function queueMissedRescheduleEmail(
     toName: context.responsible_name || context.student_name,
     context,
     idempotencyKey,
-    scheduledFor: new Date().toISOString(),
+    scheduledFor,
   });
 }
 
@@ -2440,6 +2467,32 @@ function buildScheduledTimestamp(
     0,
   ));
   return scheduled.toISOString();
+}
+
+/** Agenda envio conforme template (offset + hora/min). Se já passou hoje, usa o dia seguinte. */
+function resolveScheduledForFromTemplate(
+  template: EmailTemplate,
+  referenceDate: Date = new Date(),
+): string {
+  const base = new Date(referenceDate);
+  base.setUTCDate(base.getUTCDate() + (template.send_offset_days ?? 0));
+
+  let scheduledFor = buildScheduledTimestamp(
+    base,
+    template.send_at_hour,
+    template.send_at_minute,
+  );
+
+  if (new Date(scheduledFor).getTime() <= Date.now()) {
+    base.setUTCDate(base.getUTCDate() + 1);
+    scheduledFor = buildScheduledTimestamp(
+      base,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+  }
+
+  return scheduledFor;
 }
 
 function formatIsoDate(date: Date): string {
