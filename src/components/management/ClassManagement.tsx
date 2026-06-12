@@ -252,10 +252,20 @@ export const ClassManagement = () => {
         <h3 className="text-lg font-semibold">Gestão de Turmas</h3>
       </div>
 
-      <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="list">Lista de Turmas</TabsTrigger>
-          <TabsTrigger value="upload">Upload em Massa</TabsTrigger>
+      <Tabs defaultValue="list" className="w-full min-w-0">
+        <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-gray-200 bg-transparent p-0">
+          <TabsTrigger
+            value="list"
+            className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-medium text-gray-500 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+          >
+            Lista de Turmas
+          </TabsTrigger>
+          <TabsTrigger
+            value="upload"
+            className="rounded-none border-b-2 border-transparent px-3 py-2 text-xs font-medium text-gray-500 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+          >
+            Upload em Massa
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="list" className="space-y-6">
@@ -411,8 +421,8 @@ export const ClassManagement = () => {
                 </Select>
               </div>
             </CardHeader>
-            <CardContent>
-              <Table>
+            <CardContent className="overflow-x-auto">
+              <Table className="text-xs">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
@@ -421,16 +431,16 @@ export const ClassManagement = () => {
                     <TableHead>Mensalidade</TableHead>
                     <TableHead>Anuidade</TableHead>
                     <TableHead>Parcelas</TableHead>
-                    <TableHead>Recuros Didáticos Anual</TableHead>
-                    <TableHead>Recursos Didáticos Mensal</TableHead>
-                    <TableHead>Tem Prova</TableHead>
+                    <TableHead>Mat. Anual</TableHead>
+                    <TableHead>Mat. Mensal</TableHead>
+                    <TableHead>Prova</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleClasses.map((classItem) => (
                     <TableRow key={classItem.id}>
-                      <TableCell>{classItem.name}</TableCell>
+                      <TableCell className="whitespace-nowrap">{classItem.name}</TableCell>
                       <TableCell>{classItem.series.name}</TableCell>
                       <TableCell>{classItem.units.name}</TableCell>
                       <TableCell>R$ {classItem.monthly_fee.toFixed(2)}</TableCell>

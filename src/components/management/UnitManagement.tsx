@@ -263,15 +263,15 @@ export const UnitManagement = () => {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[150px]">Nome</TableHead>
-                  <TableHead className="w-[180px]">Slug</TableHead>
-                  <TableHead className="min-w-[200px]">Endereço</TableHead>
-                  <TableHead className="w-[140px]">Telefone</TableHead>
-                  <TableHead className="w-[150px]">Cidade</TableHead>
-                  <TableHead className="w-[120px] text-right">Ações</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Endereço</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Cidade</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

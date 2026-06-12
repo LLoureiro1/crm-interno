@@ -50,7 +50,7 @@ const CONFIG_SECTION_TABS = [
 type ConfigSection = (typeof CONFIG_SECTION_TABS)[number]['value'];
 
 const tabTriggerClassName = cn(
-  'rounded-none border-b-2 border-transparent px-3 py-2 text-sm font-medium text-gray-500 shadow-none sm:px-4 sm:py-2.5',
+  'rounded-none border-b-2 border-transparent px-2 py-1.5 text-xs font-medium text-gray-500 shadow-none sm:px-3 sm:py-2',
   'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
 );
 
