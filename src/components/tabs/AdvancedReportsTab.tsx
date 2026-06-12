@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp, MapPin, LineChart, Trophy, Percent, Phone, Share2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { toPng } from 'html-to-image';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -135,6 +135,65 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
   );
 };
 
+const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const COLORS = ['#2563eb', '#16a34a', '#A78BFA', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#a855f7', '#f97316', '#e11d48'];
+  const total = data.reduce((sum, d) => sum + (Number(d[valueKey]) || 0), 0);
+  const chartData = data.map((entry, index) => {
+    const count = Number(entry[valueKey]) || 0;
+    return {
+      label: String(entry[labelKey]),
+      count,
+      pct: total > 0 ? Math.round((count / total) * 100) : 0,
+      fill: COLORS[index % COLORS.length],
+    };
+  });
+  const chartHeight = Math.max(280, chartData.length * 36);
+
+  const handleDownload = async () => {
+    if (!chartRef.current) return;
+    try {
+      const dataUrl = await toPng(chartRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `${title.replace(/\s+/g, '_')}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao exportar gráfico:', err);
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-semibold text-gray-900 text-sm">{title}</h4>
+        <Button variant="outline" size="sm" onClick={handleDownload}>Baixar imagem</Button>
+      </div>
+      <div ref={chartRef} className="w-full">
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+            <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+            <YAxis
+              type="category"
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              width={160}
+              tick={{ fontSize: 11 }}
+            />
+            <Tooltip formatter={(value: number, _name, item) => [`${value} (${item.payload.pct}%)`, 'Inscrições']} />
+            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+              {chartData.map((entry, index) => (
+                <Cell key={`bar-${index}`} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
 
 type ReportSectionCardProps = {
   accent?: boolean;
@@ -2388,7 +2447,7 @@ export const AdvancedReportsTab = () => {
               <Tabs defaultValue="lista" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="lista">Lista</TabsTrigger>
-                  <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
+                  <TabsTrigger value="barras">Gráfico de Barras</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
                   <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -2432,8 +2491,8 @@ export const AdvancedReportsTab = () => {
                     ))}
                   </div>
                 </TabsContent>
-                <TabsContent value="pizza">
-                  <PieSection
+                <TabsContent value="barras">
+                  <HorizontalBarSection
                     title="Distribuição de Origens"
                     data={registrationSourcesPie.data}
                     labelKey="name"
@@ -2460,7 +2519,7 @@ export const AdvancedReportsTab = () => {
               <Tabs defaultValue="lista" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="lista">Lista</TabsTrigger>
-                  <TabsTrigger value="pizza">Gráfico de Pizza</TabsTrigger>
+                  <TabsTrigger value="barras">Gráfico de Barras</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista">
                   <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -2504,8 +2563,8 @@ export const AdvancedReportsTab = () => {
                     ))}
                   </div>
                 </TabsContent>
-                <TabsContent value="pizza">
-                  <PieSection
+                <TabsContent value="barras">
+                  <HorizontalBarSection
                     title="Distribuição por Fontes"
                     data={trackingSourcesPie.data}
                     labelKey="name"
