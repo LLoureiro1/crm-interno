@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronRight, Search } from 'lucide-react';
 
 type Unit = Tables<'units'>;
 type Serie = Tables<'series'>;
@@ -183,27 +183,28 @@ export const AssignedContactsTab = () => {
   };
 
   return (
-    <div className="min-w-0 w-full max-w-full space-y-6">
+    <div className="min-w-0 w-full max-w-full space-y-4">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Minhas Listas</h2>
-        <p className="text-gray-600">Veja suas listas e alunos atribuídos a você.</p>
+        <h3 className="text-base font-semibold text-gray-900">Minhas Listas</h3>
+        <p className="text-sm text-muted-foreground">Veja suas listas e alunos atribuídos a você.</p>
       </div>
 
-      <Card className="min-w-0 overflow-hidden">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="min-w-0 md:col-span-2">
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="Buscar por aluno, unidade, série ou turma..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full min-w-0"
+                className="w-full min-w-0 pl-10"
               />
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-gray-600">
               <input
                 type="checkbox"
-                className="shrink-0"
+                className="shrink-0 accent-primary"
                 checked={showOnlyActive}
                 onChange={(e) => setShowOnlyActive(e.target.checked)}
               />
@@ -218,12 +219,12 @@ export const AssignedContactsTab = () => {
       )}
 
       {!loading && grouped.length === 0 && (
-        <Card>
+        <Card className="border-0 shadow-sm ring-1 ring-gray-100">
           <CardHeader>
-            <CardTitle>Nenhum aluno designado</CardTitle>
+            <CardTitle className="text-base">Nenhum aluno designado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">Você ainda não possui alunos designados.</p>
+            <p className="text-sm text-muted-foreground">Você ainda não possui alunos designados.</p>
           </CardContent>
         </Card>
       )}
@@ -239,32 +240,36 @@ export const AssignedContactsTab = () => {
         const statusLabels = f?.status_in?.length ? f.status_in : [];
         const examLabels = f?.exam_date_filters?.length ? f.exam_date_filters.map(formatExamFilter) : [];
         return (
-          <Card key={group.listId} className="min-w-0 overflow-hidden">
+          <Card key={group.listId} className="min-w-0 overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
             <CardHeader
-              className="cursor-pointer space-y-3 rounded-t-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="cursor-pointer space-y-3 border-b border-gray-100 pb-3 transition-colors hover:bg-gray-50/80"
               onClick={() => toggleCollapse(group.listId)}
             >
-              <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <CardTitle className="flex flex-col gap-3 text-base sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-2">
                   {isCollapsed ? (
-                    <ChevronRight className="h-5 w-5 shrink-0" />
+                    <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 shrink-0" />
+                    <ChevronDown className="h-5 w-5 shrink-0 text-primary" />
                   )}
-                  <span className="break-words text-base">{group.listName}</span>
+                  <span className="break-words font-semibold text-gray-900">{group.listName}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:shrink-0">
-                  <Badge variant="outline">Total: {group.items.length}</Badge>
-                  <Badge variant="outline">Ativos: {activeCount}</Badge>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    Total: {group.items.length}
+                  </span>
+                  <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                    Ativos: {activeCount}
+                  </span>
                 </div>
               </CardTitle>
               {(unitLabels.length || seriesLabels.length || classLabels.length || yearsLabels.length || statusLabels.length || examLabels.length) ? (
                 <div className="flex flex-wrap gap-2">
                   {statusLabels.map((s, i) => (
-                    <Badge key={`st-${i}`} variant="secondary" className="text-xs">Status: {s}</Badge>
+                    <Badge key={`st-${i}`} variant="secondary" className="text-xs font-normal">Status: {s}</Badge>
                   ))}
                   {unitLabels.map((u, i) => (
-                    <Badge key={`u-${i}`} variant="secondary" className="text-xs">Unidade: {u}</Badge>
+                    <Badge key={`u-${i}`} variant="secondary" className="text-xs font-normal">Unidade: {u}</Badge>
                   ))}
                   {seriesLabels.map((s, i) => (
                     <Badge key={`se-${i}`} variant="secondary" className="text-xs">Série: {s}</Badge>
@@ -315,32 +320,33 @@ export const AssignedContactsTab = () => {
                 <div className="hidden min-w-0 max-w-full overflow-x-auto md:block">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Aluno</TableHead>
-                        <TableHead>Unidade / Série / Turma</TableHead>
-                        <TableHead>Ações</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</TableHead>
+                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série / Turma</TableHead>
+                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-400">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {group.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">
+                        <TableRow key={item.id} className="hover:bg-transparent">
+                          <TableCell className="py-3 font-medium text-gray-900">
                             {item.students?.student_name || item.student_id}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="py-3 text-sm text-gray-600">
                             {item.students?.classes?.units?.name || '-'} /{' '}
                             {item.students?.classes?.series?.name || '-'} /{' '}
                             {item.students?.classes?.name || '-'}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="py-3 text-sm">
                             <Button
                               variant="outline"
                               size="sm"
+                              className="border-primary/25 text-primary hover:bg-primary/5"
                               onClick={() => handleOpenNewTab(item.student_id)}
                               onContextMenu={(e) => handleRightClickOpen(e, item.student_id)}
                               title="Clique esquerdo ou direito para abrir em nova aba"
                             >
-                              <ExternalLink className="h-4 w-4 mr-2" />
+                              <ExternalLink className="mr-2 h-4 w-4 shrink-0" />
                               Abrir ficha
                             </Button>
                           </TableCell>

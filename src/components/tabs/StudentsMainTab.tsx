@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { StudentsTab } from './StudentsTab';
 import { AssignedContactsTab } from './AssignedContactsTab';
 
@@ -8,29 +9,51 @@ export const StudentsMainTab = () => {
   const [active, setActive] = useState<'list' | 'assigned'>('list');
 
   return (
-    <div className="min-w-0 w-full max-w-full space-y-4">
-      <Tabs value={active} onValueChange={(v) => setActive(v as 'list' | 'assigned')} className="min-w-0 space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 bg-white p-1 gap-1">
+    <div className="relative -mt-2 min-w-0 w-full max-w-full md:-mt-4 lg:-mt-6">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
+          <Users className="h-5 w-5 text-primary-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-primary">Gestão de Inscritos</h2>
+          <p className="text-sm text-muted-foreground">
+            Visualize e gerencie todos os candidatos cadastrados
+          </p>
+        </div>
+      </div>
+
+      <Tabs
+        value={active}
+        onValueChange={(v) => setActive(v as 'list' | 'assigned')}
+        className="min-w-0 space-y-4"
+      >
+        <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-gray-200 bg-transparent p-0">
           <TabsTrigger
             value="list"
-            className="flex items-center justify-center gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm"
+            className={cn(
+              'flex items-center gap-2 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-gray-500 shadow-none',
+              'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
+            )}
           >
             <Users className="h-4 w-4 shrink-0" />
-            <span className="truncate">Lista de Inscritos</span>
+            <span>Lista de Inscritos</span>
           </TabsTrigger>
           <TabsTrigger
             value="assigned"
-            className="flex items-center justify-center gap-1.5 px-2 py-2 text-xs sm:gap-2 sm:px-3 sm:text-sm"
+            className={cn(
+              'flex items-center gap-2 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-gray-500 shadow-none',
+              'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
+            )}
           >
             <UserCheck className="h-4 w-4 shrink-0" />
-            <span className="truncate">Minhas Listas</span>
+            <span>Minhas Listas</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-4">
+        <TabsContent value="list" className="mt-0 space-y-4">
           <StudentsTab />
         </TabsContent>
-        <TabsContent value="assigned" className="min-w-0 space-y-4">
+        <TabsContent value="assigned" className="mt-0 min-w-0 space-y-4">
           <AssignedContactsTab />
         </TabsContent>
       </Tabs>

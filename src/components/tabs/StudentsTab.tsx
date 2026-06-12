@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
@@ -502,25 +502,27 @@ export const StudentsTab = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Gestão de Inscritos</h2>
-          <p className="text-gray-600">Visualize e gerencie todos os candidatos cadastrados</p>
+          <h3 className="text-base font-semibold text-gray-900">Lista de Inscritos</h3>
+          <p className="text-sm text-muted-foreground">
+            Filtre e gerencie candidatos do ano letivo selecionado
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={exportToExcel} className="bg-orange-500 hover:bg-orange-600">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar Excel
-          </Button>
-        </div>
+        <Button onClick={exportToExcel} variant="outline" className="shrink-0 border-primary/25 text-primary hover:bg-primary/5">
+          <Download className="mr-2 h-4 w-4" />
+          Exportar Excel
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+      <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+        <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
+        <CardHeader className="pb-3 pl-5">
+          <CardTitle className="text-base">Filtros</CardTitle>
+          <CardDescription>Refine a busca por ano letivo, status, unidade e prova</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pl-5">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-1">
               <MultiSelect
@@ -662,19 +664,27 @@ export const StudentsTab = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Lista de Inscritos ({filteredStudents.length})
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
+        <CardHeader className="border-b border-gray-100 pb-3">
+          <CardTitle className="text-base">
+            Resultados ({filteredStudents.length})
             {totalPages > 1 && (
-              <span className="text-sm font-normal text-gray-600 ml-2">
-                - Página {currentPage} de {totalPages}  ({startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                — Página {currentPage} de {totalPages} ({startIndex + 1}-
+                {Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
               </span>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="min-w-0">
-          <div className="min-w-0 space-y-4">
+        <CardContent className="min-w-0 pt-4">
+          <div className="mb-3 hidden lg:grid lg:grid-cols-[minmax(11rem,1fr)_minmax(12rem,1.5fr)_9rem_minmax(8rem,9.5rem)_auto] lg:gap-x-3 lg:border-b lg:border-gray-100 lg:pb-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Datas</span>
+            <span className="text-center text-xs font-medium uppercase tracking-wide text-gray-400">Status</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Ações</span>
+          </div>
+          <div className="min-w-0 space-y-0 divide-y divide-gray-100">
             {currentStudents.map((student) => {
               const seriesName = student.classes?.series?.name || '-';
               const unitName = student.classes?.units?.name || '-';
@@ -682,7 +692,7 @@ export const StudentsTab = () => {
               return (
                 <div
                   key={student.id}
-                  className="min-w-0 rounded-lg border p-4 hover:bg-gray-50"
+                  className="min-w-0 py-4 first:pt-0 hover:bg-gray-50/50"
                 >
                   <div className="flex min-w-0 flex-col gap-3 lg:hidden">
                     <div className="w-full">
@@ -740,7 +750,7 @@ export const StudentsTab = () => {
                         className="h-8 px-2 text-xs"
                       >
                         <ExternalLink className="mr-1 h-3.5 w-3.5 shrink-0" />
-                        Gerenciar
+                        Abrir ficha
                       </Button>
                     </div>
                   </div>
@@ -805,7 +815,7 @@ export const StudentsTab = () => {
                         className="h-8 px-2 text-xs"
                       >
                         <ExternalLink className="mr-1 h-3.5 w-3.5 shrink-0" />
-                        Gerenciar
+                        Abrir ficha
                       </Button>
                     </div>
                   </div>
