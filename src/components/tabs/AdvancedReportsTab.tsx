@@ -137,7 +137,7 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
 
 const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
-  const COLORS = ['#2563eb', '#16a34a', '#A78BFA', '#f59e0b', '#ef4444', '#0ea5e9', '#22c55e', '#a855f7', '#f97316', '#e11d48'];
+  const COLORS = ['#a855f7', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#ef4444', '#f43f5e'];
   const total = data.reduce((sum, d) => sum + (Number(d[valueKey]) || 0), 0);
   const chartData = data.map((entry, index) => {
     const count = Number(entry[valueKey]) || 0;
@@ -148,7 +148,7 @@ const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string
       fill: COLORS[index % COLORS.length],
     };
   });
-  const chartHeight = Math.max(280, chartData.length * 36);
+  const chartHeight = Math.max(240, chartData.length * 28);
 
   const handleDownload = async () => {
     if (!chartRef.current) return;
@@ -183,7 +183,7 @@ const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string
               tick={{ fontSize: 11 }}
             />
             <Tooltip formatter={(value: number, _name, item) => [`${value} (${item.payload.pct}%)`, 'Inscrições']} />
-            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+            <Bar dataKey="count" maxBarSize={14} radius={[0, 3, 3, 0]}>
               {chartData.map((entry, index) => (
                 <Cell key={`bar-${index}`} fill={entry.fill} />
               ))}
