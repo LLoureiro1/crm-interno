@@ -17,12 +17,27 @@ export const REPORT_SECTIONS = [
 
 export type ReportSectionId = (typeof REPORT_SECTIONS)[number]['id'];
 
+export const ADVANCED_REPORT_SECTIONS = [
+  { id: 'filtros', label: 'Filtros', shortLabel: 'Filtros' },
+  { id: 'visao-unidade', label: 'Visão por Unidade', shortLabel: 'Unidades' },
+  { id: 'evolucao', label: 'Evolução', shortLabel: 'Evolução' },
+  { id: 'top-leads', label: 'Top Leads', shortLabel: 'Top Leads' },
+  { id: 'conversao', label: 'Conversão', shortLabel: 'Conversão' },
+  { id: 'contatos', label: 'Contatos', shortLabel: 'Contatos' },
+  { id: 'origens', label: 'Origens', shortLabel: 'Origens' },
+] as const;
+
+export type AdvancedReportSectionId = (typeof ADVANCED_REPORT_SECTIONS)[number]['id'];
+
 type DashboardNavContextType = {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   reportsActiveSection: ReportSectionId;
   setReportsActiveSection: (section: ReportSectionId) => void;
-  reportsScrollToSectionRef: React.MutableRefObject<((id: ReportSectionId) => void) | null>;
+  reportsScrollToSectionRef: React.MutableRefObject<((id: string) => void) | null>;
+  advancedReportsActiveSection: AdvancedReportSectionId;
+  setAdvancedReportsActiveSection: (section: AdvancedReportSectionId) => void;
+  advancedReportsScrollToSectionRef: React.MutableRefObject<((id: string) => void) | null>;
 };
 
 const DashboardNavContext = createContext<DashboardNavContextType | null>(null);
@@ -30,7 +45,11 @@ const DashboardNavContext = createContext<DashboardNavContextType | null>(null);
 export function DashboardNavProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState('reports');
   const [reportsActiveSection, setReportsActiveSection] = useState<ReportSectionId>(REPORT_SECTIONS[0].id);
-  const reportsScrollToSectionRef = useRef<((id: ReportSectionId) => void) | null>(null);
+  const reportsScrollToSectionRef = useRef<((id: string) => void) | null>(null);
+  const [advancedReportsActiveSection, setAdvancedReportsActiveSection] = useState<AdvancedReportSectionId>(
+    ADVANCED_REPORT_SECTIONS[0].id
+  );
+  const advancedReportsScrollToSectionRef = useRef<((id: string) => void) | null>(null);
 
   return (
     <DashboardNavContext.Provider
@@ -40,6 +59,9 @@ export function DashboardNavProvider({ children }: { children: ReactNode }) {
         reportsActiveSection,
         setReportsActiveSection,
         reportsScrollToSectionRef,
+        advancedReportsActiveSection,
+        setAdvancedReportsActiveSection,
+        advancedReportsScrollToSectionRef,
       }}
     >
       {children}

@@ -31,12 +31,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const menuButtonClass =
-  'group/nav-btn relative h-auto gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm text-white/90 shadow-none transition-all hover:bg-white/10 hover:!text-white hover:shadow-sm focus-visible:bg-white/10 focus-visible:!text-white focus-visible:ring-2 focus-visible:ring-[#ffac1a]/40 active:bg-white/15 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-md group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-1.5';
+  'group/nav-btn relative h-auto gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm text-white/90 shadow-none transition-all hover:bg-white/10 hover:!text-white hover:shadow-sm focus-visible:bg-white/10 focus-visible:!text-white focus-visible:ring-2 focus-visible:ring-[#ffac1a]/40 active:bg-white/15 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-md group-data-[collapsible=icon]:!mx-auto group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!gap-0 group-data-[collapsible=icon]:!rounded-lg group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:hover:bg-white/10 data-[active=true]:group-data-[collapsible=icon]:shadow-sm';
 
 const navIconBoxClass =
-  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 transition-colors group-data-[active=true]/nav-btn:bg-white/20 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:rounded-sm group-data-[collapsible=icon]:bg-transparent';
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 transition-colors group-data-[active=true]/nav-btn:bg-white/20 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:bg-transparent';
 
-const sectionCardClass = 'rounded-lg bg-white/[0.04] p-1.5 ring-1 ring-white/10 shadow-sm';
+const sectionCardClass =
+  'rounded-lg bg-white/[0.04] p-1.5 ring-1 ring-white/10 shadow-sm group-data-[collapsible=icon]:rounded-2xl group-data-[collapsible=icon]:bg-white/[0.08] group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:ring-white/[0.12]';
+
+const footerActionClass =
+  'h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0';
 
 type NavItem = {
   id: string;
@@ -129,7 +133,7 @@ export function AppSidebar() {
             />
           )}
           <span className={navIconBoxClass}>
-            <item.icon className="h-3.5 w-3.5 shrink-0" />
+            <item.icon className="h-3.5 w-3.5 shrink-0 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4" />
           </span>
           <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
         </SidebarMenuButton>
@@ -141,13 +145,15 @@ export function AppSidebar() {
     if (items.length === 0) return null;
 
     return (
-      <SidebarGroup className="px-2 py-0">
-        <div className={sectionCardClass}>
-          <SidebarGroupLabel className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+      <SidebarGroup className="px-2 py-0 group-data-[collapsible=icon]:px-1">
+        <div className={cn(sectionCardClass, 'group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center')}>
+          <SidebarGroupLabel className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/45 group-data-[collapsible=icon]:hidden">
             {label}
           </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">{items.map(renderNavItem)}</SidebarMenu>
+          <SidebarGroupContent className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
+            <SidebarMenu className="gap-1 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-0.5">
+              {items.map(renderNavItem)}
+            </SidebarMenu>
           </SidebarGroupContent>
         </div>
       </SidebarGroup>
@@ -159,10 +165,16 @@ export function AppSidebar() {
       collapsible="icon"
       className="border-r border-[#132856] [&_[data-sidebar=sidebar]]:bg-[#1b3472]"
     >
-      <SidebarHeader className="p-2">
-        <div className={cn(sectionCardClass, 'p-2')}>
-          <div className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm ring-1 ring-white/20 md:group-data-[collapsible=icon]:h-8 md:group-data-[collapsible=icon]:w-8">
+      <SidebarHeader className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:pb-1.5 group-data-[collapsible=icon]:pt-2">
+        <div
+          className={cn(
+            sectionCardClass,
+            'p-2',
+            'group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:ring-0'
+          )}
+        >
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm ring-1 ring-white/20 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8">
               <img
                 src="/logo_apogeu_nobg.png"
                 alt="Apogeu"
@@ -190,7 +202,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="flex flex-col gap-2 overflow-hidden px-1 py-1">
+      <SidebarContent className="flex flex-col gap-2 overflow-hidden px-1 py-1 group-data-[collapsible=icon]:gap-1.5 group-data-[collapsible=icon]:px-0.5">
         {renderNavGroup('Gestão', gestaoItems)}
         {renderNavGroup('Sistema', sistemaItems)}
 
@@ -210,8 +222,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
-        <div className={cn(sectionCardClass, 'space-y-1.5')}>
+      <SidebarFooter className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:pb-2">
+        <div
+          className={cn(
+            sectionCardClass,
+            'space-y-1.5',
+            'group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:space-y-0.5'
+          )}
+        >
           <div className="rounded-lg bg-white/[0.06] px-2 py-1.5 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-xs font-medium text-white">{profile?.name}</p>
             <p className="truncate text-[10px] capitalize text-white/55">{profile?.profile}</p>
@@ -220,10 +238,11 @@ export function AppSidebar() {
             variant="ghost"
             size="sm"
             onClick={() => signOut()}
-            className="h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+            title="Sair"
+            className={footerActionClass}
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:bg-transparent">
-              <LogOut className="h-3.5 w-3.5" />
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:bg-transparent">
+              <LogOut className="h-3.5 w-3.5 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4" />
             </span>
             <span className="group-data-[collapsible=icon]:hidden">Sair</span>
           </Button>
@@ -231,16 +250,13 @@ export function AppSidebar() {
             variant="ghost"
             size="sm"
             onClick={toggleSidebar}
-            className="hidden h-auto w-full justify-center rounded-lg px-2 py-1.5 text-white/70 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0 md:group-data-[collapsible=icon]:flex"
-            title={state === 'expanded' ? 'Recolher menu' : 'Expandir menu'}
+            className={cn(
+              footerActionClass,
+              'hidden text-white/70 md:group-data-[collapsible=icon]:flex'
+            )}
+            title="Expandir menu"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:bg-transparent">
-              {state === 'expanded' ? (
-                <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-              )}
-            </span>
+            <ChevronRight className="h-4 w-4 shrink-0" />
           </Button>
         </div>
       </SidebarFooter>

@@ -1,17 +1,22 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Users, CheckCircle } from 'lucide-react';
+import { RefreshCw, Users, CheckCircle, TrendingUp, ArrowUp } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { toPng } from 'html-to-image';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  ADVANCED_REPORT_SECTIONS,
+  type AdvancedReportSectionId,
+  useDashboardNav,
+} from '@/contexts/DashboardNavContext';
 import { Link } from 'react-router-dom';
 import {
   getClassIdsForSeriesFilter,
@@ -41,6 +46,7 @@ import {
   type UnitStatusOverviewRow,
 } from '@/components/reports/UnitsStatusOverviewTable';
 import { EngagementReportsSection } from '@/components/reports/EngagementReportsSection';
+import { cn } from '@/lib/utils';
 
 const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -137,6 +143,9 @@ const getCurrentAcademicYear = () => {
 
 export const AdvancedReportsTab = () => {
   const { profile } = useAuth();
+  const { setAdvancedReportsActiveSection, advancedReportsScrollToSectionRef } =
+    useDashboardNav();
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [conversionRate, setConversionRate] = useState(0);
   const [averageDiscount, setAverageDiscount] = useState(0);
   const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
@@ -1822,15 +1831,91 @@ export const AdvancedReportsTab = () => {
     customStartDate,
     customEndDate,
   ]);
+
+  useEffect(() => {
+    const navOffset = 64;
+
+    const getActiveSectionId = (): AdvancedReportSectionId => {
+      const sections = ADVANCED_REPORT_SECTIONS.map(({ id }) => ({
+        id,
+        element: document.getElementById(id),
+      })).filter(
+        (section): section is { id: AdvancedReportSectionId; element: HTMLElement } => !!section.element
+      );
+
+      if (sections.length === 0) return ADVANCED_REPORT_SECTIONS[0].id;
+
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const pageBottom = document.documentElement.scrollHeight;
+      const atPageBottom = pageBottom - scrollBottom <= 80;
+
+      if (atPageBottom) {
+        return sections[sections.length - 1].id;
+      }
+
+      let activeId = sections[0].id;
+
+      for (const { id, element } of sections) {
+        if (element.getBoundingClientRect().top <= navOffset) {
+          activeId = id;
+        }
+      }
+
+      return activeId;
+    };
+
+    const handleScroll = () => {
+      setAdvancedReportsActiveSection(getActiveSectionId());
+      setShowBackToTop(window.scrollY > 300);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [setAdvancedReportsActiveSection]);
+
+  const scrollToSection = useCallback(
+    (sectionId: AdvancedReportSectionId) => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setAdvancedReportsActiveSection(sectionId);
+    },
+    [setAdvancedReportsActiveSection]
+  );
+
+  useEffect(() => {
+    advancedReportsScrollToSectionRef.current = scrollToSection;
+    return () => {
+      advancedReportsScrollToSectionRef.current = null;
+    };
+  }, [scrollToSection, advancedReportsScrollToSectionRef]);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setAdvancedReportsActiveSection(ADVANCED_REPORT_SECTIONS[0].id);
+  }, [setAdvancedReportsActiveSection]);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">Relatórios Estratégicos</h2>
-        <p className="text-gray-600">Análises detalhadas a nível gerencial</p>
+    <div className="relative -mt-2 md:-mt-4 lg:-mt-6">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
+          <TrendingUp className="h-5 w-5 text-primary-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-primary">Relatórios Estratégicos</h2>
+          <p className="text-sm text-muted-foreground">Análises detalhadas a nível gerencial</p>
+        </div>
       </div>
 
+      <div className="space-y-6">
+      <section id="filtros" className="scroll-mt-20">
       {/* Filtros */}
-      <Card>
+      <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+        <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
           <CardDescription>Selecione unidade, segmento, série e período para análise específica</CardDescription>
@@ -1944,8 +2029,10 @@ export const AdvancedReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+      </section>
 
-      <Card>
+      <section id="visao-unidade" className="scroll-mt-20">
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
           <CardTitle>Visão por Unidade</CardTitle>
           <CardDescription>
@@ -1960,8 +2047,10 @@ export const AdvancedReportsTab = () => {
           />
         </CardContent>
       </Card>
+      </section>
 
-      <Card>
+      <section id="evolucao" className="scroll-mt-20">
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
           <CardTitle>Inscritos e Matriculados ao Longo do Tempo</CardTitle>
           <CardDescription>
@@ -1972,7 +2061,9 @@ export const AdvancedReportsTab = () => {
           <EnrollmentTimelineChart data={enrollmentTimeline} />
         </CardContent>
       </Card>
+      </section>
 
+      <section id="top-leads" className="scroll-mt-20">
       <EngagementReportsSection
         visibleUnits={visibleUnits}
         classes={classes}
@@ -1982,7 +2073,9 @@ export const AdvancedReportsTab = () => {
         selectedSegment={selectedSegment}
         currentAcademicYear={getCurrentAcademicYear()}
       />
+      </section>
 
+      <section id="conversao" className="scroll-mt-20 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
@@ -2238,9 +2331,11 @@ export const AdvancedReportsTab = () => {
           )}
         </CardContent>
       </Card>
+      </section>
 
+      <section id="contatos" className="scroll-mt-20 space-y-6">
       {/* Contatos por Atendente */}
-      <Card>
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
           <CardTitle>Contatos por Atendente</CardTitle>
           <CardDescription>Número de tentativas registradas por atendente</CardDescription>
@@ -2336,9 +2431,11 @@ export const AdvancedReportsTab = () => {
           </CardContent>
         </Card>
       </div>
+      </section>
 
+      <section id="origens" className="scroll-mt-20 space-y-6">
       {/* Relatório de Origens de Inscrição */}
-      <Card>
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
           <CardTitle>Origens de Inscrição</CardTitle>
           <CardDescription>Análise de canais de captação de alunos</CardDescription>
@@ -2442,7 +2539,7 @@ export const AdvancedReportsTab = () => {
       </Card>
 
       {/* Relatório de Tracking Codes */}
-      <Card>
+      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader>
           <CardTitle>Relatório de Fontes de Inscrições</CardTitle>
           <CardDescription>
@@ -2553,6 +2650,21 @@ export const AdvancedReportsTab = () => {
           </div>
         </CardContent>
       </Card>
+      </section>
+
+      </div>
+
+      {showBackToTop && (
+        <Button
+          type="button"
+          onClick={scrollToTop}
+          size="icon"
+          className="fixed bottom-6 right-6 z-30 rounded-full bg-primary shadow-lg hover:bg-primary/90"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
 
       {/* Dialog genérico compartilhado (desistências / origens / tracking) */}
       <Dialog open={genericStudentsDialog.open} onOpenChange={(open) => setGenericStudentsDialog(prev => ({ ...prev, open }))}>
