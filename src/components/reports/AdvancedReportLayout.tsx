@@ -37,23 +37,37 @@ export function MetricKpiCard({
   );
 }
 
+type ReportTone = 'primary' | 'red';
+
+const toneBar: Record<ReportTone, string> = {
+  primary: 'bg-primary',
+  red: 'bg-red-500',
+};
+
+const toneText: Record<ReportTone, string> = {
+  primary: 'text-primary',
+  red: 'text-red-600',
+};
+
 export function ReportAccentInnerCard({
   icon: Icon,
   title,
   description,
+  tone = 'primary',
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description?: string;
+  tone?: ReportTone;
   children: ReactNode;
 }) {
   return (
     <Card className={REPORT_INNER_CARD}>
-      <div className="absolute left-0 top-0 h-full w-1 bg-primary" />
+      <div className={cn('absolute left-0 top-0 h-full w-1', toneBar[tone])} />
       <CardHeader className="border-b border-gray-100 pb-3 pl-4">
         <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5 shrink-0 text-primary" />
+          <Icon className={cn('h-5 w-5 shrink-0', toneText[tone])} />
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <CardTitle className="text-base">{title}</CardTitle>
             {description && <CardDescription className="text-sm">{description}</CardDescription>}
@@ -99,12 +113,14 @@ export function ProgressBarRow({
   valueLabel,
   percentage,
   links,
+  tone = 'primary',
 }: {
   label: ReactNode;
   value: ReactNode;
   valueLabel?: string;
   percentage: number;
   links?: ReactNode;
+  tone?: ReportTone;
 }) {
   return (
     <div className="space-y-1.5 border-b border-gray-100 py-2.5 last:border-0">
@@ -114,13 +130,13 @@ export function ProgressBarRow({
           {links && <div className="mt-1 flex flex-wrap items-center gap-1.5">{links}</div>}
         </div>
         <div className="shrink-0 text-right">
-          <span className="font-semibold text-primary">{value}</span>
+          <span className={cn('font-semibold', toneText[tone])}>{value}</span>
           {valueLabel && <p className="text-[10px] text-gray-400">{valueLabel}</p>}
         </div>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className={cn('h-full rounded-full transition-all', toneBar[tone])}
           style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
         />
       </div>

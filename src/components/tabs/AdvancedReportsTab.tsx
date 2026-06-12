@@ -2224,6 +2224,7 @@ export const AdvancedReportsTab = () => {
       </ReportAccentInnerCard>
 
       <ReportAccentInnerCard
+        tone="red"
         icon={AlertTriangle}
         title="Motivos de Desistência"
         description="Distribuição dos motivos registrados"
@@ -2239,6 +2240,7 @@ export const AdvancedReportsTab = () => {
               onKeyDown={(e) => e.key === 'Enter' && fetchStudentsForDropoutReason(item.reason_key, item.reason)}
             >
               <ProgressBarRow
+                tone="red"
                 label={item.reason}
                 value={item.count}
                 percentage={item.percentage}
