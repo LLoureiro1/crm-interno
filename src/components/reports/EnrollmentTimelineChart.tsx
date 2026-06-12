@@ -24,16 +24,19 @@ type EnrollmentTimelineChartProps = {
   data: EnrollmentTimelinePoint[];
 };
 
+const INSCRITOS_COLOR = '#2563eb';
+const MATRICULADOS_COLOR = '#16a34a';
+
 function TriangleDot({
   cx,
   cy,
-  stroke = '#16a34a',
   size = 4,
+  strokeWidth = 2,
 }: {
   cx?: number;
   cy?: number;
-  stroke?: string;
   size?: number;
+  strokeWidth?: number;
 }) {
   if (typeof cx !== 'number' || typeof cy !== 'number') {
     return null;
@@ -45,25 +48,41 @@ function TriangleDot({
     `${cx + size},${cy + size}`,
   ].join(' ');
 
-  return <polygon points={points} fill="#ffffff" stroke={stroke} strokeWidth={2} />;
+  return (
+    <polygon
+      points={points}
+      fill="#ffffff"
+      stroke={MATRICULADOS_COLOR}
+      strokeWidth={strokeWidth}
+    />
+  );
 }
 
 function CircleDot({
   cx,
   cy,
-  stroke = '#2563eb',
   r = 3,
+  strokeWidth = 2,
 }: {
   cx?: number;
   cy?: number;
-  stroke?: string;
   r?: number;
+  strokeWidth?: number;
 }) {
   if (typeof cx !== 'number' || typeof cy !== 'number') {
     return null;
   }
 
-  return <circle cx={cx} cy={cy} r={r} fill="#ffffff" stroke={stroke} strokeWidth={2} />;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={r}
+      fill="#ffffff"
+      stroke={INSCRITOS_COLOR}
+      strokeWidth={strokeWidth}
+    />
+  );
 }
 
 export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) {
@@ -181,8 +200,10 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="inscritos"
                 stroke="#2563eb"
                 strokeWidth={2}
-                dot={<CircleDot r={circleRadius} />}
-                activeDot={<CircleDot r={circleRadius + 1} />}
+                dot={({ cx, cy }) => <CircleDot cx={cx} cy={cy} r={circleRadius} />}
+                activeDot={({ cx, cy }) => (
+                  <CircleDot cx={cx} cy={cy} r={circleRadius + 1.5} strokeWidth={2.5} />
+                )}
               />
             )}
             {showMatriculados && (
@@ -191,8 +212,10 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="matriculados"
                 stroke="#16a34a"
                 strokeWidth={2}
-                dot={<TriangleDot size={markerSize} />}
-                activeDot={<TriangleDot size={markerSize + 1} />}
+                dot={({ cx, cy }) => <TriangleDot cx={cx} cy={cy} size={markerSize} />}
+                activeDot={({ cx, cy }) => (
+                  <TriangleDot cx={cx} cy={cy} size={markerSize + 1.5} strokeWidth={2.5} />
+                )}
                 legendType="triangle"
               />
             )}
