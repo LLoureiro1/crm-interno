@@ -138,8 +138,12 @@ const PieSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>;
 const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string]: any }>; labelKey: string; valueKey: string }> = ({ title, data, labelKey, valueKey }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const COLORS = ['#a855f7', '#6366f1', '#2563eb', '#0ea5e9', '#06b6d4', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#ef4444', '#f43f5e'];
+  const isNonAccounted = (entry: { [key: string]: any }) =>
+    String(entry[labelKey]).toLowerCase() === 'não contabilizado';
+  const nonAccounted = data.find(isNonAccounted);
+  const chartEntries = data.filter((entry) => !isNonAccounted(entry));
   const total = data.reduce((sum, d) => sum + (Number(d[valueKey]) || 0), 0);
-  const chartData = data.map((entry, index) => {
+  const chartData = chartEntries.map((entry, index) => {
     const count = Number(entry[valueKey]) || 0;
     return {
       label: String(entry[labelKey]),
@@ -191,6 +195,12 @@ const HorizontalBarSection: React.FC<{ title: string; data: Array<{ [key: string
           </BarChart>
         </ResponsiveContainer>
       </div>
+      {nonAccounted && Number(nonAccounted[valueKey]) > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Não contabilizado: {Number(nonAccounted[valueKey])} (
+          {total > 0 ? Math.round((Number(nonAccounted[valueKey]) / total) * 100) : 0}%)
+        </p>
+      )}
     </div>
   );
 };

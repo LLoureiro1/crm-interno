@@ -27,17 +27,18 @@ type EnrollmentTimelineChartProps = {
 function TriangleDot({
   cx,
   cy,
-  stroke,
+  stroke = '#16a34a',
+  size = 4,
 }: {
   cx?: number;
   cy?: number;
   stroke?: string;
+  size?: number;
 }) {
   if (typeof cx !== 'number' || typeof cy !== 'number') {
     return null;
   }
 
-  const size = 4;
   const points = [
     `${cx},${cy - size}`,
     `${cx - size},${cy + size}`,
@@ -45,6 +46,24 @@ function TriangleDot({
   ].join(' ');
 
   return <polygon points={points} fill="#ffffff" stroke={stroke} strokeWidth={2} />;
+}
+
+function CircleDot({
+  cx,
+  cy,
+  stroke = '#2563eb',
+  r = 3,
+}: {
+  cx?: number;
+  cy?: number;
+  stroke?: string;
+  r?: number;
+}) {
+  if (typeof cx !== 'number' || typeof cy !== 'number') {
+    return null;
+  }
+
+  return <circle cx={cx} cy={cy} r={r} fill="#ffffff" stroke={stroke} strokeWidth={2} />;
 }
 
 export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) {
@@ -73,6 +92,8 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
     return bucketed;
   }, [data]);
   const isDenseRange = displayData.length > 30;
+  const markerSize = isDenseRange ? 3 : 4;
+  const circleRadius = isDenseRange ? 2.5 : 3;
   const xAxisInterval = useMemo(() => {
     if (displayData.length <= 30) return 'preserveStartEnd' as const;
     return Math.max(Math.ceil(displayData.length / 12) - 1, 0);
@@ -160,8 +181,8 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="inscritos"
                 stroke="#2563eb"
                 strokeWidth={2}
-                dot={isDenseRange ? false : { r: 3 }}
-                activeDot={{ r: 5 }}
+                dot={<CircleDot r={circleRadius} />}
+                activeDot={<CircleDot r={circleRadius + 1} />}
               />
             )}
             {showMatriculados && (
@@ -170,8 +191,8 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="matriculados"
                 stroke="#16a34a"
                 strokeWidth={2}
-                dot={isDenseRange ? false : <TriangleDot />}
-                activeDot={<TriangleDot />}
+                dot={<TriangleDot size={markerSize} />}
+                activeDot={<TriangleDot size={markerSize + 1} />}
                 legendType="triangle"
               />
             )}
