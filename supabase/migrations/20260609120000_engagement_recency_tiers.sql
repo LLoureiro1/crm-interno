@@ -1,14 +1,4 @@
--- E-mails: contabilizar apenas envios ao aluno/responsável (excluir staff)
-
-CREATE OR REPLACE FUNCTION public.is_student_facing_email(p_trigger_type public.email_trigger_type)
-RETURNS boolean
-LANGUAGE sql
-IMMUTABLE
-SET search_path = public
-AS $$
-  SELECT p_trigger_type::text NOT LIKE 'staff_%'
-     AND p_trigger_type <> 'appointment_scheduled_staff';
-$$;
+-- Faixas de recência mais granulares (91+ dias = -12)
 
 CREATE OR REPLACE FUNCTION public.compute_student_engagement_score(p_student_id uuid)
 RETURNS TABLE(score smallint, breakdown jsonb)
@@ -99,7 +89,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- E-mail ao aluno/responsável apenas (sem staff)
   SELECT
     COALESCE(SUM(eq.opened_count), 0),
     COALESCE(COUNT(*) FILTER (WHERE eq.status = 'sent'), 0)
@@ -139,7 +128,6 @@ BEGIN
     v_comparecimento := v_comparecimento + 4;
   END IF;
 
-  -- Recência: contato bem-sucedido / e-mail do aluno aberto / atendimento (sem staff)
   SELECT GREATEST(
     COALESCE((
       SELECT MAX(ca.attempted_at)
@@ -178,6 +166,7 @@ BEGIN
     );
   END IF;
 
+  -- Recência por dias desde último contato bem-sucedido
   IF v_days_since_successful_contact <= 1 THEN
     v_recencia := 8;
   ELSIF v_days_since_successful_contact <= 3 THEN
