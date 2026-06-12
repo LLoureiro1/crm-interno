@@ -1,6 +1,21 @@
 
-import { useRef, useEffect, useState } from 'react';
-import { Settings } from 'lucide-react';
+import { useRef, useEffect, useState, type ReactNode } from 'react';
+import {
+  Settings,
+  Users,
+  Building2,
+  GraduationCap,
+  Calendar,
+  Clock,
+  FileSpreadsheet,
+  Share2,
+  Upload,
+  UserPlus,
+  List,
+  Mail,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserManagement } from '@/components/management/UserManagement';
@@ -39,7 +54,31 @@ const tabTriggerClassName = cn(
   'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
 );
 
-const configCardClassName = 'min-w-0 overflow-hidden';
+function ConfigSectionCard({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="relative min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
+      <CardHeader className="border-b border-gray-100 pb-3 pl-5">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
+          <Icon className="h-5 w-5 shrink-0 text-primary" />
+          <span>{title}</span>
+        </CardTitle>
+        {description && <CardDescription className="mt-1 pl-7">{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="min-w-0 pl-5 pt-4">{children}</CardContent>
+    </Card>
+  );
+}
 
 export const ConfigTab = () => {
   const isMounted = useRef<boolean>(true);
@@ -92,127 +131,79 @@ export const ConfigTab = () => {
         </TabsList>
 
         <TabsContent value="users" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Gerenciamento de Usuários</CardTitle>
-              <CardDescription>Adicione e gerencie usuários do sistema</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <UserManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={Users} title="Gerenciamento de Usuários" description="Adicione e gerencie usuários do sistema">
+            <UserManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="units" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Gerenciamento de Unidades</CardTitle>
-              <CardDescription>Cadastre e gerencie as unidades da escola</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <UnitManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={Building2} title="Gerenciamento de Unidades" description="Cadastre e gerencie as unidades da escola">
+            <UnitManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="classes" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Gerenciamento de Turmas</CardTitle>
-              <CardDescription>Configure turmas, séries e mensalidades</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <ClassManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={GraduationCap} title="Gerenciamento de Turmas" description="Configure turmas, séries e mensalidades">
+            <ClassManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="exam-dates" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Datas de Provas</CardTitle>
-              <CardDescription>Configure as datas, horários e unidades das provas</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <ExamDateManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={Calendar} title="Datas de Provas" description="Configure as datas, horários e unidades das provas">
+            <ExamDateManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="availability" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Disponibilidade de Entrevistadores</CardTitle>
-              <CardDescription>Configure a disponibilidade dos entrevistadores</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <InterviewerAvailability />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={Clock} title="Disponibilidade de Entrevistadores" description="Configure a disponibilidade dos entrevistadores">
+            <InterviewerAvailability />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="grades" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Upload de Notas</CardTitle>
-              <CardDescription>Faça upload das notas dos alunos via planilha</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <GradeUpload />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={FileSpreadsheet} title="Upload de Notas" description="Faça upload das notas dos alunos via planilha">
+            <GradeUpload />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="sources" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Origens de Inscrição</CardTitle>
-              <CardDescription>Configure as opções de origem das inscrições por unidade</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <RegistrationSourceManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={Share2} title="Origens de Inscrição" description="Configure as opções de origem das inscrições por unidade">
+            <RegistrationSourceManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="import" className="mt-0 min-w-0">
-          <StudentImport />
+          <ConfigSectionCard icon={Upload} title="Importação de Alunos" description="Importe candidatos via planilha">
+            <StudentImport />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="enrollment" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Importação de Matrículas</CardTitle>
-              <CardDescription>Importe dados de alunos matriculados no sistema ERP</CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <EnrollmentImport />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard icon={UserPlus} title="Importação de Matrículas" description="Importe dados de alunos matriculados no sistema ERP">
+            <EnrollmentImport />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="contact-lists" className="mt-0 min-w-0">
-          <ContactLists />
+          <ConfigSectionCard icon={List} title="Listas de Contato" description="Gerencie listas e distribuição de contatos">
+            <ContactLists />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="emails" className="mt-0 min-w-0">
-          <Card className={configCardClassName}>
-            <CardHeader>
-              <CardTitle>Automação de E-mails</CardTitle>
-              <CardDescription>
-                Configure webhook do Google Apps Script, templates HTML e acompanhe a fila de envios
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="min-w-0">
-              <EmailAutomationManagement />
-            </CardContent>
-          </Card>
+          <ConfigSectionCard
+            icon={Mail}
+            title="Automação de E-mails"
+            description="Configure webhook do Google Apps Script, templates HTML e acompanhe a fila de envios"
+          >
+            <EmailAutomationManagement />
+          </ConfigSectionCard>
         </TabsContent>
 
         <TabsContent value="goals" className="mt-0 min-w-0">
-          <div className={configCardClassName}>
+          <ConfigSectionCard icon={Target} title="Metas" description="Configure metas de matrícula por unidade">
             <GoalManagement />
-          </div>
+          </ConfigSectionCard>
         </TabsContent>
       </Tabs>
     </div>
