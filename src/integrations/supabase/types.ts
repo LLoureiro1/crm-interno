@@ -1237,6 +1237,7 @@ export type Database = {
         | "staff_new_lead_no_appointment"
         | "staff_missed_appointment_no_reschedule"
         | "staff_proposal_no_response"
+        | "staff_contact_list_assigned"
       email_queue_status:
         | "pending"
         | "sending"
@@ -1429,6 +1430,7 @@ export const Constants = {
         "staff_new_lead_no_appointment",
         "staff_missed_appointment_no_reschedule",
         "staff_proposal_no_response",
+        "staff_contact_list_assigned",
       ],
       email_queue_status: [
         "pending",

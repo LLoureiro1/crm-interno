@@ -447,7 +447,8 @@ type EmailTriggerType =
   | "matricula_concluida"
   | "staff_new_lead_no_appointment"
   | "staff_missed_appointment_no_reschedule"
-  | "staff_proposal_no_response";
+  | "staff_proposal_no_response"
+  | "staff_contact_list_assigned";
 
 interface TemplateContext {
   student_name?: string;
@@ -469,6 +470,10 @@ interface TemplateContext {
   reschedule_link?: string;
   student_count?: string;
   student_list?: string;
+  assignee_name?: string;
+  list_name?: string;
+  active_count?: string;
+  contact_list_link?: string;
 }
 
 interface EmailTemplate {
@@ -691,7 +696,99 @@ async function handleWebhook(
     return queueStudentEmail(supabase, triggerType, record);
   }
 
+  if (triggerType === "staff_contact_list_assigned") {
+    return queueContactListAssignedEmail(supabase, record);
+  }
+
   return { skipped: true, reason: "trigger não tratado" };
+}
+
+async function queueContactListAssignedEmail(
+  supabase: ReturnType<typeof createClient>,
+  record: Record<string, unknown>,
+) {
+  const assigneeId = String(record.user_id ?? "");
+  const listId = String(record.list_id ?? "");
+  const assigneeRowId = String(record.id ?? "");
+
+  if (!assigneeId || !listId) {
+    return { skipped: true, reason: "designação incompleta" };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, name, email, unit_id")
+    .eq("id", assigneeId)
+    .maybeSingle();
+
+  const toEmail = String(profile?.email ?? "").trim();
+  if (!toEmail) {
+    return { skipped: true, reason: "usuário sem e-mail cadastrado" };
+  }
+
+  const { data: list } = await supabase
+    .from("contact_lists")
+    .select("id, name")
+    .eq("id", listId)
+    .maybeSingle();
+
+  if (!list) {
+    return { skipped: true, reason: "lista não encontrada" };
+  }
+
+  const { count } = await supabase
+    .from("contact_list_items")
+    .select("id", { count: "exact", head: true })
+    .eq("list_id", listId)
+    .eq("assigned_user_id", assigneeId)
+    .is("left_at", null);
+
+  const unitId = profile?.unit_id ? String(profile.unit_id) : null;
+  const template = await resolveTemplate(
+    supabase,
+    "staff_contact_list_assigned",
+    unitId,
+  );
+
+  if (!template?.is_active) {
+    return {
+      skipped: true,
+      reason: "template staff_contact_list_assigned inativo ou ausente",
+    };
+  }
+
+  const context: TemplateContext = {
+    assignee_name: String(profile?.name ?? ""),
+    list_name: String(list.name ?? ""),
+    active_count: String(count ?? 0),
+    contact_list_link: buildAppLink("/"),
+  };
+
+  if (unitId) {
+    const { data: unit } = await supabase
+      .from("units")
+      .select("name")
+      .eq("id", unitId)
+      .maybeSingle();
+    if (unit?.name) context.unit_name = unit.name;
+  }
+
+  return insertQueueItem(supabase, {
+    unitId,
+    template,
+    triggerType: "staff_contact_list_assigned",
+    toEmail,
+    toName: String(profile?.name ?? ""),
+    context,
+    idempotencyKey: `staff_contact_list_assigned:${assigneeRowId}`,
+    scheduledFor: new Date().toISOString(),
+  });
+}
+
+function buildAppLink(path: string): string {
+  const base = (Deno.env.get("PUBLIC_APP_URL") ?? "").replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return base ? `${base}${normalizedPath}` : normalizedPath;
 }
 
 function buildRescheduleLink(studentId: string, registrationToken: string): string {
@@ -2175,7 +2272,7 @@ async function processQueue(
 async function insertQueueItem(
   supabase: ReturnType<typeof createClient>,
   params: {
-    studentId: string;
+    studentId?: string | null;
     appointmentId?: string;
     unitId: string | null;
     template: EmailTemplate;
@@ -2207,7 +2304,7 @@ async function insertQueueItem(
 
   const { error } = await supabase.from("email_queue").insert({
     id: emailId,
-    student_id: params.studentId,
+    student_id: params.studentId ?? null,
     appointment_id: params.appointmentId ?? null,
     unit_id: params.unitId,
     template_id: params.template.id,

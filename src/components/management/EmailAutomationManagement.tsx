@@ -65,6 +65,7 @@ const TRIGGER_LABELS: Record<EmailTriggerType, string> = {
   staff_new_lead_no_appointment: '[INTERNO] Inscrito novo sem atendimento',
   staff_missed_appointment_no_reschedule: '[INTERNO] Faltou ao atendimento e não reagendou',
   staff_proposal_no_response: '[INTERNO] Proposta sem retorno',
+  staff_contact_list_assigned: '[INTERNO] Designação em lista de contato',
 };
 
 const STATUS_LABELS: Record<EmailQueueStatus, string> = {
