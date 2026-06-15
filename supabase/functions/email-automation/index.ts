@@ -467,6 +467,8 @@ interface TemplateContext {
   appointment_modality?: string;
   interviewer_name?: string;
   reschedule_link?: string;
+  student_count?: string;
+  student_list?: string;
 }
 
 interface EmailTemplate {
@@ -696,6 +698,160 @@ function buildRescheduleLink(studentId: string, registrationToken: string): stri
   const base = (Deno.env.get("PUBLIC_APP_URL") ?? "").replace(/\/$/, "");
   const path = `/reagendar?s=${encodeURIComponent(studentId)}&t=${encodeURIComponent(registrationToken)}`;
   return base ? `${base}${path}` : path;
+}
+
+function buildStudentProfileLink(studentId: string): string {
+  const base = (Deno.env.get("PUBLIC_APP_URL") ?? "").replace(/\/$/, "");
+  const path = `/student/${encodeURIComponent(studentId)}`;
+  return base ? `${base}${path}` : path;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildStaffStudentListHtml(
+  students: StudentEmailRow[],
+  rowStripeColor = "#fef3c7",
+): string {
+  if (students.length === 0) return "";
+
+  const rows = students.map((student, index) => {
+    const link = buildStudentProfileLink(String(student.id));
+    const name = escapeHtml(String(student.student_name ?? ""));
+    const responsible = escapeHtml(String(student.responsible_name ?? ""));
+    const code = escapeHtml(String(student.tracking_code ?? ""));
+    const bg = index % 2 === 1 ? `background:${rowStripeColor};` : "";
+
+    return `<tr style="${bg}">
+      <td style="padding:8px;"><a href="${link}" style="color:#2563eb;font-weight:600;">${name}</a></td>
+      <td style="padding:8px;">${responsible}</td>
+      <td style="padding:8px;">${code}</td>
+    </tr>`;
+  }).join("");
+
+  return `<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+    <thead>
+      <tr style="background:#f3f4f6;">
+        <th style="padding:8px;text-align:left;">Aluno</th>
+        <th style="padding:8px;text-align:left;">Responsável</th>
+        <th style="padding:8px;text-align:left;">Código</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function buildStaffDigestContext(
+  supabase: ReturnType<typeof createClient>,
+  unitId: string | null,
+  students: StudentEmailRow[],
+  rowStripeColor: string,
+): Promise<TemplateContext & { unit_id?: string | null }> {
+  const context: TemplateContext & { unit_id?: string | null } = {
+    student_count: String(students.length),
+    student_list: buildStaffStudentListHtml(students, rowStripeColor),
+    unit_id: unitId,
+  };
+
+  if (unitId) {
+    const { data: unit } = await supabase
+      .from("units")
+      .select("name, address, city, phone")
+      .eq("id", unitId)
+      .maybeSingle();
+
+    if (unit) {
+      context.unit_name = unit.name;
+      context.unit_address = unit.address;
+      context.unit_city = unit.city;
+      context.unit_phone = unit.phone;
+    }
+  }
+
+  return context;
+}
+
+type StaffDigestTrigger =
+  | "staff_new_lead_no_appointment"
+  | "staff_missed_appointment_no_reschedule";
+
+async function queueStaffDigestEmails(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    triggerType: StaffDigestTrigger;
+    students: StudentEmailRow[];
+    today: Date;
+    todayStr: string;
+    rowStripeColor: string;
+    stagger: ReturnType<typeof createQueueStagger>;
+  },
+): Promise<number> {
+  const byUnit = new Map<string | null, StudentEmailRow[]>();
+
+  for (const student of params.students) {
+    const unitId = student.unit_id ? String(student.unit_id) : null;
+    const bucket = byUnit.get(unitId) ?? [];
+    bucket.push(student);
+    byUnit.set(unitId, bucket);
+  }
+
+  let queuedCount = 0;
+
+  for (const [unitId, unitStudents] of byUnit) {
+    if (unitStudents.length === 0) continue;
+
+    const template = await resolveTemplate(
+      supabase,
+      params.triggerType,
+      unitId,
+    );
+    if (!template?.is_active) continue;
+
+    const recipients = await resolveStaffRecipients(
+      supabase,
+      template,
+      unitId,
+    );
+    if (recipients.length === 0) continue;
+
+    const context = await buildStaffDigestContext(
+      supabase,
+      unitId,
+      unitStudents,
+      params.rowStripeColor,
+    );
+    const scheduledFor = buildScheduledTimestamp(
+      params.today,
+      template.send_at_hour,
+      template.send_at_minute,
+    );
+    const unitKey = unitId ?? "global";
+
+    for (const recipient of recipients) {
+      if (!recipient.email) continue;
+
+      const result = await insertQueueItem(supabase, {
+        studentId: String(unitStudents[0].id),
+        unitId,
+        template,
+        triggerType: params.triggerType,
+        toEmail: recipient.email,
+        toName: recipient.name,
+        context,
+        idempotencyKey:
+          `${params.triggerType}:${unitKey}:${recipient.id}:${params.todayStr}`,
+        scheduledFor: params.stagger.next(scheduledFor),
+      });
+      if (!result.skipped) queuedCount += 1;
+    }
+  }
+
+  return queuedCount;
 }
 
 async function queueMissedRescheduleEmail(
@@ -1667,103 +1823,37 @@ async function scheduleReminders(
     if (!result.skipped) post3DaysCount += 1;
   }
 
-  // --- [INTERNO] Inscrito sem agendamento 24h (staff_new_lead_no_appointment) ---
-  let staffNewLeadCount = 0;
-
+  // --- [INTERNO] Inscrito sem agendamento 24h (digest diário por unidade) ---
   const { data: leadsWithoutAppointment } = await supabase
     .from("students")
     .select(STUDENT_EMAIL_SELECT)
     .eq("status", "nenhum_agendamento")
     .lt("created_at", oneDayAgoIso);
 
-  for (const student of leadsWithoutAppointment ?? []) {
-    const studentId = String(student.id);
-    const context = await buildStudentContext(
-      supabase,
-      studentId,
-      student as Record<string, unknown>,
-    );
-    const template = await resolveTemplate(
-      supabase,
-      "staff_new_lead_no_appointment",
-      context.unit_id ?? null,
-    );
-    if (!template?.is_active) continue;
-    const recipients = await resolveStaffRecipients(
-      supabase,
-      template,
-      context.unit_id ?? null,
-    );
-    const scheduledFor = buildScheduledTimestamp(
-      today,
-      template.send_at_hour,
-      template.send_at_minute,
-    );
-    for (const recipient of recipients) {
-      if (!recipient.email) continue;
-      const result = await insertQueueItem(supabase, {
-        studentId,
-        unitId: context.unit_id ?? null,
-        template,
-        triggerType: "staff_new_lead_no_appointment",
-        toEmail: recipient.email,
-        toName: recipient.name,
-        context,
-        idempotencyKey: `staff_new_lead_no_appointment:${studentId}:${recipient.id}:${todayStr}`,
-        scheduledFor: stagger.next(scheduledFor),
-      });
-      if (!result.skipped) staffNewLeadCount += 1;
-    }
-  }
+  const staffNewLeadCount = await queueStaffDigestEmails(supabase, {
+    triggerType: "staff_new_lead_no_appointment",
+    students: (leadsWithoutAppointment ?? []) as StudentEmailRow[],
+    today,
+    todayStr,
+    rowStripeColor: "#fef3c7",
+    stagger,
+  });
 
-  // --- [INTERNO] Faltou ao atendimento 24h sem reagendar ---
-  let staffMissedCount = 0;
-
+  // --- [INTERNO] Faltou ao atendimento 24h sem reagendar (digest diário por unidade) ---
   const { data: missedStudents } = await supabase
     .from("students")
     .select(STUDENT_EMAIL_SELECT)
     .eq("status", "faltou_ao_atendimento")
     .lt("updated_at", oneDayAgoIso);
 
-  for (const student of missedStudents ?? []) {
-    const studentId = String(student.id);
-    const context = await buildStudentContext(
-      supabase,
-      studentId,
-      student as Record<string, unknown>,
-    );
-    const template = await resolveTemplate(
-      supabase,
-      "staff_missed_appointment_no_reschedule",
-      context.unit_id ?? null,
-    );
-    if (!template?.is_active) continue;
-    const recipients = await resolveStaffRecipients(
-      supabase,
-      template,
-      context.unit_id ?? null,
-    );
-    const scheduledFor = buildScheduledTimestamp(
-      today,
-      template.send_at_hour,
-      template.send_at_minute,
-    );
-    for (const recipient of recipients) {
-      if (!recipient.email) continue;
-      const result = await insertQueueItem(supabase, {
-        studentId,
-        unitId: context.unit_id ?? null,
-        template,
-        triggerType: "staff_missed_appointment_no_reschedule",
-        toEmail: recipient.email,
-        toName: recipient.name,
-        context,
-        idempotencyKey: `staff_missed_appointment_no_reschedule:${studentId}:${recipient.id}:${todayStr}`,
-        scheduledFor: stagger.next(scheduledFor),
-      });
-      if (!result.skipped) staffMissedCount += 1;
-    }
-  }
+  const staffMissedCount = await queueStaffDigestEmails(supabase, {
+    triggerType: "staff_missed_appointment_no_reschedule",
+    students: (missedStudents ?? []) as StudentEmailRow[],
+    today,
+    todayStr,
+    rowStripeColor: "#fee2e2",
+    stagger,
+  });
 
   // --- [INTERNO] Proposta sem retorno 3 dias (staff_proposal_no_response) ---
   let staffProposalCount = 0;

@@ -75,6 +75,16 @@ const STATUS_LABELS: Record<EmailQueueStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+const STAFF_DIGEST_TRIGGERS: EmailTriggerType[] = [
+  'staff_new_lead_no_appointment',
+  'staff_missed_appointment_no_reschedule',
+];
+
+const STAFF_DIGEST_VARIABLES = ['{{student_count}}', '{{student_list}}'];
+
+const STAFF_DIGEST_SAMPLE_LIST =
+  '<table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;text-align:left;">Aluno</th><th style="padding:8px;text-align:left;">Responsável</th><th style="padding:8px;text-align:left;">Código</th></tr></thead><tbody><tr><td style="padding:8px;"><a href="#">Maria Silva</a></td><td style="padding:8px;">João Silva</td><td style="padding:8px;">ABC12345</td></tr><tr style="background:#fef3c7;"><td style="padding:8px;"><a href="#">Pedro Santos</a></td><td style="padding:8px;">Ana Santos</td><td style="padding:8px;">XYZ67890</td></tr></tbody></table>';
+
 const TEMPLATE_VARIABLES = [
   '{{student_name}}',
   '{{responsible_name}}',
@@ -150,12 +160,27 @@ export const EmailAutomationManagement = () => {
     [units, selectedUnitId],
   );
 
-  const previewOverrides = useMemo(
-    () => ({
-      unit_name: selectedUnit?.name ?? PREVIEW_SAMPLE_DATA.unit_name,
-    }),
-    [selectedUnit],
+  const isStaffDigestTrigger = STAFF_DIGEST_TRIGGERS.includes(selectedTrigger);
+
+  const templateVariables = useMemo(
+    () =>
+      isStaffDigestTrigger
+        ? [...TEMPLATE_VARIABLES, ...STAFF_DIGEST_VARIABLES]
+        : TEMPLATE_VARIABLES,
+    [isStaffDigestTrigger],
   );
+
+  const previewOverrides = useMemo(() => {
+    const base = {
+      unit_name: selectedUnit?.name ?? PREVIEW_SAMPLE_DATA.unit_name,
+    };
+    if (!isStaffDigestTrigger) return base;
+    return {
+      ...base,
+      student_count: '2',
+      student_list: STAFF_DIGEST_SAMPLE_LIST,
+    };
+  }, [selectedUnit, isStaffDigestTrigger]);
 
   const currentTemplate = useMemo(
     () =>
@@ -534,7 +559,7 @@ export const EmailAutomationManagement = () => {
         </div>
 
         <div className="rounded-md border bg-gray-50 p-3 text-sm text-gray-600">
-          Variáveis disponíveis: {TEMPLATE_VARIABLES.join(', ')}
+          Variáveis disponíveis: {templateVariables.join(', ')}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -574,9 +599,9 @@ export const EmailAutomationManagement = () => {
           selectedTrigger === 'staff_missed_appointment_no_reschedule') && (
             <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm font-medium text-amber-950">
-                <strong>[E-mail interno]</strong> Destinatários — selecione os usuários que receberão
-                este alerta. Se nenhum for selecionado, todos os usuários ativos da unidade do
-                inscrito serão notificados.
+                <strong>[E-mail interno — resumo diário]</strong> Enviado 1 vez ao dia por
+                destinatário com todos os inscritos nessa condição na unidade.
+                Se nenhum destinatário for selecionado, todos os usuários ativos da unidade recebem.
               </p>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
                 {loadingUnitData && (
