@@ -137,6 +137,7 @@ export const EmailAutomationManagement = () => {
   const [selectedTrigger, setSelectedTrigger] = useState<EmailTriggerType>('student_registered');
   const [queueItems, setQueueItems] = useState<EmailQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingUnitData, setLoadingUnitData] = useState(false);
   const [savingIntegration, setSavingIntegration] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [bodyViewMode, setBodyViewMode] = useState<BodyViewMode>('text');
@@ -157,11 +158,23 @@ export const EmailAutomationManagement = () => {
   );
 
   const currentTemplate = useMemo(
-    () => templates.find((template) => template.trigger_type === selectedTrigger),
-    [templates, selectedTrigger],
+    () =>
+      templates.find(
+        (template) =>
+          template.trigger_type === selectedTrigger &&
+          (template.unit_id ?? null) === unitFilter,
+      ),
+    [templates, selectedTrigger, unitFilter],
   );
 
-  const [activeUsers, setActiveUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [activeUsers, setActiveUsers] = useState<
+    { id: string; name: string; email: string; unit_id: string | null }[]
+  >([]);
+
+  const visibleStaffUsers = useMemo(() => {
+    if (selectedUnitId === 'default') return activeUsers;
+    return activeUsers.filter((user) => user.unit_id === selectedUnitId);
+  }, [activeUsers, selectedUnitId]);
 
   const [templateForm, setTemplateForm] = useState({
     name: '',
@@ -188,10 +201,14 @@ export const EmailAutomationManagement = () => {
   }, []);
 
   useEffect(() => {
-    void loadUnitData();
+    setTemplates([]);
+    setLoadingUnitData(true);
+    void loadUnitData().finally(() => setLoadingUnitData(false));
   }, [selectedUnitId]);
 
   useEffect(() => {
+    if (loadingUnitData) return;
+
     if (!currentTemplate) {
       setTemplateForm({
         name: TRIGGER_LABELS[selectedTrigger],
@@ -217,7 +234,7 @@ export const EmailAutomationManagement = () => {
       recipient_user_ids: currentTemplate.recipient_user_ids ?? [],
     });
     setPlainTextBody(htmlToPlainText(htmlBody));
-  }, [currentTemplate, selectedTrigger]);
+  }, [currentTemplate, selectedTrigger, loadingUnitData, selectedUnitId]);
 
   const handleBodyViewModeChange = (value: string) => {
     const mode = value as BodyViewMode;
@@ -244,12 +261,14 @@ export const EmailAutomationManagement = () => {
           )
           .order('created_at', { ascending: false })
           .limit(30),
-        supabase.from('profiles').select('id, name, email').eq('ativo', true).order('name'),
+        supabase.from('profiles').select('id, name, email, unit_id').eq('ativo', true).order('name'),
       ]);
 
       setUnits(unitsData ?? []);
       setQueueItems(queueData ?? []);
-      setActiveUsers((profilesData ?? []) as { id: string; name: string; email: string }[]);
+      setActiveUsers(
+        (profilesData ?? []) as { id: string; name: string; email: string; unit_id: string | null }[],
+      );
     } catch (error) {
       console.error(error);
       toast.error('Erro ao carregar configurações de e-mail');
@@ -485,7 +504,7 @@ export const EmailAutomationManagement = () => {
                 <SelectValue placeholder="Selecione a unidade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Padrão (fallback)</SelectItem>
+                <SelectItem value="default">Padrão (todas)</SelectItem>
                 {units.map((unit) => (
                   <SelectItem key={unit.id} value={unit.id}>
                     {unit.name}
@@ -560,7 +579,10 @@ export const EmailAutomationManagement = () => {
                 inscrito serão notificados.
               </p>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-                {activeUsers.map((user) => (
+                {loadingUnitData && (
+                  <p className="text-xs text-amber-800">Carregando destinatários da unidade...</p>
+                )}
+                {!loadingUnitData && visibleStaffUsers.map((user) => (
                   <label
                     key={user.id}
                     className="flex cursor-pointer items-center gap-2 rounded-md border bg-white p-2 text-sm hover:bg-amber-50"
@@ -583,8 +605,12 @@ export const EmailAutomationManagement = () => {
                     <span className="truncate text-xs text-gray-500">{user.email}</span>
                   </label>
                 ))}
-                {activeUsers.length === 0 && (
-                  <p className="text-xs text-amber-800">Nenhum usuário ativo encontrado.</p>
+                {!loadingUnitData && visibleStaffUsers.length === 0 && (
+                  <p className="text-xs text-amber-800">
+                    {selectedUnitId === 'default'
+                      ? 'Nenhum usuário ativo encontrado.'
+                      : 'Nenhum usuário ativo vinculado a esta unidade.'}
+                  </p>
                 )}
               </div>
             </div>
@@ -714,7 +740,7 @@ export const EmailAutomationManagement = () => {
           <Label>Template ativo</Label>
         </div>
 
-        <Button onClick={saveTemplate} disabled={savingTemplate}>
+        <Button onClick={saveTemplate} disabled={savingTemplate || loadingUnitData}>
           <Mail className="mr-2 h-4 w-4" />
           {savingTemplate ? 'Salvando...' : 'Salvar template'}
         </Button>

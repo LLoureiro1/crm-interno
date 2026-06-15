@@ -2214,6 +2214,11 @@ async function resolveTemplate(
   triggerType: EmailTriggerType,
   unitId: string | null,
 ): Promise<EmailTemplate | null> {
+  const staffUnitRecipientTriggers: EmailTriggerType[] = [
+    "staff_new_lead_no_appointment",
+    "staff_missed_appointment_no_reschedule",
+  ];
+
   if (unitId) {
     const { data: unitTemplate } = await supabase
       .from("email_templates")
@@ -2234,11 +2239,20 @@ async function resolveTemplate(
     .is("unit_id", null)
     .maybeSingle();
 
-  if (defaultTemplate?.is_active) {
-    return defaultTemplate as EmailTemplate;
+  if (!defaultTemplate?.is_active) {
+    return null;
   }
 
-  return null;
+  // Fallback de conteúdo global: destinatários internos ficam vazios por unidade
+  // (notifica todos os ativos da unidade do inscrito, não os do template padrão).
+  if (unitId && staffUnitRecipientTriggers.includes(triggerType)) {
+    return {
+      ...(defaultTemplate as EmailTemplate),
+      recipient_user_ids: [],
+    };
+  }
+
+  return defaultTemplate as EmailTemplate;
 }
 
 async function resolveStaffRecipients(
@@ -2249,11 +2263,15 @@ async function resolveStaffRecipients(
   const recipientIds = template.recipient_user_ids ?? [];
 
   if (recipientIds.length > 0) {
-    const { data } = await supabase
+    let query = supabase
       .from("profiles")
       .select("id, name, email")
       .in("id", recipientIds)
       .eq("ativo", true);
+    if (unitId) {
+      query = query.eq("unit_id", unitId);
+    }
+    const { data } = await query;
     return (data ?? []) as { id: string; name: string; email: string }[];
   }
 
