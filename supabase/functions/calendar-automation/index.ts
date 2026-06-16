@@ -44,7 +44,7 @@ serve(async (req) => {
     // Buscar dados do aluno
     const { data: student, error: studentError } = await supabaseAdmin
       .from("students")
-      .select("nome, email, unit_id")
+      .select("student_name, email, unit_id")
       .eq("id", record.student_id)
       .single();
 
@@ -100,7 +100,7 @@ serve(async (req) => {
     // Preparar payload para o Google Apps Script
     const googlePayload = {
       token: webhookToken || "",
-      student_name: student.nome || "Aluno",
+      student_name: student.student_name || "Aluno",
       student_email: student.email || "",
       interviewer_email: interviewerEmail,
       appointment_date: record.appointment_date,
