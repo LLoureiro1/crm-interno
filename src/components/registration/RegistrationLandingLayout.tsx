@@ -93,7 +93,7 @@ export function RegistrationLandingLayout({
               Por que escolher o Apogeu
             </p>
             <h2 className="mt-2 text-2xl font-bold text-[#1437cc] sm:text-3xl">
-              O que faz o Apogeu único
+              O que faz o APOGEU único
             </h2>
           </div>
 
