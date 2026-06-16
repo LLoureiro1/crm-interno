@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Mail, Save } from 'lucide-react';
-import { htmlToPlainText, plainTextToHtml } from '@/utils/emailTemplateBody';
+import { htmlToPlainText, mergePlainTextIntoHtml, plainTextToHtml } from '@/utils/emailTemplateBody';
 
 type BodyViewMode = 'text' | 'html' | 'preview';
 
@@ -285,6 +285,10 @@ export const EmailAutomationManagement = () => {
 
   const handleBodyViewModeChange = (value: string) => {
     const mode = value as BodyViewMode;
+    if (bodyViewMode === 'text' && mode !== 'text') {
+      const mergedHtml = mergePlainTextIntoHtml(templateForm.html_body, plainTextBody);
+      setTemplateForm((prev) => ({ ...prev, html_body: mergedHtml }));
+    }
     if (mode === 'text') {
       setPlainTextBody(htmlToPlainText(templateForm.html_body));
     }
@@ -293,7 +297,10 @@ export const EmailAutomationManagement = () => {
 
   const handlePlainTextBodyChange = (value: string) => {
     setPlainTextBody(value);
-    setTemplateForm((prev) => ({ ...prev, html_body: plainTextToHtml(value) }));
+    setTemplateForm((prev) => ({
+      ...prev,
+      html_body: mergePlainTextIntoHtml(prev.html_body, value),
+    }));
   };
 
   const loadInitialData = async () => {
@@ -733,10 +740,10 @@ export const EmailAutomationManagement = () => {
                 placeholder={'Olá, {{student_name}}!\n\nSua inscrição na {{unit_name}} foi recebida...'}
               />
               <p className="text-xs text-gray-500">
-                Edite apenas o texto. Use uma linha em branco entre parágrafos. Variáveis como{' '}
-                <code className="rounded bg-gray-100 px-1">{'{{student_name}}'}</code> são
-                preservadas e refletem automaticamente no HTML e na visualização. Formatação
-                avançada (cores, tabelas) permanece na aba Código HTML.
+                Edite apenas o texto. Botões, cores e formatação do HTML são preservados. Use uma linha
+                em branco entre parágrafos. Variáveis como{' '}
+                <code className="rounded bg-gray-100 px-1">{'{{student_name}}'}</code> são mantidas.
+                Formatação avançada na aba Código HTML.
               </p>
             </div>
           ) : bodyViewMode === 'html' ? (
