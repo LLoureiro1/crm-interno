@@ -835,8 +835,7 @@ export const ReportsTab = () => {
                     style={{ width: `${goalPct}%` }}
                   />
                 </div>
-                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                  <span>0</span>
+                <div className="mt-2 flex justify-end text-xs text-muted-foreground">
                   <span>Meta: {reportData.totalGoal} matrículas</span>
                 </div>
               </>
