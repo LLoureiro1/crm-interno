@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StudentDataSection } from './registration/StudentDataSection';
@@ -9,6 +8,7 @@ import { ResponsibleDataSection } from './registration/ResponsibleDataSection';
 // import { AddressSection } from './registration/AddressSection'; // Removido - campos não mais utilizados
 import { AcademicDataSection } from './registration/AcademicDataSection';
 import { RegistrationSourceSection } from './registration/RegistrationSourceSection';
+import { RegistrationLandingLayout } from './registration/RegistrationLandingLayout';
 import { useRegistrationData } from '@/hooks/useRegistrationData';
 import { useRegistrationSources } from '@/hooks/useRegistrationSources';
 import { useTrackingCode } from '@/hooks/useTrackingCode';
@@ -364,148 +364,134 @@ export const RegistrationForm = () => {
     }
   };
 
-  const shellClass = 'min-h-svh bg-slate-50 py-8 px-4 pb-20';
-  const innerClass = 'max-w-2xl mx-auto';
+  const formCard = (content: ReactNode) => (
+    <RegistrationLandingLayout unitName={preSelectedUnit?.name}>
+      {content}
+    </RegistrationLandingLayout>
+  );
+
+  const formBody = (
+    <>
+      <div className="border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+        <h2 className="text-center text-lg font-bold text-primary sm:text-xl">
+          Inscrição de Candidatos
+        </h2>
+      </div>
+      <div className="px-6 py-6">
+        <input
+          type="text"
+          name="website"
+          value={websiteHoneypot}
+          onChange={(e) => setWebsiteHoneypot(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[-9999px] h-0 w-0 opacity-0"
+        />
+        <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+          <p>
+            Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção
+            para a inscrição do próximo.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <StudentDataSection
+            formData={formData}
+            fieldErrors={fieldErrors}
+            onInputChange={handleInputChange}
+          />
+
+          <ResponsibleDataSection
+            formData={formData}
+            fieldErrors={fieldErrors}
+            onInputChange={handleInputChange}
+            onAdditionalPhonesChange={handleAdditionalPhonesChange}
+          />
+
+          <AcademicDataSection
+            formData={formData}
+            fieldErrors={fieldErrors}
+            series={series}
+            availableClasses={availableClasses}
+            availableUnits={availableUnits}
+            showClassSelector={showClassSelector}
+            onInputChange={handleInputChange}
+            isUnitLocked={isUnitLocked}
+            preSelectedUnitName={preSelectedUnit?.name}
+          />
+
+          <RegistrationSourceSection
+            formData={formData}
+            fieldErrors={fieldErrors}
+            onInputChange={handleInputChange}
+          />
+
+          <Button
+            type="submit"
+            className="w-full bg-[#ffac1a] text-white hover:bg-[#e89b0f]"
+            disabled={loading || dataLoading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Realizando Inscrição...
+              </>
+            ) : (
+              'Realizar Inscrição'
+            )}
+          </Button>
+
+          <div className="rounded-md border border-border bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              As informações coletadas serão utilizadas exclusivamente para fins de inscrição e
+              comunicação sobre o Processo de Admissão 2026.
+            </p>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Ao enviar este formulário, você concorda com o uso dos seus dados para comunicação sobre
+            o Processo de Admissão 2026, conforme nossa{' '}
+            <a
+              href="/privacidade"
+              className="text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Política de Privacidade
+            </a>
+            .
+          </p>
+        </form>
+      </div>
+    </>
+  );
 
   // Mostrar loading enquanto carrega dados iniciais
   if (dataLoading) {
-    return (
-      <div className={shellClass}>
-        <div className={innerClass}>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Carregando dados do formulário...</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+    return formCard(
+      <div className="flex flex-col items-center justify-center px-6 py-16">
+        <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando dados do formulário...</p>
+      </div>,
     );
   }
 
   // Mostrar erro se houver problema no carregamento
   if (dataError) {
-    return (
-      <div className={shellClass}>
-        <div className={innerClass}>
-          <Card>
-            <CardContent className="py-8">
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex items-center justify-between">
-                  <span>Erro ao carregar dados: {dataError}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={refetch}
-                    className="ml-4"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Tentar Novamente
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+    return formCard(
+      <div className="px-6 py-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>Erro ao carregar dados: {dataError}</span>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Tentar Novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>,
     );
   }
 
-  return (
-    <div className={shellClass}>
-      <div className={innerClass}>
-        <div className="mb-4 flex justify-center">
-          <img
-            src="/logo_apogeu_nobg.png"
-            alt="Rede de Ensino Apogeu"
-            className="h-20 w-auto object-contain"
-          />
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-xl font-bold text-primary">
-              Inscrição de Candidatos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <input
-              type="text"
-              name="website"
-              value={websiteHoneypot}
-              onChange={(e) => setWebsiteHoneypot(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-              aria-hidden="true"
-              className="absolute left-[-9999px] h-0 w-0 opacity-0 pointer-events-none"
-            />
-            <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-              <p>Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção para a inscrição do próximo.</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <StudentDataSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                onInputChange={handleInputChange}
-              />
-
-              <ResponsibleDataSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                onInputChange={handleInputChange}
-                onAdditionalPhonesChange={handleAdditionalPhonesChange}
-              />
-
-              <AcademicDataSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                series={series}
-                availableClasses={availableClasses}
-                availableUnits={availableUnits}
-                showClassSelector={showClassSelector}
-                onInputChange={handleInputChange}
-                isUnitLocked={isUnitLocked}
-                preSelectedUnitName={preSelectedUnit?.name}
-              />
-
-              <RegistrationSourceSection
-                formData={formData}
-                fieldErrors={fieldErrors}
-                onInputChange={handleInputChange}
-              />
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading || dataLoading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Realizando Inscrição...
-                  </>
-                ) : (
-                  'Realizar Inscrição'
-                )}
-              </Button>
-
-              {/* Aviso de uso de dados (LGPD) */}
-              <div className="mb-4 rounded-md border border-border bg-muted/50 p-3">
-                <p className="text-sm text-muted-foreground">
-                  As informações coletadas serão utilizadas exclusivamente para fins de inscrição e comunicação sobre o Processo de Admissão 2026.
-                </p>
-              </div>
-
-              {/* Consentimento abaixo do botão (LGPD) */}
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Ao enviar este formulário, você concorda com o uso dos seus dados para comunicação sobre o Processo de Admissão 2026, conforme nossa
-                {' '}<a href="/privacidade" className="text-primary underline underline-offset-4 hover:text-primary/80">Política de Privacidade</a>.
-              </p>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  return formCard(formBody);
 };
