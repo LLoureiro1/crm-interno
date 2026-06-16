@@ -4,6 +4,8 @@ import '@fontsource/montserrat/500.css';
 import '@fontsource/montserrat/600.css';
 import '@fontsource/montserrat/700.css';
 
+import { RegistrationFloatingActions } from './RegistrationFloatingActions';
+
 const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
 
 const HERO_BG = '/mock-crianca.png';
@@ -153,6 +155,8 @@ export function RegistrationLandingLayout({
           © 2027 Rede de Ensino Apogeu. Todos os direitos reservados.
         </p>
       </footer>
+
+      <RegistrationFloatingActions />
     </div>
   );
 }
