@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +64,8 @@ const ContactLists = () => {
   const [profilesOptions, setProfilesOptions] = useState<ProfileWithUnit[]>([]);
   const [activeCounts, setActiveCounts] = useState<Record<string, number>>({});
   const [itemsSortMode, setItemsSortMode] = useState<'entered_at' | 'engagement_score'>('entered_at');
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToDetails = useRef(false);
 
   const [formName, setFormName] = useState('');
   const [formStatus, setFormStatus] = useState<Enums<'student_status'>[]>([]);
@@ -121,6 +123,14 @@ const ContactLists = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [selectedList?.id]);
+
+  useEffect(() => {
+    if (!selectedList || !shouldScrollToDetails.current) return;
+    shouldScrollToDetails.current = false;
+    requestAnimationFrame(() => {
+      detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }, [selectedList?.id]);
 
   const fetchFiltersData = async () => {
@@ -226,6 +236,15 @@ const ContactLists = () => {
     await Promise.all([fetchListItems(listId), fetchAssignees(listId)]);
   };
 
+  const handleOpenList = (list: ContactList) => {
+    if (selectedList?.id === list.id) {
+      detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    shouldScrollToDetails.current = true;
+    setSelectedList(list);
+  };
+
   const handleCreateList = async () => {
     if (!formName.trim()) {
       toast.error('Informe um nome para a lista');
@@ -311,19 +330,31 @@ const ContactLists = () => {
       toast.info('Usuário já designado');
       return;
     }
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('contact_list_assignees')
       .insert({
         list_id: selectedList.id,
         user_id: userId,
         weight: 1
-      });
+      })
+      .select('id, list_id, user_id')
+      .single();
 
     if (error) {
       toast.error('Erro ao adicionar designado');
       return;
     }
     toast.success('Designado adicionado');
+
+    void supabase.functions.invoke('email-automation', {
+      body: {
+        source: 'webhook',
+        trigger_type: 'staff_contact_list_assigned',
+        table: 'contact_list_assignees',
+        type: 'INSERT',
+        record: inserted,
+      },
+    });
     try {
       await supabase.rpc('distribute_contact_list_items', { p_list_id: selectedList.id });
     } catch (e) {
@@ -512,8 +543,14 @@ const ContactLists = () => {
                     {l.class_ids?.length ? <Badge variant="outline">{l.class_ids.length} turma(s)</Badge> : <Badge variant="secondary">Todas turmas</Badge>}
                   </TableCell>
                   <TableCell>
-                    <Button variant="outline" onClick={() => setSelectedList(l)}>Abrir</Button>
-                    <Button variant="destructive" className="ml-2" onClick={() => handleDeleteList(l.id)}>Excluir</Button>
+                    <div className="flex flex-nowrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenList(l)}>
+                        Abrir
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteList(l.id)}>
+                        Excluir
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -523,7 +560,7 @@ const ContactLists = () => {
       </Card>
 
       {selectedList && (
-        <Card>
+        <Card ref={detailsRef} className="scroll-mt-6">
           <CardHeader>
             <CardTitle>Detalhes: {selectedList.name}</CardTitle>
           </CardHeader>

@@ -721,7 +721,11 @@ async function queueContactListAssignedEmail(
     .eq("id", assigneeId)
     .maybeSingle();
 
-  const toEmail = String(profile?.email ?? "").trim();
+  let toEmail = String(profile?.email ?? "").trim();
+  if (!toEmail) {
+    const { data: authData } = await supabase.auth.admin.getUserById(assigneeId);
+    toEmail = String(authData?.user?.email ?? "").trim();
+  }
   if (!toEmail) {
     return { skipped: true, reason: "usuário sem e-mail cadastrado" };
   }
