@@ -13,7 +13,7 @@ const HIGHLIGHTS = [
     emoji: '📚',
     title: 'Formação completa',
     description:
-      'Do berçário ao pré-vestibular e pré-militar, com estrutura para cada etapa.',
+      'Do berçário ao pré-vestibular, com estrutura para cada etapa.',
   },
   {
     emoji: '💛',
