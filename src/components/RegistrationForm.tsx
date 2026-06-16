@@ -22,6 +22,8 @@ import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 
+const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
+
 type Unit = Tables<'units'> & { slug?: string };
 type Serie = Tables<'series'>;
 type Class = Tables<'classes'> & {
@@ -372,12 +374,12 @@ export const RegistrationForm = () => {
 
   const formBody = (
     <>
-      <div className="border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+      <div className={`border-b border-slate-100 bg-slate-50/80 px-6 py-4 ${montserrat}`}>
         <h2 className="text-center text-lg font-bold text-primary sm:text-xl">
           Inscrição de Candidatos
         </h2>
       </div>
-      <div className="px-6 py-6">
+      <div className={`px-6 py-6 ${montserrat}`}>
         <input
           type="text"
           name="website"

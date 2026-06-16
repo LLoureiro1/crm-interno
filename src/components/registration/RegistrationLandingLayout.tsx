@@ -1,4 +1,10 @@
 import { ReactNode } from 'react';
+import '@fontsource/montserrat/400.css';
+import '@fontsource/montserrat/500.css';
+import '@fontsource/montserrat/600.css';
+import '@fontsource/montserrat/700.css';
+
+const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
 
 const HERO_BG = '/mock-crianca.png';
 
@@ -45,7 +51,7 @@ export function RegistrationLandingLayout({
   unitName,
 }: RegistrationLandingLayoutProps) {
   return (
-    <div className="min-h-svh bg-white">
+    <div className={`min-h-svh bg-white ${montserrat}`}>
       <section
         className="relative flex min-h-[min(100svh,900px)] items-center justify-center bg-cover bg-center px-4 py-12 sm:px-6 lg:px-8"
         style={{ backgroundImage: `url(${HERO_BG})` }}
