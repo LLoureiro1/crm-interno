@@ -388,13 +388,6 @@ export const RegistrationForm = () => {
           aria-hidden="true"
           className="pointer-events-none absolute left-[-9999px] h-0 w-0 opacity-0"
         />
-        <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-          <p>
-            Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção
-            para a inscrição do próximo.
-          </p>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <StudentDataSection
             formData={formData}
@@ -442,16 +435,23 @@ export const RegistrationForm = () => {
             )}
           </Button>
 
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-gray-800">
+            <p>
+              Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção
+              para a inscrição do próximo.
+            </p>
+          </div>
+
           <div className="rounded-md border border-border bg-muted/50 p-3">
             <p className="text-sm text-muted-foreground">
               As informações coletadas serão utilizadas exclusivamente para fins de inscrição e
-              comunicação sobre o Processo de Admissão 2026.
+              comunicação sobre o Processo de Admissão 2027.
             </p>
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
             Ao enviar este formulário, você concorda com o uso dos seus dados para comunicação sobre
-            o Processo de Admissão 2026, conforme nossa{' '}
+            o Processo de Admissão 2027, conforme nossa{' '}
             <a
               href="/privacidade"
               className="text-primary underline underline-offset-4 hover:text-primary/80"
