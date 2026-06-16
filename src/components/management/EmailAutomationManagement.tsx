@@ -76,6 +76,13 @@ const STATUS_LABELS: Record<EmailQueueStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+const CONTACT_LIST_ASSIGNED_VARIABLES = [
+  '{{assignee_name}}',
+  '{{list_name}}',
+  '{{active_count}}',
+  '{{contact_list_link}}',
+];
+
 const STAFF_DIGEST_TRIGGERS: EmailTriggerType[] = [
   'staff_new_lead_no_appointment',
   'staff_missed_appointment_no_reschedule',
@@ -162,26 +169,40 @@ export const EmailAutomationManagement = () => {
   );
 
   const isStaffDigestTrigger = STAFF_DIGEST_TRIGGERS.includes(selectedTrigger);
+  const isContactListAssignedTrigger = selectedTrigger === 'staff_contact_list_assigned';
 
-  const templateVariables = useMemo(
-    () =>
-      isStaffDigestTrigger
-        ? [...TEMPLATE_VARIABLES, ...STAFF_DIGEST_VARIABLES]
-        : TEMPLATE_VARIABLES,
-    [isStaffDigestTrigger],
-  );
+  const templateVariables = useMemo(() => {
+    if (isStaffDigestTrigger) {
+      return [...TEMPLATE_VARIABLES, ...STAFF_DIGEST_VARIABLES];
+    }
+    if (isContactListAssignedTrigger) {
+      return [...TEMPLATE_VARIABLES, ...CONTACT_LIST_ASSIGNED_VARIABLES];
+    }
+    return TEMPLATE_VARIABLES;
+  }, [isStaffDigestTrigger, isContactListAssignedTrigger]);
 
   const previewOverrides = useMemo(() => {
     const base = {
       unit_name: selectedUnit?.name ?? PREVIEW_SAMPLE_DATA.unit_name,
     };
-    if (!isStaffDigestTrigger) return base;
-    return {
-      ...base,
-      student_count: '2',
-      student_list: STAFF_DIGEST_SAMPLE_LIST,
-    };
-  }, [selectedUnit, isStaffDigestTrigger]);
+    if (isStaffDigestTrigger) {
+      return {
+        ...base,
+        student_count: '2',
+        student_list: STAFF_DIGEST_SAMPLE_LIST,
+      };
+    }
+    if (isContactListAssignedTrigger) {
+      return {
+        ...base,
+        assignee_name: 'Ana Coordenadora',
+        list_name: 'Follow-up sem agendamento',
+        active_count: '12',
+        contact_list_link: 'https://exemplo.escola.com.br/?tab=students&studentsTab=assigned',
+      };
+    }
+    return base;
+  }, [selectedUnit, isStaffDigestTrigger, isContactListAssignedTrigger]);
 
   const currentTemplate = useMemo(
     () =>

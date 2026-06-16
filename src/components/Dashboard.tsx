@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardNav } from '@/contexts/DashboardNavContext';
 import { ReportsTab } from './tabs/ReportsTab';
@@ -12,6 +12,7 @@ import ErrorBoundary from './ErrorBoundary';
 export const Dashboard = () => {
   const { profile } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { activeTab, setActiveTab } = useDashboardNav();
 
   const canAccessAdvancedReports =
@@ -20,10 +21,15 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const navigationState = location.state as { activeTab?: string };
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+      return;
+    }
     if (navigationState?.activeTab) {
       setActiveTab(navigationState.activeTab);
     }
-  }, [location.state, setActiveTab]);
+  }, [location.state, searchParams, setActiveTab]);
 
   useEffect(() => {
     if (activeTab === 'advanced-reports' && !canAccessAdvancedReports) {

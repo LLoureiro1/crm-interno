@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -6,7 +7,15 @@ import { StudentsTab } from './StudentsTab';
 import { AssignedContactsTab } from './AssignedContactsTab';
 
 export const StudentsMainTab = () => {
+  const [searchParams] = useSearchParams();
   const [active, setActive] = useState<'list' | 'assigned'>('list');
+
+  useEffect(() => {
+    const studentsTab = searchParams.get('studentsTab');
+    if (studentsTab === 'assigned' || studentsTab === 'list') {
+      setActive(studentsTab);
+    }
+  }, [searchParams]);
 
   return (
     <div className="relative -mt-2 min-w-0 w-full max-w-full md:-mt-4 lg:-mt-6">

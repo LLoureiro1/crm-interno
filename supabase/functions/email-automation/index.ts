@@ -765,7 +765,7 @@ async function queueContactListAssignedEmail(
     assignee_name: String(profile?.name ?? ""),
     list_name: String(list.name ?? ""),
     active_count: String(count ?? 0),
-    contact_list_link: buildAppLink("/"),
+    contact_list_link: buildAppLink('/?tab=students&studentsTab=assigned'),
   };
 
   if (unitId) {
