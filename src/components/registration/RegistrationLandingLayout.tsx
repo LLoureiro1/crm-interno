@@ -41,6 +41,8 @@ const STATS = [
   { value: '25+', label: 'Anos de história' },
 ] as const;
 
+const APOGEU_VIDEO_ID = '6rQPReLuoNg';
+
 interface RegistrationLandingLayoutProps {
   children: ReactNode;
   unitName?: string | null;
@@ -110,6 +112,22 @@ export function RegistrationLandingLayout({
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{description}</p>
               </article>
             ))}
+          </div>
+
+          <div className="mx-auto mt-12 max-w-3xl">
+            <h2 className="mb-6 text-center text-xl font-bold text-[#1437cc] sm:text-2xl">
+              Veja o que nos torna especiais
+            </h2>
+            <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-900 shadow-lg ring-1 ring-slate-200">
+              <iframe
+                src={`https://www.youtube.com/embed/${APOGEU_VIDEO_ID}`}
+                title="Vídeo Rede de Ensino Apogeu"
+                className="absolute inset-0 h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
           </div>
         </div>
       </section>
