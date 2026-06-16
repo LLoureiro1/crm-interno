@@ -64,13 +64,13 @@ export function RegistrationLandingLayout({
               className="mx-auto mb-4 h-16 w-auto object-contain drop-shadow-lg sm:h-20"
             />
             <h1 className="text-2xl font-bold leading-tight drop-shadow-sm sm:text-3xl lg:text-4xl">
-              Dê o primeiro passo com o{' '}
-              <span className="text-[#ffac1a]">Apogeu</span>
+            Venha transformar a sua vida com o {' '}
+              <span className="text-[#143ccc]">APOGEU!</span>
             </h1>
             <p className="mx-auto mt-3 max-w-lg text-sm font-medium text-white sm:text-base">
               {unitName
                 ? `Inscrição para a unidade ${unitName}. Preencha o formulário e nossa equipe entrará em contato.`
-                : 'Mais que uma escola, um legado de conquistas. Deixe seus dados para iniciar o Processo de Admissão 2026.'}
+                : 'Mais que uma escola, um legado de conquistas. Deixe seus dados para iniciar o Processo de Admissão 2027.'}
             </p>
           </div>
 
