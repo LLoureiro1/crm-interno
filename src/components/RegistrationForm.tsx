@@ -30,7 +30,6 @@ type Class = Tables<'classes'> & {
 };
 
 export const RegistrationForm = () => {
-  console.log('📝 RegistrationForm renderizado');
   const navigate = useNavigate();
   const { unitSlug } = useParams<{ unitSlug?: string }>();
   const { user, profile } = useAuth();
@@ -365,15 +364,18 @@ export const RegistrationForm = () => {
     }
   };
 
+  const shellClass = 'min-h-svh bg-slate-50 py-8 px-4 pb-20';
+  const innerClass = 'max-w-2xl mx-auto';
+
   // Mostrar loading enquanto carrega dados iniciais
   if (dataLoading) {
     return (
-      <div className="min-h-screen bg-blue-50 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
+      <div className={shellClass}>
+        <div className={innerClass}>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
-              <p className="text-gray-600">Carregando dados do formulário...</p>
+              <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Carregando dados do formulário...</p>
             </CardContent>
           </Card>
         </div>
@@ -384,8 +386,8 @@ export const RegistrationForm = () => {
   // Mostrar erro se houver problema no carregamento
   if (dataError) {
     return (
-      <div className="min-h-screen bg-blue-50 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
+      <div className={shellClass}>
+        <div className={innerClass}>
           <Card>
             <CardContent className="py-8">
               <Alert variant="destructive">
@@ -398,7 +400,7 @@ export const RegistrationForm = () => {
                     onClick={refetch}
                     className="ml-4"
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     Tentar Novamente
                   </Button>
                 </AlertDescription>
@@ -411,19 +413,18 @@ export const RegistrationForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Logos da unidade */}
-        <div className="flex justify-center mb-1">
+    <div className={shellClass}>
+      <div className={innerClass}>
+        <div className="mb-4 flex justify-center">
           <img
             src="/logo_apogeu_nobg.png"
-            alt="Rede de Ensino"
-            className="h-24 w-auto object-contain"
+            alt="Rede de Ensino Apogeu"
+            className="h-20 w-auto object-contain"
           />
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-center text-gray-900">
+            <CardTitle className="text-center text-xl font-bold text-primary">
               Inscrição de Candidatos
             </CardTitle>
           </CardHeader>
@@ -438,7 +439,7 @@ export const RegistrationForm = () => {
               aria-hidden="true"
               className="absolute left-[-9999px] h-0 w-0 opacity-0 pointer-events-none"
             />
-            <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
+            <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
               <p>Caso possua mais de 1 filho(a), conclua a inscrição do primeiro e após haverá a opção para a inscrição do próximo.</p>
             </div>
 
@@ -476,7 +477,7 @@ export const RegistrationForm = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                className="w-full"
                 disabled={loading || dataLoading}
               >
                 {loading ? (
@@ -490,16 +491,16 @@ export const RegistrationForm = () => {
               </Button>
 
               {/* Aviso de uso de dados (LGPD) */}
-              <div className="mb-4 rounded-md bg-blue-50 border border-blue-100 p-3">
-                <p className="text-sm text-gray-800">
+              <div className="mb-4 rounded-md border border-border bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
                   As informações coletadas serão utilizadas exclusivamente para fins de inscrição e comunicação sobre o Processo de Admissão 2026.
                 </p>
               </div>
 
               {/* Consentimento abaixo do botão (LGPD) */}
-              <p className="mt-2 text-xs text-gray-700 text-center">
+              <p className="mt-2 text-center text-xs text-muted-foreground">
                 Ao enviar este formulário, você concorda com o uso dos seus dados para comunicação sobre o Processo de Admissão 2026, conforme nossa
-                {' '}<a href="/privacidade" className="text-blue-600 hover:text-blue-700 underline">Política de Privacidade</a>.
+                {' '}<a href="/privacidade" className="text-primary underline underline-offset-4 hover:text-primary/80">Política de Privacidade</a>.
               </p>
             </form>
           </CardContent>
