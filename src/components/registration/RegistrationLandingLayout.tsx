@@ -37,7 +37,7 @@ const HIGHLIGHTS = [
 
 const STATS = [
   { value: '5 mil+', label: 'Alunos na rede' },
-  { value: '6', label: 'Cidades' },
+  { value: '9', label: 'Cidades' },
   { value: '25+', label: 'Anos de história' },
 ] as const;
 
@@ -132,7 +132,7 @@ export function RegistrationLandingLayout({
           className="mx-auto mb-2 h-8 w-auto opacity-80"
         />
         <p className="text-xs text-slate-500">
-          © {new Date().getFullYear()} Rede de Ensino Apogeu. Todos os direitos reservados.
+          © 2027 Rede de Ensino Apogeu. Todos os direitos reservados.
         </p>
       </footer>
     </div>
