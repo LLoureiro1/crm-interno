@@ -2145,7 +2145,6 @@ export const AdvancedReportsTab = () => {
             <div className={dateFilterType === 'custom' ? 'lg:col-span-2' : ''}>
               <Button
                 onClick={fetchAllData}
-                variant="outline"
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />

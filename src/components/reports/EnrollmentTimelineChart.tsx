@@ -200,7 +200,7 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="inscritos"
                 stroke="#2563eb"
                 strokeWidth={2}
-                dot={({ cx, cy }) => <CircleDot cx={cx} cy={cy} r={circleRadius} />}
+                dot={false}
                 activeDot={({ cx, cy }) => (
                   <CircleDot cx={cx} cy={cy} r={circleRadius + 1.5} strokeWidth={2.5} />
                 )}
@@ -212,7 +212,7 @@ export function EnrollmentTimelineChart({ data }: EnrollmentTimelineChartProps) 
                 dataKey="matriculados"
                 stroke="#16a34a"
                 strokeWidth={2}
-                dot={({ cx, cy }) => <TriangleDot cx={cx} cy={cy} size={markerSize} />}
+                dot={false}
                 activeDot={({ cx, cy }) => (
                   <TriangleDot cx={cx} cy={cy} size={markerSize + 1.5} strokeWidth={2.5} />
                 )}
