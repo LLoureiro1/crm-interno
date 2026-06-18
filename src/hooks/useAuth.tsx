@@ -17,20 +17,32 @@ export const useAuth = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const expiringSessionRef = useRef(false);
+  const expirePromiseRef = useRef<Promise<void> | null>(null);
 
   const expireSessionForSecurity = useCallback(async (currentUser: User) => {
-    if (expiringSessionRef.current) return;
-    expiringSessionRef.current = true;
-
-    try {
-      markAuthLogoutReason('session_expired');
-      await logUserAuthEvent(currentUser.id, 'session_expired');
-      await supabase.auth.signOut();
-      setProfile(null);
-      setUser(null);
-    } finally {
-      expiringSessionRef.current = false;
+    if (expirePromiseRef.current) {
+      await expirePromiseRef.current;
+      return;
     }
+
+    expiringSessionRef.current = true;
+    expirePromiseRef.current = (async () => {
+      try {
+        markAuthLogoutReason('session_expired');
+        await logUserAuthEvent(currentUser.id, 'session_expired');
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error('Erro ao expirar sessão:', error);
+      } finally {
+        setProfile(null);
+        setUser(null);
+        setLoading(false);
+        expiringSessionRef.current = false;
+        expirePromiseRef.current = null;
+      }
+    })();
+
+    await expirePromiseRef.current;
   }, []);
 
   const enforceDailySessionLimit = useCallback(async (currentUser: User | null | undefined) => {
@@ -74,10 +86,8 @@ export const useAuth = () => {
 
       if (session?.user) {
         const expired = await enforceDailySessionLimit(session.user);
-        if (cancelled || expired) {
-          if (!expired) setLoading(false);
-          return;
-        }
+        if (cancelled) return;
+        if (expired) return;
         setUser(session.user);
         await fetchProfile(session.user.id);
         return;
