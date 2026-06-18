@@ -15,15 +15,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, Percent, CreditCard, Book, Pen } from 'lucide-react';
+import { Calendar, User, Phone, Mail, MapPin, GraduationCap, CreditCard, Book, Pen } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 import { GradeEditor } from '@/components/GradeEditor';
 import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
 import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
-import { TruncatedText } from '@/components/ui/TruncatedText';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
+import { cn } from '@/lib/utils';
+
+const CARD_CLASS = 'overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm';
+const CTA_CLASS = 'w-full bg-[#ffac1a] text-white hover:bg-[#e89b0f]';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -162,7 +165,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
       const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
         'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
         'confirmado': { label: 'Confirmado', variant: 'secondary' },
@@ -179,23 +182,50 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
       };
 
       const config = statusMap[status] || { label: status, variant: 'outline' as const };
+
+      if (placement === 'header') {
+        const headerTone: Record<string, string> = {
+          destructive: 'border-destructive/20 bg-destructive/10 text-destructive',
+          success: 'border-green-200 bg-green-50 text-green-700',
+          warning: 'border-orange-200 bg-orange-50 text-orange-700',
+          default: 'border-primary/20 bg-primary/10 text-primary',
+          secondary: 'border-blue-200 bg-blue-50 text-blue-700',
+          outline: 'border-border bg-muted text-muted-foreground',
+        };
+        return (
+          <Badge
+            variant="outline"
+            className={cn(
+              'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
+              headerTone[config.variant] ?? headerTone.outline
+            )}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+            {config.label}
+          </Badge>
+        );
+      }
+
       return <Badge variant={config.variant}>{config.label}</Badge>;
     };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <User className="h-5 w-5" />
-            <span>Ficha do Aluno - {student.student_name}</span>
-          </DialogTitle>
-          <DialogDescription>
-            Código: {student.code} | Status: {getStatusBadge(student.status)}
+      <DialogContent className="max-w-4xl max-h-[90vh] gap-0 overflow-y-auto p-0 sm:rounded-lg">
+        <DialogHeader className="space-y-2 border-b border-slate-200 px-6 pb-4 pt-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-primary">
+              <User className="h-5 w-5" />
+              <span>Ficha do Aluno — {student.student_name}</span>
+            </DialogTitle>
+            {getStatusBadge(student.status, 'header')}
+          </div>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Código {student.code} • {student.classes.series.name} • {student.classes.units.name}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
           {/* Student Information */}
           <div className="space-y-4">
             {/* Student Reactivation */}
@@ -204,104 +234,117 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               onSuccess={onUpdate}
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <User className="h-4 w-4" />
                   <span>Dados Pessoais</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <span className="font-medium">Nome do Aluno:</span>
-                    <p><TruncatedText text={student.student_name} /></p>
+                    <p className="text-xs text-muted-foreground">Nome do Aluno</p>
+                    <p className="text-sm font-medium text-foreground">{student.student_name}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Responsável:</span>
-                    <p><TruncatedText text={student.responsible_name} /></p>
+                    <p className="text-xs text-muted-foreground">Responsável</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.responsible_name || <span className="italic text-muted-foreground">Não informado</span>}
+                    </p>
                   </div>
                   <div>
-                    <span className="font-medium">Data de Nascimento:</span>
-                    <p>{formatDateForDisplay(student.birth_date)}</p>
+                    <p className="text-xs text-muted-foreground">Data de Nascimento</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {formatDateForDisplay(student.birth_date) || <span className="italic text-muted-foreground">Não informado</span>}
+                    </p>
                   </div>
                   <div>
-                    <div className="flex items-center space-x-1">
-                      <Phone className="h-3 w-3" />
-                      <span className="font-medium">Telefone:</span>
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {student.phone || <span className="italic text-muted-foreground">Não informado</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {student.email || <span className="italic text-muted-foreground">Não informado</span>}
+                      </p>
                     </div>
-                    <p><TruncatedText text={student.phone} /></p>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="font-medium">Email:</span>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Cidade</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {student.city || <span className="italic text-muted-foreground">Não informado</span>}
+                      </p>
                     </div>
-                    <p><TruncatedText text={student.email} /></p>
                   </div>
                   <div>
-                    <div className="flex items-center space-x-1">
-                      <MapPin className="h-3 w-3" />
-                      <span className="font-medium">Cidade:</span>
-                    </div>
-                    <p><TruncatedText text={student.city} /></p>
+                    <p className="text-xs text-muted-foreground">Bairro</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.neighborhood || <span className="italic text-muted-foreground">Não informado</span>}
+                    </p>
                   </div>
-                  <div>
-                    <span className="font-medium">Bairro:</span>
-                    <p><TruncatedText text={student.neighborhood} /></p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Escola de Origem:</span>
-                    <p><TruncatedText text={student.origin_school} /></p>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground">Escola de Origem</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.origin_school || <span className="italic text-muted-foreground">Não informado</span>}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <GraduationCap className="h-4 w-4" />
                   <span>Dados Acadêmicos</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <span className="font-medium">Série:</span>
-                    <p><TruncatedText text={student.classes.series.name} /></p>
+                    <p className="text-xs text-muted-foreground">Série</p>
+                    <p className="text-sm font-medium text-foreground">{student.classes.series.name}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Unidade:</span>
-                    <p><TruncatedText text={student.classes.units.name} /></p>
+                    <p className="text-xs text-muted-foreground">Unidade</p>
+                    <p className="text-sm font-medium text-foreground">{student.classes.units.name}</p>
                   </div>
                   {student.classes?.has_exam && (
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
                     </div>
                   )}
-                  <div className="flex items-center space-x-1">
-                    <Percent className="h-3 w-3" />
-                    <span className="font-medium">Desconto:</span>
-                    <p>{student.discount_percentage !== null ? `${student.discount_percentage}%` : '-'}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">% Desconto</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.discount_percentage !== null ? `${student.discount_percentage}%` : '—'}
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span className="font-medium">Data da Inscrição:</span>
-                    <p>{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Data da Inscrição</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}
+                    </p>
                   </div>
                   {student.exam_date && (
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span className="font-medium">Data da Prova:</span>
-                      <p>{formatDateForDisplay(student.exam_date)}</p>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Data da Prova</p>
+                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.exam_date)}</p>
                     </div>
                   )}
                   {student.interview_date && (
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span className="font-medium">Data da Entrevista:</span>
-                      <p>{formatDateForDisplay(student.interview_date)}</p>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Data da Entrevista</p>
+                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.interview_date)}</p>
                     </div>
                   )}
                 </div>
@@ -309,9 +352,9 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
             </Card>
 
             {/* Financial Data */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <Pen className="h-4 w-4" />
                   <span>Proposta</span>
                 </CardTitle>
@@ -352,14 +395,15 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
             </Card>
 
             {/* Status Update */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Atualizar Status</CardTitle>
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-primary">Atualizar Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
+                  <Label htmlFor="status-select">Novo Status</Label>
                   <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Enums<'student_status'>)}>
-                    <SelectTrigger>
+                    <SelectTrigger id="status-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent side="bottom">
@@ -391,10 +435,11 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
 
                 {newStatus === 'desistente' && (
                   <div>
+                    <Label htmlFor="dropout-reason">Motivo da Desistência</Label>
                     <Select value={dropoutReason} onValueChange={(value) => {
                       setDropoutReason(value as Enums<'dropout_reason'>);
                     }}>
-                      <SelectTrigger>
+                      <SelectTrigger id="dropout-reason">
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
                       <SelectContent side="bottom">
@@ -425,9 +470,10 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 )}
 
                 {newStatus === 'cadastro_invalido' && (
-                  <div className="mt-2">
+                  <div>
+                    <Label htmlFor="invalid-reason">Motivo do Cadastro Inválido</Label>
                     <Select value={invalidReason} onValueChange={setInvalidReason}>
-                      <SelectTrigger>
+                      <SelectTrigger id="invalid-reason">
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
                       <SelectContent side="bottom">
@@ -441,7 +487,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
 
                 <Button 
                   onClick={handleUpdateStatus}
-                  className="w-full"
+                  className={CTA_CLASS}
                   disabled={newStatus === student.status}
                 >
                   Atualizar Status
@@ -454,22 +500,22 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
           <div className="space-y-4">
             {/* Origin/Tracking Information */}
             {student.tracking_code && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+              <Card className={CARD_CLASS}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base text-primary">
                     <MapPin className="h-4 w-4" />
                     <span>Origem</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-sm text-blue-600 font-medium">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <div className="text-xs font-medium text-primary">
                       Código de Rastreamento
                     </div>
-                    <div className="text-blue-800 font-semibold">
+                    <div className="text-sm font-semibold text-foreground">
                       {student.tracking_code}
                     </div>
-                    <div className="text-xs text-blue-500 mt-1">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       Este aluno foi cadastrado através de uma fonte rastreada
                     </div>
                   </div>
@@ -477,9 +523,9 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               </Card>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Adicionar Comentário</CardTitle>
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-primary">Adicionar Comentário</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Textarea
@@ -490,43 +536,43 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 />
                 <Button 
                   onClick={handleAddInteraction}
-                  className="w-full bg-orange-500 hover:bg-orange-600"
+                  className={CTA_CLASS}
                 >
                   Adicionar Comentário
                 </Button>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico de Interações</CardTitle>
+            <Card className={CARD_CLASS}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Histórico de Interações</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="max-h-96 space-y-3 overflow-y-auto">
                   {interactions.length > 0 ? (
                     interactions.map((interaction) => (
-                      <div key={interaction.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-sm font-medium text-gray-900">
+                      <div key={interaction.id} className="rounded-lg border border-slate-200 bg-muted/40 p-3">
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <span className="text-sm font-medium text-foreground">
                             {(interaction as any).profiles?.name || 'Sistema'}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="shrink-0 text-xs text-muted-foreground">
                             {new Date(interaction.created_at).toLocaleString('pt-BR')}
                           </span>
                         </div>
                         <p 
-                          className="text-sm text-gray-700"
+                          className="text-sm text-foreground/80"
                           dangerouslySetInnerHTML={{ 
                             __html: sanitizeInteractionComment(interaction.comments || '') 
                           }}
                         />
-                        <Badge variant="outline" className="mt-1 text-xs">
+                        <Badge variant="outline" className="mt-2 text-xs">
                           {interaction.interaction_type}
                         </Badge>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-center">Nenhuma interação registrada</p>
+                    <p className="text-center text-sm text-muted-foreground">Nenhuma interação registrada</p>
                   )}
                 </div>
               </CardContent>
