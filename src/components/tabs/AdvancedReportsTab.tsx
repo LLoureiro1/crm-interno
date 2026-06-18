@@ -1881,7 +1881,6 @@ export const AdvancedReportsTab = () => {
     }
   };
 
-  // Função para buscar todos os dados
   const fetchAllData = () => {
     fetchUnitStatusOverview();
     fetchEnrollmentTimeline();

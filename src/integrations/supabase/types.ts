@@ -648,6 +648,38 @@ export type Database = {
           },
         ]
       }
+      user_auth_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["user_auth_action"]
+          created_at: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["user_auth_action"]
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["user_auth_action"]
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_auth_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       series: {
         Row: {
           created_at: string
@@ -1214,6 +1246,7 @@ export type Database = {
         | "ausente"
         | "processo_anos_anteriores"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
+      user_auth_action: "login" | "logout" | "session_expired"
       contact_channel: "phone" | "whatsapp" | "email" | "in_person"
       contact_reason:
         | "agendamento"
@@ -1406,6 +1439,7 @@ export const Constants = {
         "processo_anos_anteriores",
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
+      user_auth_action: ["login", "logout", "session_expired"],
       contact_channel: ["phone", "whatsapp", "email", "in_person"],
       contact_reason: [
         "agendamento",

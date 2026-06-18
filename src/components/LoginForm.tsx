@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthLogoutNotice } from '@/hooks/useAuthLogoutNotice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ export const LoginForm = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [accountDisabled, setAccountDisabled] = useState(false);
   const { signIn } = useAuth();
+  useAuthLogoutNotice();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
