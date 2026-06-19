@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import type { Tables } from '@/integrations/supabase/types';
-import { logUserAuthEvent } from '@/utils/authActivityLog';
+import { endUserSession, startUserSession } from '@/utils/userSession';
 import {
   isBrtSessionExpired,
   markAuthLogoutReason,
@@ -29,7 +29,7 @@ export const useAuth = () => {
     expirePromiseRef.current = (async () => {
       try {
         markAuthLogoutReason('session_expired');
-        await logUserAuthEvent(currentUser.id, 'session_expired');
+        await endUserSession('session_expired');
         await supabase.auth.signOut();
       } catch (error) {
         console.error('Erro ao expirar sessão:', error);
@@ -63,6 +63,7 @@ export const useAuth = () => {
       
       if (data && !data.ativo) {
         console.log('Usuário inativo detectado, fazendo logout...');
+        await endUserSession('inactive_account');
         await supabase.auth.signOut();
         setProfile(null);
         setUser(null);
@@ -187,7 +188,7 @@ export const useAuth = () => {
           };
         }
 
-        await logUserAuthEvent(signedInUser.id, 'login');
+        await startUserSession(signedInUser.id);
       }
     }
     
@@ -197,7 +198,7 @@ export const useAuth = () => {
   const signOut = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     if (currentUser) {
-      await logUserAuthEvent(currentUser.id, 'logout');
+      await endUserSession('manual');
     }
 
     const { error } = await supabase.auth.signOut();

@@ -648,6 +648,41 @@ export type Database = {
           },
         ]
       }
+      user_sessions: {
+        Row: {
+          id: string
+          logged_in_at: string
+          logged_out_at: string | null
+          logout_reason: Database["public"]["Enums"]["user_session_end_reason"] | null
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_in_at?: string
+          logged_out_at?: string | null
+          logout_reason?: Database["public"]["Enums"]["user_session_end_reason"] | null
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_in_at?: string
+          logged_out_at?: string | null
+          logout_reason?: Database["public"]["Enums"]["user_session_end_reason"] | null
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_auth_logs: {
         Row: {
           action: Database["public"]["Enums"]["user_auth_action"]
@@ -1247,6 +1282,7 @@ export type Database = {
         | "processo_anos_anteriores"
       user_profile: "admin" | "direcao" | "entrevistador" | "padrao"
       user_auth_action: "login" | "logout" | "session_expired"
+      user_session_end_reason: "manual" | "session_expired" | "inactive_account"
       contact_channel: "phone" | "whatsapp" | "email" | "in_person"
       contact_reason:
         | "agendamento"
@@ -1440,6 +1476,7 @@ export const Constants = {
       ],
       user_profile: ["admin", "direcao", "entrevistador", "padrao"],
       user_auth_action: ["login", "logout", "session_expired"],
+      user_session_end_reason: ["manual", "session_expired", "inactive_account"],
       contact_channel: ["phone", "whatsapp", "email", "in_person"],
       contact_reason: [
         "agendamento",
