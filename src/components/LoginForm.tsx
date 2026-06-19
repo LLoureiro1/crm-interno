@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthLogoutNotice } from '@/hooks/useAuthLogoutNotice';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,35 @@ import { toast } from 'sonner';
 import { ForgotPassword } from './ForgotPassword';
 import { AlertCircle } from 'lucide-react';
 import { getAuthErrorMessage } from '@/utils/authErrorMessages';
+
+function LoginShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-blue-50 p-4">
+      {children}
+    </div>
+  );
+}
+
+function LoginCard({ children }: { children: ReactNode }) {
+  return (
+    <Card className="w-full max-w-md overflow-hidden border border-slate-200 shadow-sm">
+      <CardHeader className="space-y-3 pb-4 text-center">
+        <img
+          src="/logo_apogeu_nobg.png"
+          alt="Rede de Ensino Apogeu"
+          className="mx-auto h-12 w-auto object-contain"
+        />
+        <div>
+          <CardTitle className="text-2xl font-bold text-primary">CRM Apogeu</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Faça login para acessar o sistema
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -24,12 +53,11 @@ export const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setAccountDisabled(false); // Reset do estado
+    setAccountDisabled(false);
 
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        // Verificar se é erro de usuário inativo
         if (error.message.includes('desativada')) {
           setAccountDisabled(true);
           toast.error('Conta Desativada', {
@@ -49,75 +77,69 @@ export const LoginForm = () => {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
+      <LoginShell>
         <ForgotPassword onBack={() => setShowForgotPassword(false)} />
-      </div>
+      </LoginShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">CRM Apogeu</CardTitle>
-          <CardDescription>Faça login para acessar o sistema</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Alerta para conta desativada */}
-          {accountDisabled && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Conta Desativada</strong><br />
-                Sua conta foi desativada pelo administrador. Entre em contato para mais informações.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-              />
-            </div>
+    <LoginShell>
+      <LoginCard>
+        {accountDisabled && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Conta Desativada</strong>
+              <br />
+              Sua conta foi desativada pelo administrador. Entre em contato para mais informações.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="seu@email.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full bg-[#ffac1a] text-white hover:bg-[#e89b0f]"
+            disabled={loading}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </Button>
+
+          <div className="text-center">
             <Button
-              type="submit"
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={loading}
+              type="button"
+              variant="link"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-primary hover:text-primary/80"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              Esqueci minha senha
             </Button>
-            
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="link"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-gray-600 hover:text-orange-500"
-              >
-                Esqueci minha senha
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          </div>
+        </form>
+      </LoginCard>
+    </LoginShell>
   );
 };
