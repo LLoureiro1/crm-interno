@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import type { Tables } from '@/integrations/supabase/types';
 import { endUserSession, startUserSession } from '@/utils/userSession';
 import {
@@ -19,8 +19,6 @@ import {
 } from '@/utils/authSession';
 
 type Profile = Tables<'profiles'>;
-
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 12_000;
 
 type AuthContextValue = {
   user: User | null;
@@ -37,7 +35,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const expiringSessionRef = useRef(false);
   const expirePromiseRef = useRef<Promise<void> | null>(null);
   const loadingResolvedRef = useRef(false);
   const profileRef = useRef<Profile | null>(null);
@@ -59,7 +56,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    expiringSessionRef.current = true;
     expirePromiseRef.current = (async () => {
       try {
         markAuthLogoutReason('session_expired');
@@ -71,7 +67,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateProfile(null);
         setUser(null);
         resolveLoading();
-        expiringSessionRef.current = false;
         expirePromiseRef.current = null;
       }
     })();
@@ -112,93 +107,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [resolveLoading, updateProfile]);
 
+  // Callback SÍNCRONO — async aqui causa deadlock no lock interno do Supabase Auth
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session) => {
+        if (!session?.user) {
+          setUser(null);
+          updateProfile(null);
+          resolveLoading();
+          return;
+        }
+        setUser(session.user);
+      },
+    );
+
+    return () => subscription.unsubscribe();
+  }, [resolveLoading, updateProfile]);
+
+  // Trabalho async fora do callback (fetch profile, expiração diária)
+  useEffect(() => {
+    if (!user) return;
+
     let cancelled = false;
 
-    const timeoutId = window.setTimeout(() => {
-      if (!cancelled && !loadingResolvedRef.current) {
-        console.warn('[auth] Timeout no bootstrap — liberando interface');
+    void (async () => {
+      const expired = await enforceDailySessionLimit(user);
+      if (cancelled || expired) return;
+
+      if (profileRef.current?.id === user.id) {
         resolveLoading();
-      }
-    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
-
-    const bootstrapSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled) return;
-
-        if (session?.user) {
-          const expired = await enforceDailySessionLimit(session.user);
-          if (cancelled) return;
-          if (expired) {
-            resolveLoading();
-            return;
-          }
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-          return;
-        }
-
-        setUser(null);
-        resolveLoading();
-      } catch (error) {
-        console.error('[auth] Erro no bootstrap da sessão:', error);
-        if (!cancelled) {
-          setUser(null);
-          resolveLoading();
-        }
-      }
-    };
-
-    bootstrapSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (cancelled) return;
-
-      if (session?.user) {
-        const expired = await enforceDailySessionLimit(session.user);
-        if (cancelled) return;
-        if (expired) {
-          resolveLoading();
-          return;
-        }
-
-        setUser(session.user);
-
-        if (event === 'TOKEN_REFRESHED') {
-          resolveLoading();
-          if (!profileRef.current) {
-            await fetchProfile(session.user.id);
-          }
-          return;
-        }
-
-        await fetchProfile(session.user.id);
         return;
       }
 
-      setUser(null);
-      updateProfile(null);
-      resolveLoading();
-    });
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState !== 'visible') return;
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!cancelled && currentUser) {
-        await enforceDailySessionLimit(currentUser);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+      await fetchProfile(user.id);
+    })();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
-      subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enforceDailySessionLimit, fetchProfile, resolveLoading, updateProfile]);
+  }, [user, enforceDailySessionLimit, fetchProfile, resolveLoading]);
 
   useEffect(() => {
     if (!user) return;
@@ -228,6 +175,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user?.id, user?.last_sign_in_at, expireSessionForSecurity]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+        if (currentUser) void enforceDailySessionLimit(currentUser);
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user?.id, enforceDailySessionLimit]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
