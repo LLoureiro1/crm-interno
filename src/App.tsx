@@ -18,6 +18,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { DOMErrorPrevention } from "./components/DOMErrorPrevention";
 import { useTrackingCode } from "./hooks/useTrackingCode";
 import { CookieBanner } from "./components/CookieBanner";
+import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -49,29 +50,31 @@ const App = () => (
   <DOMErrorPrevention>
     <ErrorBoundary fallback={<ErrorFallback />}>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <TrackingProvider>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/inscricao/:unitSlug" element={<Registration />} />
-                <Route path="/inscricao" element={<Registration />} />
-                <Route path="/privacidade" element={<PrivacyPolicy />} />
-                <Route path="/student/:id" element={<StudentProfile />} />
-                <Route path="/set-password" element={<SetPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/confirmacao" element={<Confirmation />} />
-                <Route path="/reagendar" element={<Reschedule />} />
-                <Route path="/contact-lists" element={<ContactLists />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <CookieBanner />
-            </TrackingProvider>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <TrackingProvider>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/inscricao/:unitSlug" element={<Registration />} />
+                  <Route path="/inscricao" element={<Registration />} />
+                  <Route path="/privacidade" element={<PrivacyPolicy />} />
+                  <Route path="/student/:id" element={<StudentProfile />} />
+                  <Route path="/set-password" element={<SetPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/confirmacao" element={<Confirmation />} />
+                  <Route path="/reagendar" element={<Reschedule />} />
+                  <Route path="/contact-lists" element={<ContactLists />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <CookieBanner />
+              </TrackingProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </DOMErrorPrevention>

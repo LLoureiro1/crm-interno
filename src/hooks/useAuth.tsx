@@ -1,5 +1,13 @@
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import type { Tables } from '@/integrations/supabase/types';
@@ -12,12 +20,38 @@ import {
 
 type Profile = Tables<'profiles'>;
 
-export const useAuth = () => {
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 12_000;
+
+type AuthContextValue = {
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
+  signOut: () => Promise<{ error: Error | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null; emailExists: boolean }>;
+};
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const expiringSessionRef = useRef(false);
   const expirePromiseRef = useRef<Promise<void> | null>(null);
+  const loadingResolvedRef = useRef(false);
+  const profileRef = useRef<Profile | null>(null);
+
+  const resolveLoading = useCallback(() => {
+    if (loadingResolvedRef.current) return;
+    loadingResolvedRef.current = true;
+    setLoading(false);
+  }, []);
+
+  const updateProfile = useCallback((nextProfile: Profile | null) => {
+    profileRef.current = nextProfile;
+    setProfile(nextProfile);
+  }, []);
 
   const expireSessionForSecurity = useCallback(async (currentUser: User) => {
     if (expirePromiseRef.current) {
@@ -34,16 +68,16 @@ export const useAuth = () => {
       } catch (error) {
         console.error('Erro ao expirar sessão:', error);
       } finally {
-        setProfile(null);
+        updateProfile(null);
         setUser(null);
-        setLoading(false);
+        resolveLoading();
         expiringSessionRef.current = false;
         expirePromiseRef.current = null;
       }
     })();
 
     await expirePromiseRef.current;
-  }, []);
+  }, [resolveLoading, updateProfile]);
 
   const enforceDailySessionLimit = useCallback(async (currentUser: User | null | undefined) => {
     if (!currentUser || !isBrtSessionExpired(currentUser)) return false;
@@ -51,7 +85,7 @@ export const useAuth = () => {
     return true;
   }, [expireSessionForSecurity]);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -60,42 +94,60 @@ export const useAuth = () => {
         .single();
 
       if (error) throw error;
-      
+
       if (data && !data.ativo) {
         console.log('Usuário inativo detectado, fazendo logout...');
         await endUserSession('inactive_account');
         await supabase.auth.signOut();
-        setProfile(null);
+        updateProfile(null);
         setUser(null);
         return;
       }
-      
-      setProfile(data);
+
+      updateProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
-      setLoading(false);
+      resolveLoading();
     }
-  };
+  }, [resolveLoading, updateProfile]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const bootstrapSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-
-      if (session?.user) {
-        const expired = await enforceDailySessionLimit(session.user);
-        if (cancelled) return;
-        if (expired) return;
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-        return;
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled && !loadingResolvedRef.current) {
+        console.warn('[auth] Timeout no bootstrap — liberando interface');
+        resolveLoading();
       }
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
 
-      setUser(null);
-      setLoading(false);
+    const bootstrapSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (session?.user) {
+          const expired = await enforceDailySessionLimit(session.user);
+          if (cancelled) return;
+          if (expired) {
+            resolveLoading();
+            return;
+          }
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+          return;
+        }
+
+        setUser(null);
+        resolveLoading();
+      } catch (error) {
+        console.error('[auth] Erro no bootstrap da sessão:', error);
+        if (!cancelled) {
+          setUser(null);
+          resolveLoading();
+        }
+      }
     };
 
     bootstrapSession();
@@ -105,17 +157,29 @@ export const useAuth = () => {
 
       if (session?.user) {
         const expired = await enforceDailySessionLimit(session.user);
-        if (cancelled || expired) return;
-        setUser(session.user);
-        if (event !== 'TOKEN_REFRESHED') {
-          fetchProfile(session.user.id);
+        if (cancelled) return;
+        if (expired) {
+          resolveLoading();
+          return;
         }
+
+        setUser(session.user);
+
+        if (event === 'TOKEN_REFRESHED') {
+          resolveLoading();
+          if (!profileRef.current) {
+            await fetchProfile(session.user.id);
+          }
+          return;
+        }
+
+        await fetchProfile(session.user.id);
         return;
       }
 
       setUser(null);
-      setProfile(null);
-      setLoading(false);
+      updateProfile(null);
+      resolveLoading();
     });
 
     const handleVisibilityChange = async () => {
@@ -130,10 +194,11 @@ export const useAuth = () => {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enforceDailySessionLimit]);
+  }, [enforceDailySessionLimit, fetchProfile, resolveLoading, updateProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -169,7 +234,7 @@ export const useAuth = () => {
       email,
       password,
     });
-    
+
     if (!error) {
       const { data: { user: signedInUser } } = await supabase.auth.getUser();
       if (signedInUser) {
@@ -178,20 +243,20 @@ export const useAuth = () => {
           .select('ativo')
           .eq('id', signedInUser.id)
           .single();
-          
+
         if (!profileError && profileData && !profileData.ativo) {
           await supabase.auth.signOut();
-          return { 
-            error: { 
-              message: 'Sua conta foi desativada. Entre em contato com o administrador.' 
-            } 
+          return {
+            error: {
+              message: 'Sua conta foi desativada. Entre em contato com o administrador.',
+            },
           };
         }
 
         await startUserSession(signedInUser.id);
       }
     }
-    
+
     return { error };
   };
 
@@ -215,12 +280,26 @@ export const useAuth = () => {
     };
   };
 
-  return {
-    user,
-    profile,
-    loading,
-    signIn,
-    signOut,
-    resetPassword,
-  };
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signIn,
+        signOut,
+        resetPassword,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de AuthProvider');
+  }
+  return context;
 };
