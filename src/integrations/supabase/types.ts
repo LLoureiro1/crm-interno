@@ -648,6 +648,48 @@ export type Database = {
           },
         ]
       }
+      sophia_students: {
+        Row: {
+          codigo_externo: string
+          nome: string
+          periodo_id: string
+          synced_at: string
+        }
+        Insert: {
+          codigo_externo: string
+          nome: string
+          periodo_id: string
+          synced_at?: string
+        }
+        Update: {
+          codigo_externo?: string
+          nome?: string
+          periodo_id?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      sophia_sync_meta: {
+        Row: {
+          periodo_id: string
+          synced_at: string | null
+          total_students: number
+          status: string
+        }
+        Insert: {
+          periodo_id: string
+          synced_at?: string | null
+          total_students?: number
+          status?: string
+        }
+        Update: {
+          periodo_id?: string
+          synced_at?: string | null
+          total_students?: number
+          status?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           id: string
@@ -787,6 +829,7 @@ export type Database = {
           city: string | null
           class_id: string
           code: string | null
+          codigo_erp: string | null
           created_at: string
           discount_percentage: number | null
           discount_material: number | null

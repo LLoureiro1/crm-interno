@@ -14,6 +14,7 @@ import {
   List,
   Mail,
   Target,
+  GitCompareArrows,
   type LucideIcon,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,6 +30,7 @@ import { EnrollmentImport } from '@/components/management/EnrollmentImport';
 import { RegistrationSourceManagement } from '@/components/management/RegistrationSourceManagement';
 import { EmailAutomationManagement } from '@/components/management/EmailAutomationManagement';
 import { GoalManagement } from '@/components/management/GoalManagement';
+import { SophiaEnrollmentReconciliation } from '@/components/management/SophiaEnrollmentReconciliation';
 import ContactLists from '@/pages/ContactLists';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +44,7 @@ const CONFIG_SECTION_TABS = [
   { value: 'sources', label: 'Origens' },
   { value: 'import', label: 'Importação' },
   { value: 'enrollment', label: 'Matrículas' },
+  { value: 'conferencia', label: 'Conferência' },
   { value: 'contact-lists', label: 'Listas de Contato' },
   { value: 'emails', label: 'E-mails' },
   { value: 'goals', label: 'Metas' },
@@ -181,6 +184,16 @@ export const ConfigTab = () => {
         <TabsContent value="enrollment" className="mt-0 min-w-0">
           <ConfigSectionCard icon={UserPlus} title="Importação de Matrículas" description="Importe dados de alunos matriculados no sistema ERP">
             <EnrollmentImport />
+          </ConfigSectionCard>
+        </TabsContent>
+
+        <TabsContent value="conferencia" className="mt-0 min-w-0">
+          <ConfigSectionCard
+            icon={GitCompareArrows}
+            title="Conferência de Matrículas (SophiA)"
+            description="Compare códigos ERP do CRM com os alunos matriculados no SophiA"
+          >
+            <SophiaEnrollmentReconciliation />
           </ConfigSectionCard>
         </TabsContent>
 
