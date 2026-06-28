@@ -293,11 +293,6 @@ export const SophiaEnrollmentReconciliation = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Conferência usa o cache local <code className="text-xs">sophia_students</code> (período{' '}
-          {syncMeta?.periodo_id ?? '11'}). Importação SophiA: {formatSyncedAt(syncMeta?.synced_at)}
-          {syncMeta?.total_students ? ` · ${syncMeta.total_students} alunos no cache` : ''}
-        </p>
         <div className="flex gap-2">
           <Button
             type="button"
