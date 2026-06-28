@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
@@ -7,18 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, CloudDownload, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type CrmStudent = {
   id: string;
   student_name: string;
-  code: string | null;
   codigo_erp: string | null;
   units?: { name: string } | null;
 };
 
-type SophiaStudent = Tables<'sophia_students'>;
+type SophiaStudent = Pick<Tables<'sophia_students'>, 'codigo_externo' | 'nome'>;
 type SophiaSyncMeta = Tables<'sophia_sync_meta'>;
 
 type ReconciliationStatus = 'ok' | 'name_mismatch' | 'not_found';
@@ -35,14 +34,38 @@ type ReconciliationRow = {
 type FilterOption = 'all' | 'issues' | 'ok';
 
 type SyncPageResponse = {
-  pagina?: number;
   nextPagina?: number | null;
   done?: boolean;
   upserted?: number;
-  periodoId?: string;
   authMode?: 'token' | 'bearer';
   error?: string;
 };
+
+const SOPHIA_IN_CHUNK = 200;
+
+function normalizeName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeErpCode(value: string): string {
+  return value.trim().replace(/^0+/, '') || '0';
+}
+
+function statusLabel(status: ReconciliationStatus): string {
+  if (status === 'ok') return 'Conferido';
+  if (status === 'name_mismatch') return 'Nome divergente';
+  return 'Não encontrado no SophiA';
+}
+
+function formatSyncedAt(value: string | null | undefined): string {
+  if (!value) return 'nunca';
+  return new Date(value).toLocaleString('pt-BR');
+}
 
 async function invokeSophiaSync(body: Record<string, unknown>): Promise<SyncPageResponse> {
   const { data, error } = await supabase.functions.invoke('sophia-api', { body });
@@ -64,16 +87,14 @@ async function invokeSophiaSync(body: Record<string, unknown>): Promise<SyncPage
   return data as SyncPageResponse;
 }
 
-async function syncSophiaToDatabase(
-  onProgress: (pagina: number, upserted: number) => void,
-): Promise<void> {
+async function syncSophiaToDatabase(onProgress: (pagina: number) => void): Promise<void> {
   let pagina = 0;
   let reset = true;
   let authMode: 'token' | 'bearer' = 'token';
 
   while (true) {
     const data = await invokeSophiaSync({ pagina, reset, authMode });
-    onProgress(pagina, data.upserted ?? 0);
+    onProgress(pagina);
 
     if (data.done || data.nextPagina == null) break;
 
@@ -83,19 +104,66 @@ async function syncSophiaToDatabase(
   }
 }
 
-function normalizeName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+async function fetchSophiaStudentsForCodes(
+  codes: string[],
+  periodoId: string,
+): Promise<SophiaStudent[]> {
+  if (codes.length === 0) return [];
+
+  const uniqueCodes = [...new Set(codes)];
+  const results: SophiaStudent[] = [];
+
+  for (let i = 0; i < uniqueCodes.length; i += SOPHIA_IN_CHUNK) {
+    const chunk = uniqueCodes.slice(i, i + SOPHIA_IN_CHUNK);
+    const { data, error } = await supabase
+      .from('sophia_students')
+      .select('codigo_externo, nome')
+      .eq('periodo_id', periodoId)
+      .in('codigo_externo', chunk);
+
+    if (error) throw error;
+    results.push(...((data || []) as SophiaStudent[]));
+  }
+
+  return results;
 }
 
-function statusLabel(status: ReconciliationStatus): string {
-  if (status === 'ok') return 'Conferido';
-  if (status === 'name_mismatch') return 'Nome divergente';
-  return 'Não encontrado no SophiA';
+function buildReconciliationRows(
+  students: CrmStudent[],
+  sophiaStudents: SophiaStudent[],
+): { rows: ReconciliationRow[]; missingErpCount: number } {
+  const sophiaByCode = new Map<string, SophiaStudent>();
+  for (const aluno of sophiaStudents) {
+    const key = normalizeErpCode(aluno.codigo_externo);
+    sophiaByCode.set(key, aluno);
+    sophiaByCode.set(aluno.codigo_externo.trim(), aluno);
+  }
+
+  const withErp = students.filter((student) => student.codigo_erp?.trim());
+  const rows = withErp.map((student) => {
+    const codigoErp = student.codigo_erp!.trim();
+    const sophiaMatch =
+      sophiaByCode.get(normalizeErpCode(codigoErp)) ?? sophiaByCode.get(codigoErp) ?? null;
+    let status: ReconciliationStatus = 'not_found';
+
+    if (sophiaMatch) {
+      status =
+        normalizeName(student.student_name) === normalizeName(sophiaMatch.nome)
+          ? 'ok'
+          : 'name_mismatch';
+    }
+
+    return {
+      id: student.id,
+      codigoErp,
+      crmName: student.student_name,
+      sophiaName: sophiaMatch?.nome ?? null,
+      unitName: student.units?.name || '—',
+      status,
+    };
+  });
+
+  return { rows, missingErpCount: students.length - withErp.length };
 }
 
 function StatusBadge({ status }: { status: ReconciliationStatus }) {
@@ -125,113 +193,87 @@ function StatusBadge({ status }: { status: ReconciliationStatus }) {
   );
 }
 
-function formatSyncedAt(value: string | null | undefined): string {
-  if (!value) return 'nunca';
-  return new Date(value).toLocaleString('pt-BR');
-}
-
 export const SophiaEnrollmentReconciliation = () => {
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncPage, setSyncPage] = useState<number | null>(null);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [missingErpCount, setMissingErpCount] = useState(0);
   const [rows, setRows] = useState<ReconciliationRow[]>([]);
   const [syncMeta, setSyncMeta] = useState<SophiaSyncMeta | null>(null);
+  const hasLoadedOnce = useRef(false);
 
-  const buildReconciliation = useCallback(
-    (students: CrmStudent[], sophiaStudents: SophiaStudent[]) => {
-      const sophiaByCode = new Map<string, SophiaStudent>();
-      for (const aluno of sophiaStudents) {
-        sophiaByCode.set(aluno.codigo_externo.trim(), aluno);
-      }
-
-      const withErp = students.filter((student) => student.codigo_erp?.trim());
-      setMissingErpCount(students.length - withErp.length);
-
-      setRows(
-        withErp.map((student) => {
-          const codigoErp = student.codigo_erp!.trim();
-          const sophiaMatch = sophiaByCode.get(codigoErp) ?? null;
-          let status: ReconciliationStatus = 'not_found';
-
-          if (sophiaMatch) {
-            status =
-              normalizeName(student.student_name) === normalizeName(sophiaMatch.nome)
-                ? 'ok'
-                : 'name_mismatch';
-          }
-
-          return {
-            id: student.id,
-            codigoErp,
-            crmName: student.student_name,
-            sophiaName: sophiaMatch?.nome ?? null,
-            unitName: student.units?.name || '—',
-            status,
-          };
-        }),
-      );
-    },
-    [],
-  );
-
-  const loadReconciliation = useCallback(async () => {
-    setLoading(true);
+  const runReconciliation = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent && hasLoadedOnce.current) {
+      setRefreshing(true);
+    } else if (!hasLoadedOnce.current) {
+      setInitialLoading(true);
+    }
 
     try {
-      const [studentsResult, sophiaResult, metaResult] = await Promise.all([
-        supabase
-          .from('students')
-          .select('id, student_name, code, codigo_erp, units(name)')
-          .eq('status', 'matriculado')
-          .order('student_name'),
-        supabase.from('sophia_students').select('*'),
-        supabase.from('sophia_sync_meta').select('*').maybeSingle(),
-      ]);
+      const { data: meta, error: metaError } = await supabase
+        .from('sophia_sync_meta')
+        .select('*')
+        .maybeSingle();
 
-      if (studentsResult.error) throw studentsResult.error;
-      if (sophiaResult.error) throw sophiaResult.error;
-      if (metaResult.error) throw metaResult.error;
+      if (metaError) throw metaError;
+      setSyncMeta(meta);
 
-      setSyncMeta(metaResult.data);
-      buildReconciliation(
-        (studentsResult.data || []) as CrmStudent[],
-        (sophiaResult.data || []) as SophiaStudent[],
-      );
+      const periodoId = meta?.periodo_id ?? '11';
+
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('id, student_name, codigo_erp, units(name)')
+        .eq('status', 'matriculado')
+        .order('student_name');
+
+      if (studentsError) throw studentsError;
+
+      const crmStudents = (students || []) as CrmStudent[];
+      const erpCodes = crmStudents
+        .map((s) => s.codigo_erp?.trim())
+        .filter((c): c is string => Boolean(c));
+
+      const sophiaStudents = await fetchSophiaStudentsForCodes(erpCodes, periodoId);
+      const result = buildReconciliationRows(crmStudents, sophiaStudents);
+
+      setMissingErpCount(result.missingErpCount);
+      setRows(result.rows);
+      hasLoadedOnce.current = true;
     } catch (error) {
       console.error('Erro na conferência SophiA:', error);
       const message = error instanceof Error ? error.message : 'Erro ao carregar conferência';
       toast.error(message);
       setRows([]);
       setMissingErpCount(0);
-      setSyncMeta(null);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setRefreshing(false);
     }
-  }, [buildReconciliation]);
+  }, []);
 
-  const handleSync = useCallback(async () => {
+  const handleImportFromSophia = useCallback(async () => {
     setSyncing(true);
     setSyncPage(0);
 
     try {
       await syncSophiaToDatabase((pagina) => setSyncPage(pagina));
-      toast.success('Sincronização com SophiA concluída');
-      await loadReconciliation();
+      toast.success('Importação do SophiA concluída');
+      await runReconciliation({ silent: true });
     } catch (error) {
-      console.error('Erro ao sincronizar SophiA:', error);
-      const message = error instanceof Error ? error.message : 'Erro ao sincronizar SophiA';
+      console.error('Erro ao importar SophiA:', error);
+      const message = error instanceof Error ? error.message : 'Erro ao importar SophiA';
       toast.error(message);
     } finally {
       setSyncing(false);
       setSyncPage(null);
     }
-  }, [loadReconciliation]);
+  }, [runReconciliation]);
 
   useEffect(() => {
-    void loadReconciliation();
-  }, [loadReconciliation]);
+    void runReconciliation();
+  }, [runReconciliation]);
 
   const summary = useMemo(() => {
     const ok = rows.filter((row) => row.status === 'ok').length;
@@ -246,33 +288,51 @@ export const SophiaEnrollmentReconciliation = () => {
     return rows;
   }, [filter, rows]);
 
-  const busy = loading || syncing;
+  const busy = initialLoading || refreshing || syncing;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Compare o código ERP do CRM com o cache local do SophiA (período letivo 2026,{' '}
-          <code className="text-xs">Periodos=11</code>). Última sincronização:{' '}
-          {formatSyncedAt(syncMeta?.synced_at)}
+          Conferência usa o cache local <code className="text-xs">sophia_students</code> (período{' '}
+          {syncMeta?.periodo_id ?? '11'}). Importação SophiA: {formatSyncedAt(syncMeta?.synced_at)}
           {syncMeta?.total_students ? ` · ${syncMeta.total_students} alunos no cache` : ''}
         </p>
         <div className="flex gap-2">
-          <Button type="button" variant="default" onClick={() => void handleSync()} disabled={busy}>
-            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            {syncing ? `Sincronizando pág. ${(syncPage ?? 0) + 1}...` : 'Sincronizar SophiA'}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => void loadReconciliation()} disabled={busy}>
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => void runReconciliation()}
+            disabled={busy}
+          >
+            {refreshing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
             Atualizar conferência
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleImportFromSophia()}
+            disabled={busy}
+          >
+            {syncing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CloudDownload className="mr-2 h-4 w-4" />
+            )}
+            {syncing ? `Importando pág. ${(syncPage ?? 0) + 1}...` : 'Importar do SophiA'}
           </Button>
         </div>
       </div>
 
-      {!syncMeta?.synced_at && !loading && (
+      {!syncMeta?.synced_at && !initialLoading && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Nenhuma sincronização encontrada. Clique em &quot;Sincronizar SophiA&quot; para importar os alunos do período.
+            Cache vazio. Use &quot;Importar do SophiA&quot; uma vez; depois &quot;Atualizar conferência&quot; compara só com o banco local.
           </AlertDescription>
         </Alert>
       )}
@@ -312,7 +372,7 @@ export const SophiaEnrollmentReconciliation = () => {
         </Select>
       </div>
 
-      {loading ? (
+      {initialLoading ? (
         <div className="flex items-center justify-center py-10 text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Carregando conferência...
