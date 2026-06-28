@@ -1,36 +1,41 @@
 # Edge Function: sophia-api
 
-Sincroniza alunos do SophiA para a tabela `sophia_students` (uma página por invocação, dentro do limite de CPU).
+Sincroniza alunos do SophiA para `sophia_students`. **Uma página por invocação** (limite ~2s CPU).
 
-A conferência em Configurações lê o cache local no Postgres — não varre a API SophiA em tempo real.
+## Modos
 
-## Tabelas
+### `reconcile` (padrão — botão Importar)
 
-- `sophia_students` — `codigo_externo`, `nome`, `periodo_id`, `synced_at`
-- `sophia_sync_meta` — status e data da última sincronização por período
+Busca no SophiA apenas os códigos ERP dos matriculados no CRM:
 
-## Secrets
-
-```bash
-npx supabase secrets set SOPHIA_API_BASE_URL='https://portal.sophia.com.br/SophiAWebAPI/9827/api/v1'
-npx supabase secrets set SOPHIA_API_USUARIO='...'
-npx supabase secrets set SOPHIA_API_SENHA='...'
-npx supabase secrets set SOPHIA_PERIODO_ID='11'
+```json
+{
+  "mode": "reconcile",
+  "codes": ["123", "456"],
+  "pendingCodes": ["123", "456"],
+  "pagina": 0,
+  "authMode": "token"
+}
 ```
+
+Resposta: `{ "done", "nextPagina", "found", "changed", "pendingCodes", "authMode" }`
+
+O frontend chama em loop até `done: true` (geralmente 1–3 páginas).
+
+### `full` (catálogo completo do período)
+
+```json
+{ "mode": "full", "pagina": 0, "reset": true }
+```
+
+## Token cache
+
+Token SophiA fica em `sophia_sync_meta` (~25 min) — reauth só quando expira ou falha.
 
 ## Deploy
 
 ```bash
 npx supabase db push
+npx supabase secrets set SOPHIA_PERIODO_ID='11'
 npx supabase functions deploy sophia-api
 ```
-
-## API (POST)
-
-```json
-{ "pagina": 0, "reset": true }
-```
-
-Resposta: `{ "pagina", "nextPagina", "done", "upserted", "periodoId" }`
-
-O frontend chama em loop até `done: true`.

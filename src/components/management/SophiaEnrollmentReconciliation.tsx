@@ -34,9 +34,14 @@ type ReconciliationRow = {
 type FilterOption = 'all' | 'issues' | 'ok';
 
 type SyncPageResponse = {
+  mode?: 'reconcile' | 'full';
   nextPagina?: number | null;
   done?: boolean;
-  upserted?: number;
+  pagina?: number;
+  changed?: number;
+  found?: number;
+  pendingCodes?: string[];
+  pendingCount?: number;
   authMode?: 'token' | 'bearer';
   error?: string;
 };
@@ -87,21 +92,50 @@ async function invokeSophiaSync(body: Record<string, unknown>): Promise<SyncPage
   return data as SyncPageResponse;
 }
 
-async function syncSophiaToDatabase(onProgress: (pagina: number) => void): Promise<void> {
+async function fetchMatriculadoErpCodes(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('students')
+    .select('codigo_erp')
+    .eq('status', 'matriculado')
+    .not('codigo_erp', 'is', null);
+
+  if (error) throw error;
+
+  return [...new Set((data ?? []).map((s) => s.codigo_erp?.trim()).filter((c): c is string => Boolean(c)))];
+}
+
+async function syncSophiaReconcile(
+  codes: string[],
+  onProgress: (pagina: number, found: number, pending: number) => void,
+): Promise<{ changed: number; found: number }> {
   let pagina = 0;
-  let reset = true;
+  let pendingCodes = [...codes];
   let authMode: 'token' | 'bearer' = 'token';
+  let totalChanged = 0;
+  let totalFound = 0;
 
   while (true) {
-    const data = await invokeSophiaSync({ pagina, reset, authMode });
-    onProgress(pagina);
+    const data = await invokeSophiaSync({
+      mode: 'reconcile',
+      codes,
+      pendingCodes,
+      pagina,
+      authMode,
+    });
+
+    totalChanged += data.changed ?? 0;
+    totalFound += data.found ?? 0;
+    if (data.pendingCodes) pendingCodes = data.pendingCodes;
+
+    onProgress((data.pagina ?? pagina) + 1, totalFound, pendingCodes.length);
 
     if (data.done || data.nextPagina == null) break;
 
     pagina = data.nextPagina;
-    reset = false;
     authMode = data.authMode === 'bearer' ? 'bearer' : 'token';
   }
+
+  return { changed: totalChanged, found: totalFound };
 }
 
 async function fetchSophiaStudentsForCodes(
@@ -197,7 +231,7 @@ export const SophiaEnrollmentReconciliation = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncPage, setSyncPage] = useState<number | null>(null);
+  const [syncProgress, setSyncProgress] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [missingErpCount, setMissingErpCount] = useState(0);
   const [rows, setRows] = useState<ReconciliationRow[]>([]);
@@ -255,19 +289,27 @@ export const SophiaEnrollmentReconciliation = () => {
 
   const handleImportFromSophia = useCallback(async () => {
     setSyncing(true);
-    setSyncPage(0);
+    setSyncProgress(null);
 
     try {
-      await syncSophiaToDatabase((pagina) => setSyncPage(pagina));
-      toast.success('Importação do SophiA concluída');
+      const codes = await fetchMatriculadoErpCodes();
+      if (codes.length === 0) {
+        toast.error('Nenhum matriculado com código ERP no CRM.');
+        return;
+      }
+
+      const { changed, found } = await syncSophiaReconcile(codes, (pagina, foundCount, pending) => {
+        setSyncProgress(`Página ${pagina} — ${foundCount}/${codes.length} encontrados${pending > 0 ? ` (${pending} pendentes)` : ''}`);
+      });
+
+      toast.success(`Importado: ${found} aluno(s) do SophiA (${changed} gravado(s) no cache)`);
       await runReconciliation({ silent: true });
     } catch (error) {
       console.error('Erro ao importar SophiA:', error);
-      const message = error instanceof Error ? error.message : 'Erro ao importar SophiA';
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : 'Erro ao importar SophiA');
     } finally {
       setSyncing(false);
-      setSyncPage(null);
+      setSyncProgress(null);
     }
   }, [runReconciliation]);
 
@@ -318,7 +360,7 @@ export const SophiaEnrollmentReconciliation = () => {
             ) : (
               <CloudDownload className="mr-2 h-4 w-4" />
             )}
-            {syncing ? `Importando pág. ${(syncPage ?? 0) + 1}...` : 'Importar do SophiA'}
+            {syncing ? (syncProgress ?? 'Importando...') : 'Importar do SophiA'}
           </Button>
         </div>
       </div>
@@ -327,7 +369,7 @@ export const SophiaEnrollmentReconciliation = () => {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Cache vazio. Use &quot;Importar do SophiA&quot; uma vez; depois &quot;Atualizar conferência&quot; compara só com o banco local.
+            Cache vazio. &quot;Importar do SophiA&quot; busca só os códigos ERP dos matriculados (~poucas páginas). Depois use &quot;Atualizar conferência&quot; para comparar com o banco local.
           </AlertDescription>
         </Alert>
       )}

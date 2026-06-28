@@ -675,18 +675,27 @@ export type Database = {
           synced_at: string | null
           total_students: number
           status: string
+          auth_token: string | null
+          auth_mode: string | null
+          token_cached_at: string | null
         }
         Insert: {
           periodo_id: string
           synced_at?: string | null
           total_students?: number
           status?: string
+          auth_token?: string | null
+          auth_mode?: string | null
+          token_cached_at?: string | null
         }
         Update: {
           periodo_id?: string
           synced_at?: string | null
           total_students?: number
           status?: string
+          auth_token?: string | null
+          auth_mode?: string | null
+          token_cached_at?: string | null
         }
         Relationships: []
       }

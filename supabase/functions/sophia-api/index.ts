@@ -13,26 +13,30 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 const PAGE_SIZE = 200;
+const TOKEN_TTL_MS = 25 * 60 * 1000;
 const DEFAULT_PERIODO_ID = '11';
 
 type AuthMode = 'token' | 'bearer';
 type SophiaRow = { codigo_externo: string; nome: string; periodo_id: string; synced_at: string };
 
 type RequestBody = {
+  mode?: 'reconcile' | 'full';
+  codes?: string[];
+  pendingCodes?: string[];
   pagina?: number;
-  reset?: boolean;
   authMode?: AuthMode;
+  reset?: boolean;
 };
 
-function log(step: string, detail?: Record<string, unknown>) {
-  console.log(`[sophia-api] ${step}`, detail ?? '');
-}
+type SyncMetaRow = {
+  auth_token: string | null;
+  auth_mode: string | null;
+  token_cached_at: string | null;
+};
 
 function getPeriodoId(): string {
   const periodoId = Deno.env.get('SOPHIA_PERIODO_ID')?.trim() || DEFAULT_PERIODO_ID;
-  if (!/^\d+$/.test(periodoId)) {
-    throw new Error(`SOPHIA_PERIODO_ID inválido: "${periodoId}"`);
-  }
+  if (!/^\d+$/.test(periodoId)) throw new Error(`SOPHIA_PERIODO_ID inválido: "${periodoId}"`);
   return periodoId;
 }
 
@@ -49,29 +53,31 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function normalizeErpCode(value: string): string {
+  return value.trim().replace(/^0+/, '') || '0';
+}
+
+function codeMatches(a: string, b: string): boolean {
+  const ta = a.trim();
+  const tb = b.trim();
+  return ta === tb || normalizeErpCode(ta) === normalizeErpCode(tb);
+}
+
 async function sophiaAuthenticate(baseUrl: string, usuario: string, senha: string): Promise<string> {
   const response = await fetch(`${baseUrl}/Autenticacao`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
     body: JSON.stringify({ usuario, senha }),
   });
-
   const body = await response.text();
-  if (!response.ok) {
-    throw new Error(`Falha na autenticação SophiA (${response.status}): ${body.slice(0, 200)}`);
-  }
-
+  if (!response.ok) throw new Error(`Falha na autenticação SophiA (${response.status}): ${body.slice(0, 200)}`);
   return body.trim().replace(/^"|"$/g, '');
 }
 
-function parseAlunosPage(payload: unknown): { rawCount: number; rows: SophiaRow[]; periodoId: string } {
-  const periodoId = getPeriodoId();
-  const syncedAt = new Date().toISOString();
+function parseAlunosPage(payload: unknown, periodoId: string, syncedAt: string): { rawCount: number; rows: SophiaRow[] } {
   let raw: unknown[] = [];
-
-  if (Array.isArray(payload)) {
-    raw = payload;
-  } else if (payload && typeof payload === 'object') {
+  if (Array.isArray(payload)) raw = payload;
+  else if (payload && typeof payload === 'object') {
     const record = payload as Record<string, unknown>;
     const candidate = record.items ?? record.data ?? record.alunos ?? record.Alunos ?? record.resultado;
     if (Array.isArray(candidate)) raw = candidate;
@@ -93,7 +99,11 @@ function parseAlunosPage(payload: unknown): { rawCount: number; rows: SophiaRow[
     })
     .filter((item): item is SophiaRow => Boolean(item?.codigo_externo));
 
-  return { rawCount: raw.length, rows, periodoId };
+  return { rawCount: raw.length, rows };
+}
+
+function isCatalogEnded(page: { rawCount: number; rows: SophiaRow[] }): boolean {
+  return page.rawCount === 0 || page.rawCount < PAGE_SIZE || page.rows.length === 0;
 }
 
 async function fetchAlunosPage(
@@ -102,7 +112,8 @@ async function fetchAlunosPage(
   pagina: number,
   authMode: AuthMode,
   periodoId: string,
-) {
+  syncedAt: string,
+): Promise<{ page: { rawCount: number; rows: SophiaRow[] }; authMode: AuthMode }> {
   const url = `${baseUrl}/Alunos?Periodos=${periodoId}&pagina=${pagina}&tamanho=${PAGE_SIZE}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -110,15 +121,80 @@ async function fetchAlunosPage(
     ...(authMode === 'bearer' ? { Authorization: `Bearer ${token}` } : { token }),
   };
 
-  log('alunos_request', { pagina, authMode, periodoId });
   const response = await fetch(url, { headers });
   const body = await response.text();
 
-  if (!response.ok) {
-    throw new Error(`Falha ao listar alunos SophiA (${response.status}): ${body.slice(0, 200)}`);
+  if (response.status === 401 && authMode === 'token') {
+    return fetchAlunosPage(baseUrl, token, pagina, 'bearer', periodoId, syncedAt);
   }
 
-  return parseAlunosPage(JSON.parse(body));
+  if (!response.ok) throw new Error(`Falha ao listar alunos SophiA (${response.status}): ${body.slice(0, 200)}`);
+
+  return { page: parseAlunosPage(JSON.parse(body), periodoId, syncedAt), authMode };
+}
+
+async function getCachedToken(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  periodoId: string,
+  baseUrl: string,
+  forceRefresh = false,
+): Promise<{ token: string; authMode: AuthMode }> {
+  if (!forceRefresh) {
+    const { data: meta } = await supabaseAdmin
+      .from('sophia_sync_meta')
+      .select('auth_token, auth_mode, token_cached_at')
+      .eq('periodo_id', periodoId)
+      .maybeSingle();
+
+    const row = meta as SyncMetaRow | null;
+    if (row?.auth_token && row.token_cached_at) {
+      const age = Date.now() - new Date(row.token_cached_at).getTime();
+      if (age < TOKEN_TTL_MS) {
+        return {
+          token: row.auth_token,
+          authMode: row.auth_mode === 'bearer' ? 'bearer' : 'token',
+        };
+      }
+    }
+  }
+
+  const token = await sophiaAuthenticate(
+    baseUrl,
+    requireEnv('SOPHIA_API_USUARIO'),
+    requireEnv('SOPHIA_API_SENHA'),
+  );
+
+  await supabaseAdmin.from('sophia_sync_meta').upsert({
+    periodo_id: periodoId,
+    auth_token: token,
+    auth_mode: 'token',
+    token_cached_at: new Date().toISOString(),
+  });
+
+  return { token, authMode: 'token' };
+}
+
+async function saveTokenCache(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  periodoId: string,
+  token: string,
+  authMode: AuthMode,
+) {
+  await supabaseAdmin.from('sophia_sync_meta').upsert({
+    periodo_id: periodoId,
+    auth_token: token,
+    auth_mode: authMode,
+    token_cached_at: new Date().toISOString(),
+  });
+}
+
+function filterRowsForPending(pageRows: SophiaRow[], pendingCodes: string[]): SophiaRow[] {
+  if (pendingCodes.length === 0) return [];
+  return pageRows.filter((row) => pendingCodes.some((code) => codeMatches(code, row.codigo_externo)));
+}
+
+function removeFoundFromPending(pendingCodes: string[], matched: SophiaRow[]): string[] {
+  return pendingCodes.filter((code) => !matched.some((row) => codeMatches(code, row.codigo_externo)));
 }
 
 serve(async (req) => {
@@ -127,10 +203,11 @@ serve(async (req) => {
 
   try {
     const body = (await req.json().catch(() => ({}))) as RequestBody;
-    const pagina = typeof body.pagina === 'number' && body.pagina >= 0 ? body.pagina : 0;
-    const reset = body.reset === true;
+    const mode = body.mode === 'full' ? 'full' : 'reconcile';
+    const pagina = Math.max(0, body.pagina ?? 0);
     let authMode: AuthMode = body.authMode === 'bearer' ? 'bearer' : 'token';
     const periodoId = getPeriodoId();
+    const syncedAt = new Date().toISOString();
 
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -142,50 +219,75 @@ serve(async (req) => {
     if (authError || !user) return jsonResponse({ error: 'Não autorizado' }, 401);
 
     const { data: profile } = await supabaseUser.from('profiles').select('profile').eq('id', user.id).single();
-    if (profile?.profile !== 'admin') {
-      return jsonResponse({ error: 'Acesso restrito a administradores' }, 403);
-    }
+    if (profile?.profile !== 'admin') return jsonResponse({ error: 'Acesso restrito a administradores' }, 403);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    if (reset && pagina === 0) {
-      log('sync_reset', { periodoId });
+    const baseUrl = requireEnv('SOPHIA_API_BASE_URL').replace(/\/$/, '');
+
+    if (mode === 'full' && body.reset === true && pagina === 0) {
       await supabaseAdmin.from('sophia_students').delete().eq('periodo_id', periodoId);
+    }
+
+    if (pagina === 0) {
       await supabaseAdmin.from('sophia_sync_meta').upsert({
         periodo_id: periodoId,
         status: 'syncing',
-        synced_at: null,
-        total_students: 0,
       });
     }
 
-    const baseUrl = requireEnv('SOPHIA_API_BASE_URL').replace(/\/$/, '');
-    const token = await sophiaAuthenticate(baseUrl, requireEnv('SOPHIA_API_USUARIO'), requireEnv('SOPHIA_API_SENHA'));
+    const { token: initialToken, authMode: cachedMode } = await getCachedToken(
+      supabaseAdmin,
+      periodoId,
+      baseUrl,
+      false,
+    );
+    let token = initialToken;
+    authMode = body.authMode ?? cachedMode;
 
-    let page;
+    let pageResult;
     try {
-      page = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId);
-    } catch (error) {
-      if (authMode === 'token') {
-        authMode = 'bearer';
-        page = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId);
-      } else {
-        throw error;
-      }
+      pageResult = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId, syncedAt);
+    } catch {
+      ({ token, authMode: cachedMode } = await getCachedToken(supabaseAdmin, periodoId, baseUrl, true));
+      authMode = cachedMode;
+      pageResult = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId, syncedAt);
     }
 
-    if (page.rows.length > 0) {
+    authMode = pageResult.authMode;
+    await saveTokenCache(supabaseAdmin, periodoId, token, authMode);
+
+    const { page } = pageResult;
+    let toUpsert: SophiaRow[] = [];
+    let pendingCodes: string[] = [];
+    let found = 0;
+
+    if (mode === 'reconcile') {
+      const allCodes = (body.codes ?? []).map((c) => c.trim()).filter(Boolean);
+      pendingCodes = (body.pendingCodes ?? allCodes).map((c) => c.trim()).filter(Boolean);
+      toUpsert = filterRowsForPending(page.rows, pendingCodes);
+      found = toUpsert.length;
+      pendingCodes = removeFoundFromPending(pendingCodes, toUpsert);
+    } else {
+      toUpsert = page.rows;
+    }
+
+    let changed = 0;
+    if (toUpsert.length > 0) {
       const { error: upsertError } = await supabaseAdmin
         .from('sophia_students')
-        .upsert(page.rows, { onConflict: 'codigo_externo,periodo_id' });
-
+        .upsert(toUpsert, { onConflict: 'codigo_externo,periodo_id' });
       if (upsertError) throw upsertError;
+      changed = toUpsert.length;
     }
 
-    const done = page.rawCount < PAGE_SIZE;
+    const catalogEnded = isCatalogEnded(page);
+    const reconcileDone = mode === 'reconcile' && (pendingCodes.length === 0 || catalogEnded);
+    const fullDone = mode === 'full' && catalogEnded;
+    const done = reconcileDone || fullDone;
     const nextPagina = done ? null : pagina + 1;
 
     if (done) {
@@ -198,23 +300,25 @@ serve(async (req) => {
         periodo_id: periodoId,
         status: 'idle',
         synced_at: new Date().toISOString(),
-        total_students: count ?? page.rows.length,
+        total_students: count ?? 0,
       });
     }
 
-    log('sync_page_ok', { pagina, upserted: page.rows.length, done, nextPagina });
-
     return jsonResponse({
+      mode,
+      done,
       pagina,
       nextPagina,
-      done,
-      upserted: page.rows.length,
-      periodoId,
+      changed,
+      found,
+      pendingCodes: mode === 'reconcile' ? pendingCodes : undefined,
+      pendingCount: mode === 'reconcile' ? pendingCodes.length : undefined,
       authMode,
+      periodoId,
+      pageRows: page.rows.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao sincronizar SophiA';
-    log('fatal', { message });
     return jsonResponse({ error: message }, 500);
   }
 });
