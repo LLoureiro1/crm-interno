@@ -64,7 +64,6 @@ interface ReportData {
   agendamentosHoje: number;
   matriculados: number;
   globalMatriculados: number;
-  totalGoal: number;
   statusCounts: { [key: string]: number };
 }
 
@@ -134,7 +133,6 @@ export const ReportsTab = () => {
     agendamentosHoje: 0,
     matriculados: 0,
     globalMatriculados: 0,
-    totalGoal: 0,
     statusCounts: {}
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
@@ -261,6 +259,31 @@ export const ReportsTab = () => {
     if (isCentralUser) return true;
     return unit.id === profile.unit_id;
   });
+
+  const totalGoal = useMemo(() => {
+    if (units.length === 0) return 0;
+
+    if (selectedUnit !== 'all') {
+      return units.find((u) => u.id === selectedUnit)?.student_goal || 0;
+    }
+
+    let allowedUnitIds: string[] | null = null;
+    if (isCentralUser) {
+      allowedUnitIds = null;
+    } else if (profile?.unit_id) {
+      allowedUnitIds = [profile.unit_id];
+    } else {
+      allowedUnitIds = visibleUnits.map((u) => u.id);
+    }
+
+    if (allowedUnitIds && allowedUnitIds.length > 0) {
+      return units
+        .filter((u) => allowedUnitIds!.includes(u.id))
+        .reduce((acc, u) => acc + (u.student_goal || 0), 0);
+    }
+
+    return units.reduce((acc, u) => acc + (u.student_goal || 0), 0);
+  }, [units, selectedUnit, isCentralUser, profile?.unit_id, visibleUnits]);
 
   /** Unidades cujo bloco «Por turma» pode ser exibido (Central vê todas; demais só a própria). */
   const getAllowedUnitIdsForChart = (): string[] | null => {
@@ -427,21 +450,6 @@ export const ReportsTab = () => {
 
       const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
 
-      let totalGoal = 0;
-      if (selectedUnit === 'all') {
-        const allowedUnitIds = getAllowedUnitIdsForChart() || [];
-        if (allowedUnitIds.length > 0) {
-          totalGoal = units
-            .filter(u => allowedUnitIds.includes(u.id))
-            .reduce((acc, u) => acc + (u.student_goal || 0), 0);
-        } else {
-          totalGoal = units.reduce((acc, u) => acc + (u.student_goal || 0), 0);
-        }
-      } else {
-        const unit = units.find(u => u.id === selectedUnit);
-        totalGoal = unit?.student_goal || 0;
-      }
-
       // Agendamentos no período selecionado, alinhados ao filtro de unidade/série e ano letivo atual
       let appQuery = supabase.from('appointments').select('*');
       if (dateFilterType === 'default' || dateFilterType === 'today') {
@@ -484,7 +492,6 @@ export const ReportsTab = () => {
         agendamentosHoje,
         matriculados,
         globalMatriculados,
-        totalGoal,
         statusCounts
       });
     }
@@ -606,8 +613,8 @@ export const ReportsTab = () => {
   };
 
   const goalPct =
-    reportData.totalGoal > 0
-      ? Math.min((reportData.globalMatriculados / reportData.totalGoal) * 100, 100)
+    totalGoal > 0
+      ? Math.min((reportData.globalMatriculados / totalGoal) * 100, 100)
       : 0;
   const goalRingRadius = 16;
   const goalRingCirc = 2 * Math.PI * goalRingRadius;
@@ -644,7 +651,7 @@ export const ReportsTab = () => {
           </svg>
           <div>
             <p className="text-lg font-bold tabular-nums leading-none text-primary">
-              {reportData.globalMatriculados}/{reportData.totalGoal}
+              {reportData.globalMatriculados}/{totalGoal}
             </p>
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Meta Anual</p>
           </div>
@@ -819,15 +826,15 @@ export const ReportsTab = () => {
             <div className="mt-1 flex items-baseline justify-between">
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-bold tabular-nums text-primary">{reportData.globalMatriculados}</span>
-                <span className="text-xl font-medium text-muted-foreground">/ {reportData.totalGoal}</span>
+                <span className="text-xl font-medium text-muted-foreground">/ {totalGoal}</span>
               </div>
-              {reportData.totalGoal > 0 && (
+              {totalGoal > 0 && (
                 <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-primary">
                   {goalPct.toFixed(1).replace('.', ',')}%
                 </span>
               )}
             </div>
-            {reportData.totalGoal > 0 && (
+            {totalGoal > 0 && (
               <>
                 <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100">
                   <div
@@ -836,7 +843,7 @@ export const ReportsTab = () => {
                   />
                 </div>
                 <div className="mt-2 flex justify-end text-xs text-muted-foreground">
-                  <span>Meta: {reportData.totalGoal} matrículas</span>
+                  <span>Meta: {totalGoal} matrículas</span>
                 </div>
               </>
             )}
