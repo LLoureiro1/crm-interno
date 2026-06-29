@@ -8,7 +8,7 @@ const casesDir = join(__dirname, 'cases');
 
 const databaseUrl =
   process.env.SMOKE_TEST_DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+  'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
 const sql = postgres(databaseUrl, { max: 1, idle_timeout: 5 });
 
@@ -20,7 +20,7 @@ async function ensureHarness() {
   `;
   if (!exists) {
     throw new Error(
-      'Schema smoke_test ausente. Rode: supabase db reset (local) ou aplique a migration 20260629130000_smoke_test_schema.sql'
+      'Schema smoke_test ausente. Rode: npm run smoke:bootstrap (com Postgres em 127.0.0.1:5432)'
     );
   }
 }

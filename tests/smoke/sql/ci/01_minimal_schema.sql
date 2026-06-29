@@ -1,6 +1,8 @@
--- Bootstrap SOMENTE para CI/local (Postgres vazio do supabase db start).
+-- Bootstrap SOMENTE para CI/local (Postgres vazio dedicado aos smoke tests).
 -- NÃO executar em produção — lá as tabelas já existem via migrations reais.
 -- Recria public mínimo do zero para as funções dos smoke tests rodarem isoladas.
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TYPE public.student_status AS ENUM (
   'nao_confirmado',

@@ -12,7 +12,7 @@
     "smoke:test": "node tests/smoke/run.mjs",
     "smoke:bootstrap": "node tests/smoke/apply-ci-bootstrap.mjs",
     "smoke:test:ci": "node tests/smoke/apply-ci-bootstrap.mjs && node tests/smoke/run.mjs",
-    "smoke:test:local": "supabase db start && npm run smoke:test:ci"
+    "smoke:test:local": "npm run smoke:test:ci"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.8",

@@ -8,7 +8,7 @@ const repoRoot = join(__dirname, '../..');
 
 const databaseUrl =
   process.env.SMOKE_TEST_DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+  'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
 const bootstrapFiles = [
   'tests/smoke/sql/ci/01_minimal_schema.sql',
