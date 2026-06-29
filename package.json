@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "smoke:test": "node tests/smoke/run.mjs",
-    "smoke:test:local": "supabase db reset --no-seed && npm run smoke:test"
+    "smoke:bootstrap": "node tests/smoke/apply-ci-bootstrap.mjs",
+    "smoke:test:ci": "node tests/smoke/apply-ci-bootstrap.mjs && node tests/smoke/run.mjs",
+    "smoke:test:local": "supabase db start && npm run smoke:test:ci"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.8",
