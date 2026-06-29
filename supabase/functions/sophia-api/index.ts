@@ -20,7 +20,7 @@ type AuthMode = 'token' | 'bearer';
 type SophiaRow = { codigo_externo: string; nome: string; periodo_id: string; synced_at: string };
 
 type RequestBody = {
-  mode?: 'reconcile' | 'full';
+  mode?: 'reconcile' | 'full' | 'incremental';
   codes?: string[];
   pendingCodes?: string[];
   pagina?: number;
@@ -102,8 +102,8 @@ function parseAlunosPage(payload: unknown, periodoId: string, syncedAt: string):
   return { rawCount: raw.length, rows };
 }
 
-function isCatalogEnded(page: { rawCount: number; rows: SophiaRow[] }): boolean {
-  return page.rawCount === 0 || page.rawCount < PAGE_SIZE || page.rows.length === 0;
+function isCatalogEnded(page: { rawCount: number }): boolean {
+  return page.rawCount === 0 || page.rawCount < PAGE_SIZE;
 }
 
 async function fetchAlunosPage(
@@ -197,13 +197,48 @@ function removeFoundFromPending(pendingCodes: string[], matched: SophiaRow[]): s
   return pendingCodes.filter((code) => !matched.some((row) => codeMatches(code, row.codigo_externo)));
 }
 
+async function loadKnownCodes(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  periodoId: string,
+): Promise<Set<string>> {
+  const known = new Set<string>();
+  const batchSize = 1000;
+  let offset = 0;
+
+  while (true) {
+    const { data: existing, error } = await supabaseAdmin
+      .from('sophia_students')
+      .select('codigo_externo')
+      .eq('periodo_id', periodoId)
+      .range(offset, offset + batchSize - 1);
+
+    if (error) throw error;
+    if (!existing?.length) break;
+
+    for (const row of existing) {
+      known.add(row.codigo_externo.trim());
+      known.add(normalizeErpCode(row.codigo_externo));
+    }
+
+    if (existing.length < batchSize) break;
+    offset += batchSize;
+  }
+
+  return known;
+}
+
+function isRowKnown(row: SophiaRow, known: Set<string>): boolean {
+  return known.has(row.codigo_externo) || known.has(normalizeErpCode(row.codigo_externo));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
   try {
     const body = (await req.json().catch(() => ({}))) as RequestBody;
-    const mode = body.mode === 'full' ? 'full' : 'reconcile';
+    const mode =
+      body.mode === 'full' ? 'full' : body.mode === 'incremental' ? 'incremental' : 'reconcile';
     const pagina = Math.max(0, body.pagina ?? 0);
     let authMode: AuthMode = body.authMode === 'bearer' ? 'bearer' : 'token';
     const periodoId = getPeriodoId();
@@ -264,8 +299,16 @@ serve(async (req) => {
     let toUpsert: SophiaRow[] = [];
     let pendingCodes: string[] = [];
     let found = 0;
+    let newCount = 0;
+    let knownCount = 0;
 
-    if (mode === 'reconcile') {
+    if (mode === 'incremental') {
+      const known = await loadKnownCodes(supabaseAdmin, periodoId);
+      knownCount = known.size;
+      toUpsert = page.rows.filter((row) => !isRowKnown(row, known));
+      newCount = toUpsert.length;
+      found = toUpsert.length;
+    } else if (mode === 'reconcile') {
       const allCodes = (body.codes ?? []).map((c) => c.trim()).filter(Boolean);
       pendingCodes = (body.pendingCodes ?? allCodes).map((c) => c.trim()).filter(Boolean);
       toUpsert = filterRowsForPending(page.rows, pendingCodes);
@@ -277,17 +320,22 @@ serve(async (req) => {
 
     let changed = 0;
     if (toUpsert.length > 0) {
+      const upsertOptions =
+        mode === 'incremental'
+          ? { onConflict: 'codigo_externo,periodo_id', ignoreDuplicates: true }
+          : { onConflict: 'codigo_externo,periodo_id' };
       const { error: upsertError } = await supabaseAdmin
         .from('sophia_students')
-        .upsert(toUpsert, { onConflict: 'codigo_externo,periodo_id' });
+        .upsert(toUpsert, upsertOptions);
       if (upsertError) throw upsertError;
       changed = toUpsert.length;
     }
 
     const catalogEnded = isCatalogEnded(page);
+    const incrementalDone = mode === 'incremental' && catalogEnded;
     const reconcileDone = mode === 'reconcile' && (pendingCodes.length === 0 || catalogEnded);
     const fullDone = mode === 'full' && catalogEnded;
-    const done = reconcileDone || fullDone;
+    const done = incrementalDone || reconcileDone || fullDone;
     const nextPagina = done ? null : pagina + 1;
 
     if (done) {
@@ -311,6 +359,8 @@ serve(async (req) => {
       nextPagina,
       changed,
       found,
+      newCount: mode === 'incremental' ? newCount : undefined,
+      knownCount: mode === 'incremental' ? knownCount : undefined,
       pendingCodes: mode === 'reconcile' ? pendingCodes : undefined,
       pendingCount: mode === 'reconcile' ? pendingCodes.length : undefined,
       authMode,

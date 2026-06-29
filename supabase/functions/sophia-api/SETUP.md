@@ -2,35 +2,21 @@
 
 Sincroniza alunos do SophiA para `sophia_students`. **Uma página por invocação** (limite ~2s CPU).
 
-## Modos
+## Modo `incremental` (botão Importar novas matrículas)
 
-### `reconcile` (padrão — botão Importar)
-
-Busca no SophiA apenas os códigos ERP dos matriculados no CRM:
+Percorre **todo** o catálogo SophiA (paginado), compara com `sophia_students` e **insere só alunos novos** (mesmo `codigo_externo` é ignorado). Não usa dados do CRM.
 
 ```json
-{
-  "mode": "reconcile",
-  "codes": ["123", "456"],
-  "pendingCodes": ["123", "456"],
-  "pagina": 0,
-  "authMode": "token"
-}
+{ "mode": "incremental", "pagina": 0 }
 ```
 
-Resposta: `{ "done", "nextPagina", "found", "changed", "pendingCodes", "authMode" }`
+Resposta: `{ "done", "nextPagina", "newCount", "knownCount", "pageRows" }`
 
-O frontend chama em loop até `done: true` (geralmente 1–3 páginas).
+O frontend chama em loop até `done: true`.
 
-### `full` (catálogo completo do período)
+## Modo `full` (reset completo)
 
-```json
-{ "mode": "full", "pagina": 0, "reset": true }
-```
-
-## Token cache
-
-Token SophiA fica em `sophia_sync_meta` (~25 min) — reauth só quando expira ou falha.
+Apaga cache e reimporta tudo: `{ "mode": "full", "pagina": 0, "reset": true }`
 
 ## Deploy
 
