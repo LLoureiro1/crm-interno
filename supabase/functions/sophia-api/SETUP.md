@@ -18,7 +18,15 @@ O frontend chama em loop até `done: true`.
 
 Apaga cache e reimporta tudo: `{ "mode": "full", "pagina": 0, "reset": true }`
 
-## Deploy
+## Paginação
+
+- **200 alunos por página** (`tamanho=200`)
+- Com ~4000 alunos → **~20 páginas** esperadas
+- A API SophiA costuma devolver sempre 200 itens brutos sem sinalizar fim; o limite `SOPHIA_MAX_STUDENTS` (padrão 4000) evita varrer centenas de páginas à toa.
+
+```bash
+npx supabase secrets set SOPHIA_MAX_STUDENTS='4000'
+```
 
 ```bash
 npx supabase db push

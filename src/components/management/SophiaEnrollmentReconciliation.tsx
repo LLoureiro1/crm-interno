@@ -44,8 +44,15 @@ type SyncPageResponse = {
   pendingCodes?: string[];
   pendingCount?: number;
   authMode?: 'token' | 'bearer';
+  pageRows?: number;
+  rawCount?: number;
+  pageSize?: number;
+  maxPages?: number;
+  stopReason?: 'natural' | 'empty_page' | 'max_pages' | null;
   error?: string;
 };
+
+const EXPECTED_MAX_PAGES = 22;
 
 const SOPHIA_IN_CHUNK = 200;
 
@@ -94,11 +101,13 @@ async function invokeSophiaSync(body: Record<string, unknown>): Promise<SyncPage
 }
 
 async function syncSophiaCatalog(
-  onProgress: (pagina: number, pageNew: number, totalNew: number) => void,
-): Promise<{ newCount: number }> {
+  onProgress: (pagina: number, maxPages: number, pageNew: number, totalNew: number) => void,
+): Promise<{ newCount: number; stopReason?: SyncPageResponse['stopReason'] }> {
   let pagina = 0;
   let authMode: 'token' | 'bearer' = 'token';
   let totalNew = 0;
+  let maxPages = EXPECTED_MAX_PAGES;
+  let stopReason: SyncPageResponse['stopReason'];
 
   while (true) {
     const data = await invokeSophiaSync({
@@ -107,9 +116,13 @@ async function syncSophiaCatalog(
       authMode,
     });
 
+    if (data.maxPages) maxPages = data.maxPages;
+
     const pageNew = data.newCount ?? 0;
     totalNew += pageNew;
-    onProgress((data.pagina ?? pagina) + 1, pageNew, totalNew);
+    onProgress((data.pagina ?? pagina) + 1, maxPages, pageNew, totalNew);
+
+    if (data.done) stopReason = data.stopReason ?? undefined;
 
     if (data.done || data.nextPagina == null) break;
 
@@ -117,7 +130,7 @@ async function syncSophiaCatalog(
     authMode = data.authMode === 'bearer' ? 'bearer' : 'token';
   }
 
-  return { newCount: totalNew };
+  return { newCount: totalNew, stopReason };
 }
 
 async function fetchSophiaStudentsForCodes(
@@ -274,11 +287,11 @@ export const SophiaEnrollmentReconciliation = () => {
     setSyncProgress(null);
 
     try {
-      const { newCount } = await syncSophiaCatalog((pagina, pageNew, totalNew) => {
+      const { newCount, stopReason } = await syncSophiaCatalog((pagina, maxPages, pageNew, totalNew) => {
         setSyncProgress(
           pageNew > 0
-            ? `Página ${pagina} — +${pageNew} nova(s) (${totalNew} no total)`
-            : `Página ${pagina} — conferindo catálogo SophiA`,
+            ? `Página ${pagina}/${maxPages} — +${pageNew} nova(s) (${totalNew} total)`
+            : `Página ${pagina}/${maxPages} — conferindo catálogo`,
         );
       });
 
@@ -286,6 +299,12 @@ export const SophiaEnrollmentReconciliation = () => {
         toast.info('Nenhuma matrícula nova no SophiA.');
       } else {
         toast.success(`${newCount} nova(s) matrícula(s) adicionada(s) ao cache.`);
+      }
+
+      if (stopReason === 'max_pages') {
+        toast.warning(
+          'Todas as páginas foram percorridas.',
+        );
       }
 
       await runReconciliation({ silent: true });

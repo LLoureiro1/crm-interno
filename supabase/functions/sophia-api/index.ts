@@ -13,8 +13,16 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 const PAGE_SIZE = 200;
+const IN_QUERY_CHUNK = 40;
 const TOKEN_TTL_MS = 25 * 60 * 1000;
 const DEFAULT_PERIODO_ID = '11';
+const DEFAULT_MAX_STUDENTS = 4000;
+
+function getMaxCatalogPages(): number {
+  const maxStudents = parseInt(Deno.env.get('SOPHIA_MAX_STUDENTS') ?? String(DEFAULT_MAX_STUDENTS), 10);
+  const safeMax = Number.isFinite(maxStudents) && maxStudents > 0 ? maxStudents : DEFAULT_MAX_STUDENTS;
+  return Math.ceil(safeMax / PAGE_SIZE) + 2;
+}
 
 type AuthMode = 'token' | 'bearer';
 type SophiaRow = { codigo_externo: string; nome: string; periodo_id: string; synced_at: string };
@@ -63,6 +71,16 @@ function codeMatches(a: string, b: string): boolean {
   return ta === tb || normalizeErpCode(ta) === normalizeErpCode(tb);
 }
 
+function toError(value: unknown, fallback: string): Error {
+  if (value instanceof Error) return value;
+  if (value && typeof value === 'object') {
+    const err = value as Record<string, unknown>;
+    const parts = [err.message, err.details, err.hint, err.code].filter(Boolean).map(String);
+    if (parts.length > 0) return new Error(parts.join(' — '));
+  }
+  return new Error(fallback);
+}
+
 async function sophiaAuthenticate(baseUrl: string, usuario: string, senha: string): Promise<string> {
   const response = await fetch(`${baseUrl}/Autenticacao`, {
     method: 'POST',
@@ -102,8 +120,14 @@ function parseAlunosPage(payload: unknown, periodoId: string, syncedAt: string):
   return { rawCount: raw.length, rows };
 }
 
-function isCatalogEnded(page: { rawCount: number }): boolean {
-  return page.rawCount === 0 || page.rawCount < PAGE_SIZE;
+function isCatalogEnded(
+  page: { rawCount: number; rows: SophiaRow[] },
+  pagina: number,
+): { ended: boolean; reason: 'natural' | 'empty_page' | 'max_pages' | null } {
+  if (pagina + 1 >= getMaxCatalogPages()) return { ended: true, reason: 'max_pages' };
+  if (page.rawCount === 0 || page.rawCount < PAGE_SIZE) return { ended: true, reason: 'natural' };
+  if (page.rows.length === 0) return { ended: true, reason: 'empty_page' };
+  return { ended: false, reason: null };
 }
 
 async function fetchAlunosPage(
@@ -130,7 +154,14 @@ async function fetchAlunosPage(
 
   if (!response.ok) throw new Error(`Falha ao listar alunos SophiA (${response.status}): ${body.slice(0, 200)}`);
 
-  return { page: parseAlunosPage(JSON.parse(body), periodoId, syncedAt), authMode };
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    throw new Error(`Resposta inválida da API SophiA: ${body.slice(0, 200)}`);
+  }
+
+  return { page: parseAlunosPage(payload, periodoId, syncedAt), authMode };
 }
 
 async function getCachedToken(
@@ -140,20 +171,22 @@ async function getCachedToken(
   forceRefresh = false,
 ): Promise<{ token: string; authMode: AuthMode }> {
   if (!forceRefresh) {
-    const { data: meta } = await supabaseAdmin
+    const { data: meta, error: metaError } = await supabaseAdmin
       .from('sophia_sync_meta')
       .select('auth_token, auth_mode, token_cached_at')
       .eq('periodo_id', periodoId)
       .maybeSingle();
 
-    const row = meta as SyncMetaRow | null;
-    if (row?.auth_token && row.token_cached_at) {
-      const age = Date.now() - new Date(row.token_cached_at).getTime();
-      if (age < TOKEN_TTL_MS) {
-        return {
-          token: row.auth_token,
-          authMode: row.auth_mode === 'bearer' ? 'bearer' : 'token',
-        };
+    if (!metaError) {
+      const row = meta as SyncMetaRow | null;
+      if (row?.auth_token && row.token_cached_at) {
+        const age = Date.now() - new Date(row.token_cached_at).getTime();
+        if (age < TOKEN_TTL_MS) {
+          return {
+            token: row.auth_token,
+            authMode: row.auth_mode === 'bearer' ? 'bearer' : 'token',
+          };
+        }
       }
     }
   }
@@ -164,12 +197,16 @@ async function getCachedToken(
     requireEnv('SOPHIA_API_SENHA'),
   );
 
-  await supabaseAdmin.from('sophia_sync_meta').upsert({
+  const { error: cacheError } = await supabaseAdmin.from('sophia_sync_meta').upsert({
     periodo_id: periodoId,
     auth_token: token,
     auth_mode: 'token',
     token_cached_at: new Date().toISOString(),
   });
+
+  if (cacheError) {
+    await supabaseAdmin.from('sophia_sync_meta').upsert({ periodo_id: periodoId });
+  }
 
   return { token, authMode: 'token' };
 }
@@ -180,12 +217,22 @@ async function saveTokenCache(
   token: string,
   authMode: AuthMode,
 ) {
-  await supabaseAdmin.from('sophia_sync_meta').upsert({
+  const { error: cacheError } = await supabaseAdmin.from('sophia_sync_meta').upsert({
     periodo_id: periodoId,
     auth_token: token,
     auth_mode: authMode,
     token_cached_at: new Date().toISOString(),
   });
+
+  if (cacheError) {
+    await supabaseAdmin.from('sophia_sync_meta').upsert({ periodo_id: periodoId });
+  }
+}
+
+function dedupeByCodigo(rows: SophiaRow[]): SophiaRow[] {
+  const map = new Map<string, SophiaRow>();
+  for (const row of rows) map.set(row.codigo_externo, row);
+  return [...map.values()];
 }
 
 function filterRowsForPending(pageRows: SophiaRow[], pendingCodes: string[]): SophiaRow[] {
@@ -197,34 +244,45 @@ function removeFoundFromPending(pendingCodes: string[], matched: SophiaRow[]): s
   return pendingCodes.filter((code) => !matched.some((row) => codeMatches(code, row.codigo_externo)));
 }
 
-async function loadKnownCodes(
+async function fetchExistingCodes(
   supabaseAdmin: ReturnType<typeof createClient>,
   periodoId: string,
+  codes: string[],
 ): Promise<Set<string>> {
   const known = new Set<string>();
-  const batchSize = 1000;
-  let offset = 0;
+  if (codes.length === 0) return known;
 
-  while (true) {
+  for (let i = 0; i < codes.length; i += IN_QUERY_CHUNK) {
+    const chunk = codes.slice(i, i + IN_QUERY_CHUNK);
     const { data: existing, error } = await supabaseAdmin
       .from('sophia_students')
       .select('codigo_externo')
       .eq('periodo_id', periodoId)
-      .range(offset, offset + batchSize - 1);
+      .in('codigo_externo', chunk);
 
-    if (error) throw error;
-    if (!existing?.length) break;
+    if (error) throw toError(error, 'Falha ao consultar cache local');
 
-    for (const row of existing) {
+    for (const row of existing ?? []) {
       known.add(row.codigo_externo.trim());
       known.add(normalizeErpCode(row.codigo_externo));
     }
-
-    if (existing.length < batchSize) break;
-    offset += batchSize;
   }
 
   return known;
+}
+
+async function filterNewRowsOnPage(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  periodoId: string,
+  pageRows: SophiaRow[],
+): Promise<SophiaRow[]> {
+  if (pageRows.length === 0) return [];
+
+  const codes = [...new Set(pageRows.map((row) => row.codigo_externo.trim()).filter(Boolean))];
+  if (codes.length === 0) return [];
+
+  const known = await fetchExistingCodes(supabaseAdmin, periodoId, codes);
+  return pageRows.filter((row) => !isRowKnown(row, known));
 }
 
 function isRowKnown(row: SophiaRow, known: Set<string>): boolean {
@@ -274,22 +332,27 @@ serve(async (req) => {
       });
     }
 
-    const { token: initialToken, authMode: cachedMode } = await getCachedToken(
+    const { token: initialToken, authMode: initialAuthMode } = await getCachedToken(
       supabaseAdmin,
       periodoId,
       baseUrl,
       false,
     );
     let token = initialToken;
-    authMode = body.authMode ?? cachedMode;
+    authMode = body.authMode ?? initialAuthMode;
 
     let pageResult;
     try {
       pageResult = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId, syncedAt);
-    } catch {
-      ({ token, authMode: cachedMode } = await getCachedToken(supabaseAdmin, periodoId, baseUrl, true));
-      authMode = cachedMode;
-      pageResult = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId, syncedAt);
+    } catch (firstError) {
+      const refreshed = await getCachedToken(supabaseAdmin, periodoId, baseUrl, true);
+      token = refreshed.token;
+      authMode = refreshed.authMode;
+      try {
+        pageResult = await fetchAlunosPage(baseUrl, token, pagina, authMode, periodoId, syncedAt);
+      } catch {
+        throw toError(firstError, 'Falha ao consultar API SophiA');
+      }
     }
 
     authMode = pageResult.authMode;
@@ -300,12 +363,9 @@ serve(async (req) => {
     let pendingCodes: string[] = [];
     let found = 0;
     let newCount = 0;
-    let knownCount = 0;
 
     if (mode === 'incremental') {
-      const known = await loadKnownCodes(supabaseAdmin, periodoId);
-      knownCount = known.size;
-      toUpsert = page.rows.filter((row) => !isRowKnown(row, known));
+      toUpsert = dedupeByCodigo(await filterNewRowsOnPage(supabaseAdmin, periodoId, page.rows));
       newCount = toUpsert.length;
       found = toUpsert.length;
     } else if (mode === 'reconcile') {
@@ -320,18 +380,24 @@ serve(async (req) => {
 
     let changed = 0;
     if (toUpsert.length > 0) {
-      const upsertOptions =
-        mode === 'incremental'
-          ? { onConflict: 'codigo_externo,periodo_id', ignoreDuplicates: true }
-          : { onConflict: 'codigo_externo,periodo_id' };
-      const { error: upsertError } = await supabaseAdmin
-        .from('sophia_students')
-        .upsert(toUpsert, upsertOptions);
-      if (upsertError) throw upsertError;
+      if (mode === 'incremental') {
+        for (let i = 0; i < toUpsert.length; i += IN_QUERY_CHUNK) {
+          const chunk = toUpsert.slice(i, i + IN_QUERY_CHUNK);
+          const { error: insertError } = await supabaseAdmin
+            .from('sophia_students')
+            .upsert(chunk, { onConflict: 'codigo_externo,periodo_id', ignoreDuplicates: true });
+          if (insertError) throw toError(insertError, 'Falha ao gravar alunos novos');
+        }
+      } else {
+        const { error: upsertError } = await supabaseAdmin
+          .from('sophia_students')
+          .upsert(toUpsert, { onConflict: 'codigo_externo,periodo_id' });
+        if (upsertError) throw toError(upsertError, 'Falha ao gravar alunos');
+      }
       changed = toUpsert.length;
     }
 
-    const catalogEnded = isCatalogEnded(page);
+    const { ended: catalogEnded, reason: stopReason } = isCatalogEnded(page, pagina);
     const incrementalDone = mode === 'incremental' && catalogEnded;
     const reconcileDone = mode === 'reconcile' && (pendingCodes.length === 0 || catalogEnded);
     const fullDone = mode === 'full' && catalogEnded;
@@ -360,15 +426,19 @@ serve(async (req) => {
       changed,
       found,
       newCount: mode === 'incremental' ? newCount : undefined,
-      knownCount: mode === 'incremental' ? knownCount : undefined,
       pendingCodes: mode === 'reconcile' ? pendingCodes : undefined,
       pendingCount: mode === 'reconcile' ? pendingCodes.length : undefined,
       authMode,
       periodoId,
       pageRows: page.rows.length,
+      rawCount: page.rawCount,
+      pageSize: PAGE_SIZE,
+      maxPages: getMaxCatalogPages(),
+      stopReason: done ? stopReason : null,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro ao sincronizar SophiA';
+    console.error('sophia-api error:', error);
+    const message = toError(error, 'Erro ao sincronizar SophiA').message;
     return jsonResponse({ error: message }, 500);
   }
 });
