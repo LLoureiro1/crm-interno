@@ -630,7 +630,7 @@ export const EmailAutomationManagement = () => {
               <p className="text-sm font-medium text-amber-950">
                 <strong>[E-mail interno — resumo diário]</strong> Enviado 1 vez ao dia por
                 destinatário com todos os inscritos nessa condição na unidade.
-                Se nenhum destinatário for selecionado, todos os usuários ativos da unidade recebem.
+                Se nenhum destinatário for selecionado, ninguém recebe.
               </p>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
                 {loadingUnitData && (
