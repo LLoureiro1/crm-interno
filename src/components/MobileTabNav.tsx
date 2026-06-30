@@ -6,8 +6,10 @@ import {
   Settings,
   TrendingUp,
   Users,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useDashboardNav } from '@/contexts/DashboardNavContext';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,7 @@ export function MobileTabNav() {
   const canAccessAdvancedReports =
     profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
+  const { canView: canAccessQualificacao } = useWhatsappAccess();
 
   const items = useMemo<TabItem[]>(() => {
     const tabs: TabItem[] = [
@@ -41,12 +44,16 @@ export function MobileTabNav() {
       { id: 'appointments', label: 'Agenda', icon: Calendar },
     );
 
+    if (canAccessQualificacao) {
+      tabs.push({ id: 'qualificacao', label: 'Qualif.', icon: MessageCircle });
+    }
+
     if (canAccessConfig) {
       tabs.push({ id: 'config', label: 'Config', icon: Settings });
     }
 
     return tabs;
-  }, [canAccessAdvancedReports, canAccessConfig]);
+  }, [canAccessAdvancedReports, canAccessConfig, canAccessQualificacao]);
 
   if (!isMobile) {
     return null;

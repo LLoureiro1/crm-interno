@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invokeEvolutionWhatsApp, type EvolutionWhatsAppResponse } from '@/lib/evolutionWhatsApp';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
+import { formatWhatsappPhone } from '@/lib/whatsappConversations';
+import { WhatsappViewerAccessManagement } from '@/components/management/WhatsappViewerAccessManagement';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import {
   AlertCircle,
@@ -21,61 +21,23 @@ import {
 
 type EvolutionResponse = EvolutionWhatsAppResponse;
 
-type WhatsappMessage = Tables<'whatsapp_messages'>;
-
-type ConversationGroup = {
-  senderPhone: string;
-  senderName: string | null;
-  messages: WhatsappMessage[];
-  latestMessage: WhatsappMessage;
-};
-
 const QR_REFRESH_SECONDS = 55;
 const POLL_CONNECTED_MS = 5000;
-const MESSAGES_POLL_MS = 8000;
 
 async function invokeEvolution(body: Record<string, unknown>): Promise<EvolutionResponse> {
   return invokeEvolutionWhatsApp(body);
 }
 
-function formatPhone(owner: string | null | undefined): string | null {
-  if (!owner) return null;
-  const digits = owner.replace(/\D/g, '');
-  if (digits.length < 10) return owner;
-  const local = digits.startsWith('55') ? digits.slice(2) : digits;
-  if (local.length === 11) {
-    return `+55 (${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
-  }
-  return `+${digits}`;
-}
-
-function groupMessagesByPhone(messages: WhatsappMessage[]): ConversationGroup[] {
-  const map = new Map<string, WhatsappMessage[]>();
-  for (const msg of messages) {
-    const list = map.get(msg.sender_phone) ?? [];
-    list.push(msg);
-    map.set(msg.sender_phone, list);
-  }
-
-  return [...map.entries()]
-    .map(([senderPhone, msgs]) => {
-      const sorted = [...msgs].sort(
-        (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime(),
-      );
-      return {
-        senderPhone,
-        senderName:
-          sorted.find((m) => m.sender_name && !m.from_me)?.sender_name ??
-          sorted.find((m) => m.sender_name)?.sender_name ??
-          null,
-        messages: [...sorted].reverse(),
-        latestMessage: sorted[0],
-      };
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.latestMessage.received_at).getTime() - new Date(a.latestMessage.received_at).getTime(),
-    );
+async function syncIntegrationRecord(instanceName: string, displayPhone: string | null) {
+  await supabase.from('whatsapp_integrations').upsert(
+    {
+      instance_name: instanceName,
+      display_phone: displayPhone,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'instance_name' },
+  );
 }
 
 function stateBadge(state: string | undefined, connected?: boolean) {
@@ -111,7 +73,6 @@ export function EvolutionWhatsAppManagement() {
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(QR_REFRESH_SECONDS);
   const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<WhatsappMessage[]>([]);
   const pollRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
 
@@ -131,18 +92,9 @@ export function EvolutionWhatsAppManagement() {
     setStatus(data);
     if (data.connected || data.state === 'open') {
       void invokeEvolution({ action: 'setupWebhook', instanceName: name }).catch(() => undefined);
+      void syncIntegrationRecord(name, data.owner ?? null);
     }
     return data;
-  }, []);
-
-  const loadMessages = useCallback(async (name: string) => {
-    const { data, error: fetchError } = await supabase
-      .from('whatsapp_messages')
-      .select('*')
-      .eq('instance_name', name)
-      .order('received_at', { ascending: false })
-      .limit(200);
-    if (!fetchError && data) setMessages(data);
   }, []);
 
   const refreshQr = useCallback(
@@ -156,6 +108,7 @@ export function EvolutionWhatsAppManagement() {
         if (data.connected || data.state === 'open') {
           setQrBase64(null);
           clearTimers();
+          void syncIntegrationRecord(name, data.owner ?? status?.owner ?? null);
           if (!silent) toast.success('WhatsApp conectado com sucesso!');
           return data;
         }
@@ -232,14 +185,6 @@ export function EvolutionWhatsAppManagement() {
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
-  useEffect(() => {
-    const connected = status?.connected || status?.state === 'open';
-    if (!connected) return;
-    void loadMessages(instanceName);
-    const id = window.setInterval(() => void loadMessages(instanceName), MESSAGES_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [instanceName, loadMessages, status?.connected, status?.state]);
-
   const handleConnect = async () => {
     try {
       await refreshQr(instanceName);
@@ -282,8 +227,7 @@ export function EvolutionWhatsAppManagement() {
   };
 
   const isConnected = Boolean(status?.connected || status?.state === 'open');
-  const phone = formatPhone(status?.owner);
-  const conversations = useMemo(() => groupMessagesByPhone(messages), [messages]);
+  const phone = formatWhatsappPhone(status?.owner);
 
   return (
     <div className="space-y-6">
@@ -400,94 +344,15 @@ export function EvolutionWhatsAppManagement() {
         )}
       </div>
 
-      {isConnected && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 font-medium">Conversas</h3>
-          {conversations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
-          ) : (
-            <Accordion type="single" collapsible className="w-full">
-              {conversations.map((conversation) => {
-                const displayPhone = formatPhone(conversation.senderPhone) ?? conversation.senderPhone;
-                const latest = conversation.latestMessage;
-                return (
-                  <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone}>
-                    <AccordionTrigger className="px-2 hover:no-underline">
-                      <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]">
-                          {(conversation.senderName ?? displayPhone).slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium">
-                              {conversation.senderName ?? displayPhone}
-                            </span>
-                            {conversation.senderName && (
-                              <span className="text-xs text-muted-foreground">{displayPhone}</span>
-                            )}
-                            <Badge variant="secondary" className="text-xs">
-                              {conversation.messages.length}
-                            </Badge>
-                          </div>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {latest.from_me ? 'Você: ' : ''}
-                            {latest.message_text}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {new Date(latest.received_at).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-2">
-                      <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg bg-[#efeae2] p-3">
-                        {conversation.messages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex flex-col gap-0.5 ${msg.from_me ? 'items-end' : 'items-start'}`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm ${
-                                msg.from_me
-                                  ? 'rounded-tr-none bg-[#d9fdd3] text-gray-900'
-                                  : 'rounded-tl-none bg-white text-gray-900'
-                              }`}
-                            >
-                              {msg.message_text}
-                            </div>
-                            <span className="px-1 text-[10px] text-muted-foreground">
-                              {new Date(msg.received_at).toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-          )}
-        </div>
-      )}
+      <WhatsappViewerAccessManagement instanceName={instanceName} />
 
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription className="text-sm">
-          Em desenvolvimento (<code className="text-xs">npm run dev</code>), o CRM usa um proxy local que lê{' '}
-          <code className="text-xs">EVOLUTION_API_URL</code> e <code className="text-xs">EVOLUTION_API_KEY</code> do
-          arquivo <code className="text-xs">.env</code> na raiz do projeto (use{' '}
-          <code className="text-xs">http://127.0.0.1:8081</code>). Em produção, configure os secrets na Edge Function{' '}
-          <code className="text-xs">evolution-whatsapp</code> com uma URL pública (ex.: ngrok ou servidor VPS).
+          Um número WhatsApp por instância Evolution (conexão via QR Code). Vários usuários do CRM podem{' '}
+          <strong>visualizar</strong> as mesmas conversas na guia Qualificação — isso não exige conectar
+          celulares adicionais. O WhatsApp oficial permite dispositivos vinculados, mas a Evolution mantém
+          uma sessão Baileys por instância; conectar outro celular na mesma instância desconecta a sessão anterior.
         </AlertDescription>
       </Alert>
     </div>

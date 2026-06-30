@@ -7,7 +7,9 @@ import { StudentsMainTab } from './tabs/StudentsMainTab';
 import { AppointmentsTab } from './tabs/AppointmentsTab';
 import { ConfigTab } from './tabs/ConfigTab';
 import { AdvancedReportsTab } from './tabs/AdvancedReportsTab';
+import { QualificacaoTab } from './tabs/QualificacaoTab';
 import ErrorBoundary from './ErrorBoundary';
+import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
 
 export const Dashboard = () => {
   const { profile } = useAuth();
@@ -18,6 +20,7 @@ export const Dashboard = () => {
   const canAccessAdvancedReports =
     profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
+  const { canView: canAccessQualificacao } = useWhatsappAccess();
 
   useEffect(() => {
     const navigationState = location.state as { activeTab?: string };
@@ -38,7 +41,10 @@ export const Dashboard = () => {
     if (activeTab === 'config' && !canAccessConfig) {
       setActiveTab('reports');
     }
-  }, [activeTab, canAccessAdvancedReports, canAccessConfig, setActiveTab]);
+    if (activeTab === 'qualificacao' && !canAccessQualificacao) {
+      setActiveTab('reports');
+    }
+  }, [activeTab, canAccessAdvancedReports, canAccessConfig, canAccessQualificacao, setActiveTab]);
 
   return (
     <div className="min-w-0 w-full max-w-full space-y-6">
@@ -63,6 +69,12 @@ export const Dashboard = () => {
       {activeTab === 'appointments' && (
         <ErrorBoundary>
           <AppointmentsTab />
+        </ErrorBoundary>
+      )}
+
+      {activeTab === 'qualificacao' && canAccessQualificacao && (
+        <ErrorBoundary>
+          <QualificacaoTab />
         </ErrorBoundary>
       )}
 

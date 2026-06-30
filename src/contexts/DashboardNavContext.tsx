@@ -5,6 +5,7 @@ export const TAB_LABELS: Record<string, string> = {
   'advanced-reports': 'Relatórios Avançados',
   students: 'Inscritos',
   appointments: 'Agendamentos',
+  qualificacao: 'Leads',
   config: 'Configurações',
 };
 

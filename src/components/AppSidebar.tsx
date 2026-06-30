@@ -25,10 +25,12 @@ import {
   TrendingUp,
   UserPlus,
   Users,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
 
 const menuButtonClass =
   'group/nav-btn relative h-auto gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm text-white/90 shadow-none transition-all hover:bg-white/10 hover:!text-white hover:shadow-sm focus-visible:bg-white/10 focus-visible:!text-white focus-visible:ring-2 focus-visible:ring-[#ffac1a]/40 active:bg-white/15 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-md group-data-[collapsible=icon]:!mx-auto group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!gap-0 group-data-[collapsible=icon]:!rounded-lg group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:hover:bg-white/10 data-[active=true]:group-data-[collapsible=icon]:shadow-sm';
@@ -68,6 +70,7 @@ export function AppSidebar() {
   const canAccessAdvancedReports =
     profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
+  const { canView: canAccessQualificacao } = useWhatsappAccess();
 
   const gestaoItems: NavItem[] = [
     { id: 'reports', label: 'Painel Operacional', icon: BarChart3 },
@@ -76,6 +79,9 @@ export function AppSidebar() {
       : []),
     { id: 'students', label: 'Inscritos', icon: Users },
     { id: 'appointments', label: 'Agendamentos', icon: Calendar },
+    ...(canAccessQualificacao
+      ? [{ id: 'qualificacao', label: 'Leads', icon: MessageCircle }]
+      : []),
   ];
 
   const sistemaItems: NavItem[] = canAccessConfig

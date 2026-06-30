@@ -699,6 +699,69 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_integrations: {
+        Row: {
+          id: string
+          instance_name: string
+          display_phone: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          instance_name: string
+          display_phone?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          instance_name?: string
+          display_phone?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_viewer_access: {
+        Row: {
+          id: string
+          instance_name: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          instance_name: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          instance_name?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_viewer_access_instance_name_fkey"
+            columns: ["instance_name"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_integrations"
+            referencedColumns: ["instance_name"]
+          },
+          {
+            foreignKeyName: "whatsapp_viewer_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           id: string
@@ -1265,6 +1328,10 @@ export type Database = {
       assert_strong_password: {
         Args: { p_password: string }
         Returns: undefined
+      },
+      auth_user_can_view_whatsapp: {
+        Args: { p_instance_name?: string }
+        Returns: boolean
       },
       list_users_for_admin: {
         Args: Record<PropertyKey, never>
