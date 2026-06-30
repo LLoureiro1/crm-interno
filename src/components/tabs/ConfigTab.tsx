@@ -15,6 +15,7 @@ import {
   Mail,
   Target,
   GitCompareArrows,
+  MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +32,7 @@ import { RegistrationSourceManagement } from '@/components/management/Registrati
 import { EmailAutomationManagement } from '@/components/management/EmailAutomationManagement';
 import { GoalManagement } from '@/components/management/GoalManagement';
 import { SophiaEnrollmentReconciliation } from '@/components/management/SophiaEnrollmentReconciliation';
+import { EvolutionWhatsAppManagement } from '@/components/management/EvolutionWhatsAppManagement';
 import ContactLists from '@/pages/ContactLists';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +50,7 @@ const CONFIG_SECTION_TABS = [
   { value: 'contact-lists', label: 'Listas de Contato' },
   { value: 'emails', label: 'E-mails' },
   { value: 'goals', label: 'Metas' },
+  { value: 'whatsapp', label: 'WhatsApp' },
 ] as const;
 
 type ConfigSection = (typeof CONFIG_SECTION_TABS)[number]['value'];
@@ -216,6 +219,16 @@ export const ConfigTab = () => {
         <TabsContent value="goals" className="mt-0 min-w-0">
           <ConfigSectionCard icon={Target} title="Metas" description="Configure metas de matrícula por unidade">
             <GoalManagement />
+          </ConfigSectionCard>
+        </TabsContent>
+
+        <TabsContent value="whatsapp" className="mt-0 min-w-0">
+          <ConfigSectionCard
+            icon={MessageCircle}
+            title="WhatsApp (Evolution API)"
+            description="Conecte o WhatsApp da escola escaneando o QR Code via Evolution API"
+          >
+            <EvolutionWhatsAppManagement />
           </ConfigSectionCard>
         </TabsContent>
       </Tabs>
