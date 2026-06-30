@@ -226,10 +226,7 @@ export function evolutionDevProxy(getEnv: () => Record<string, string>): Plugin 
             }
             const data = body.data ?? {};
             const key = data.key ?? {};
-            if (key.fromMe === true) {
-              sendJson(res, 200, { status: 'ignored' });
-              return;
-            }
+            const fromMe = key.fromMe === true;
             const message = data.message ?? {};
             const text =
               message.conversation ||
@@ -266,10 +263,11 @@ export function evolutionDevProxy(getEnv: () => Record<string, string>): Plugin 
               body: JSON.stringify({
                 instance_name: instanceName,
                 sender_phone: senderPhone,
-                sender_name: typeof data.pushName === 'string' ? data.pushName : null,
+                sender_name: fromMe ? null : (typeof data.pushName === 'string' ? data.pushName : null),
                 message_text: String(text),
                 received_at: receivedAt,
                 external_id: externalId,
+                from_me: fromMe,
               }),
             });
             if (!insertRes.ok) {

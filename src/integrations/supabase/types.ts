@@ -708,6 +708,7 @@ export type Database = {
           message_text: string
           received_at: string
           external_id: string
+          from_me: boolean
           created_at: string
         }
         Insert: {
@@ -718,6 +719,7 @@ export type Database = {
           message_text: string
           received_at?: string
           external_id: string
+          from_me?: boolean
           created_at?: string
         }
         Update: {
@@ -728,6 +730,7 @@ export type Database = {
           message_text?: string
           received_at?: string
           external_id?: string
+          from_me?: boolean
           created_at?: string
         }
         Relationships: []

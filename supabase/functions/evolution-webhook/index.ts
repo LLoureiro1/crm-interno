@@ -60,7 +60,7 @@ serve(async (req) => {
 
     const data = (body.data ?? {}) as Record<string, unknown>;
     const key = (data.key ?? {}) as Record<string, unknown>;
-    if (key.fromMe === true) return jsonResponse({ status: 'ignored', reason: 'fromMe' });
+    const fromMe = key.fromMe === true;
 
     const message = (data.message ?? {}) as Record<string, unknown>;
     const text = extractMessageText(message);
@@ -68,7 +68,7 @@ serve(async (req) => {
 
     const instanceName = String(body.instance ?? Deno.env.get('EVOLUTION_INSTANCE') ?? 'aluno-first-crm');
     const senderPhone = normalizeSenderPhone(String(key.remoteJid ?? ''));
-    const senderName = typeof data.pushName === 'string' ? data.pushName : null;
+    const senderName = fromMe ? null : (typeof data.pushName === 'string' ? data.pushName : null);
     const receivedAt = parseMessageReceivedAt(data);
     const externalId = buildExternalId(key, senderPhone, receivedAt, text);
 
@@ -85,6 +85,7 @@ serve(async (req) => {
         message_text: text,
         received_at: receivedAt,
         external_id: externalId,
+        from_me: fromMe,
       },
       { onConflict: 'instance_name,external_id', ignoreDuplicates: true },
     );

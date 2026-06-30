@@ -64,7 +64,10 @@ function groupMessagesByPhone(messages: WhatsappMessage[]): ConversationGroup[] 
       );
       return {
         senderPhone,
-        senderName: sorted.find((m) => m.sender_name)?.sender_name ?? null,
+        senderName:
+          sorted.find((m) => m.sender_name && !m.from_me)?.sender_name ??
+          sorted.find((m) => m.sender_name)?.sender_name ??
+          null,
         messages: [...sorted].reverse(),
         latestMessage: sorted[0],
       };
@@ -399,9 +402,9 @@ export function EvolutionWhatsAppManagement() {
 
       {isConnected && (
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 font-medium">Mensagens recebidas</h3>
+          <h3 className="mb-3 font-medium">Conversas</h3>
           {conversations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma mensagem recebida ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
               {conversations.map((conversation) => {
@@ -426,7 +429,10 @@ export function EvolutionWhatsAppManagement() {
                               {conversation.messages.length}
                             </Badge>
                           </div>
-                          <p className="truncate text-sm text-muted-foreground">{latest.message_text}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {latest.from_me ? 'Você: ' : ''}
+                            {latest.message_text}
+                          </p>
                         </div>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {new Date(latest.received_at).toLocaleString('pt-BR', {
@@ -439,14 +445,28 @@ export function EvolutionWhatsAppManagement() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-2">
-                      <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3">
+                      <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg bg-[#efeae2] p-3">
                         {conversation.messages.map((msg) => (
-                          <div key={msg.id} className="flex flex-col items-start gap-1">
-                            <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-3 py-2 text-sm shadow-sm">
+                          <div
+                            key={msg.id}
+                            className={`flex flex-col gap-0.5 ${msg.from_me ? 'items-end' : 'items-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                                msg.from_me
+                                  ? 'rounded-tr-none bg-[#d9fdd3] text-gray-900'
+                                  : 'rounded-tl-none bg-white text-gray-900'
+                              }`}
+                            >
                               {msg.message_text}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(msg.received_at).toLocaleString('pt-BR')}
+                            <span className="px-1 text-[10px] text-muted-foreground">
+                              {new Date(msg.received_at).toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </span>
                           </div>
                         ))}
