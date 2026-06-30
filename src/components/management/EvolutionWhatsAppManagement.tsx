@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invokeEvolutionWhatsApp, type EvolutionWhatsAppResponse } from '@/lib/evolutionWhatsApp';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import {
   AlertCircle,
@@ -22,6 +22,13 @@ import {
 type EvolutionResponse = EvolutionWhatsAppResponse;
 
 type WhatsappMessage = Tables<'whatsapp_messages'>;
+
+type ConversationGroup = {
+  senderPhone: string;
+  senderName: string | null;
+  messages: WhatsappMessage[];
+  latestMessage: WhatsappMessage;
+};
 
 const QR_REFRESH_SECONDS = 55;
 const POLL_CONNECTED_MS = 5000;
@@ -40,6 +47,32 @@ function formatPhone(owner: string | null | undefined): string | null {
     return `+55 (${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
   }
   return `+${digits}`;
+}
+
+function groupMessagesByPhone(messages: WhatsappMessage[]): ConversationGroup[] {
+  const map = new Map<string, WhatsappMessage[]>();
+  for (const msg of messages) {
+    const list = map.get(msg.sender_phone) ?? [];
+    list.push(msg);
+    map.set(msg.sender_phone, list);
+  }
+
+  return [...map.entries()]
+    .map(([senderPhone, msgs]) => {
+      const sorted = [...msgs].sort(
+        (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime(),
+      );
+      return {
+        senderPhone,
+        senderName: sorted.find((m) => m.sender_name)?.sender_name ?? null,
+        messages: [...sorted].reverse(),
+        latestMessage: sorted[0],
+      };
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.latestMessage.received_at).getTime() - new Date(a.latestMessage.received_at).getTime(),
+    );
 }
 
 function stateBadge(state: string | undefined, connected?: boolean) {
@@ -105,7 +138,7 @@ export function EvolutionWhatsAppManagement() {
       .select('*')
       .eq('instance_name', name)
       .order('received_at', { ascending: false })
-      .limit(50);
+      .limit(200);
     if (!fetchError && data) setMessages(data);
   }, []);
 
@@ -247,6 +280,7 @@ export function EvolutionWhatsAppManagement() {
 
   const isConnected = Boolean(status?.connected || status?.state === 'open');
   const phone = formatPhone(status?.owner);
+  const conversations = useMemo(() => groupMessagesByPhone(messages), [messages]);
 
   return (
     <div className="space-y-6">
@@ -366,32 +400,62 @@ export function EvolutionWhatsAppManagement() {
       {isConnected && (
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <h3 className="mb-3 font-medium">Mensagens recebidas</h3>
-          {messages.length === 0 ? (
+          {conversations.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma mensagem recebida ainda.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Remetente</TableHead>
-                  <TableHead>Data/hora</TableHead>
-                  <TableHead>Mensagem</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {messages.map((msg) => (
-                  <TableRow key={msg.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {msg.sender_name ? `${msg.sender_name} · ` : ''}
-                      {formatPhone(msg.sender_phone) ?? msg.sender_phone}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {new Date(msg.received_at).toLocaleString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="max-w-md truncate">{msg.message_text}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <Accordion type="single" collapsible className="w-full">
+              {conversations.map((conversation) => {
+                const displayPhone = formatPhone(conversation.senderPhone) ?? conversation.senderPhone;
+                const latest = conversation.latestMessage;
+                return (
+                  <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone}>
+                    <AccordionTrigger className="px-2 hover:no-underline">
+                      <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]">
+                          {(conversation.senderName ?? displayPhone).slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">
+                              {conversation.senderName ?? displayPhone}
+                            </span>
+                            {conversation.senderName && (
+                              <span className="text-xs text-muted-foreground">{displayPhone}</span>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {conversation.messages.length}
+                            </Badge>
+                          </div>
+                          <p className="truncate text-sm text-muted-foreground">{latest.message_text}</p>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {new Date(latest.received_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-2">
+                      <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        {conversation.messages.map((msg) => (
+                          <div key={msg.id} className="flex flex-col items-start gap-1">
+                            <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-3 py-2 text-sm shadow-sm">
+                              {msg.message_text}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(msg.received_at).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           )}
         </div>
       )}
