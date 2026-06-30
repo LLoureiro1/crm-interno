@@ -16,3 +16,9 @@ verify_jwt = false
 
 [functions.resend-sync]
 verify_jwt = true
+
+[functions.evolution-webhook]
+verify_jwt = false
+
+[functions.evolution-whatsapp]
+verify_jwt = true

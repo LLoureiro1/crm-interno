@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
 
-type Action = 'status' | 'connect' | 'create' | 'logout';
+type Action = 'status' | 'connect' | 'create' | 'logout' | 'setupWebhook';
 
 type RequestBody = {
   action?: Action;
@@ -139,9 +139,37 @@ async function connectInstance(env: Record<string, string>, instanceName: string
   };
 }
 
+async function setupWebhook(env: Record<string, string>, instanceName: string) {
+  const webhookUrl =
+    env.EVOLUTION_WEBHOOK_URL?.trim() ||
+    `${env.VITE_SUPABASE_URL?.replace(/\/$/, '')}/functions/v1/evolution-webhook`;
+  const anonKey = env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
+  await evolutionFetch(env, `/webhook/set/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      webhook: {
+        url: webhookUrl,
+        webhook_by_events: false,
+        events: ['MESSAGES_UPSERT'],
+        enabled: true,
+        ...(anonKey
+          ? {
+            headers: {
+              Authorization: `Bearer ${anonKey}`,
+              apikey: anonKey,
+            },
+          }
+          : {}),
+      },
+    }),
+  });
+  return { ok: true, webhookUrl };
+}
+
 async function handleRequest(env: Record<string, string>, body: RequestBody) {
   const action: Action =
-    body.action === 'connect' || body.action === 'create' || body.action === 'logout'
+    body.action === 'connect' || body.action === 'create' || body.action === 'logout' ||
+      body.action === 'setupWebhook'
       ? body.action
       : 'status';
   const instanceName = defaultInstanceName(env, body.instanceName);
@@ -168,7 +196,13 @@ async function handleRequest(env: Record<string, string>, body: RequestBody) {
   }
 
   if (action === 'connect') {
-    return connectInstance(env, instanceName);
+    const result = await connectInstance(env, instanceName);
+    if (result.connected) await setupWebhook(env, instanceName).catch(() => undefined);
+    return result;
+  }
+
+  if (action === 'setupWebhook') {
+    return setupWebhook(env, instanceName);
   }
 
   return fetchInstanceStatus(env, instanceName);
@@ -180,6 +214,76 @@ export function evolutionDevProxy(getEnv: () => Record<string, string>): Plugin 
     name: 'evolution-dev-proxy',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/evolution-webhook' && req.method === 'POST') {
+          try {
+            const env = getEnv();
+            const raw = await readBody(req);
+            const body = raw ? JSON.parse(raw) : {};
+            const eventNorm = String(body.event ?? '').toLowerCase().replace(/_/g, '.');
+            if (eventNorm !== 'messages.upsert') {
+              sendJson(res, 200, { status: 'ignored', reason: 'event' });
+              return;
+            }
+            const data = body.data ?? {};
+            const key = data.key ?? {};
+            if (key.fromMe === true) {
+              sendJson(res, 200, { status: 'ignored' });
+              return;
+            }
+            const message = data.message ?? {};
+            const text =
+              message.conversation ||
+              message.extendedTextMessage?.text ||
+              message.imageMessage?.caption ||
+              null;
+            if (!text) {
+              sendJson(res, 200, { status: 'no_text' });
+              return;
+            }
+            const instanceName = String(body.instance ?? env.EVOLUTION_INSTANCE ?? 'aluno-first-crm');
+            const senderPhone = String(key.remoteJid ?? '').split('@')[0]?.replace(/\D/g, '') || '';
+            const ts = data.messageTimestamp;
+            const receivedAt =
+              typeof ts === 'number'
+                ? new Date(ts * 1000).toISOString()
+                : new Date().toISOString();
+            const externalId = key.id != null
+              ? String(key.id)
+              : `${senderPhone}-${receivedAt}-${String(text).slice(0, 32)}`;
+            const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+            const supabaseUrl = env.VITE_SUPABASE_URL;
+            if (!serviceKey || !supabaseUrl) {
+              throw new Error('SUPABASE_SERVICE_ROLE_KEY e VITE_SUPABASE_URL são necessários no .env');
+            }
+            const insertRes = await fetch(`${supabaseUrl}/rest/v1/whatsapp_messages`, {
+              method: 'POST',
+              headers: {
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+                Prefer: 'resolution=ignore-duplicates',
+              },
+              body: JSON.stringify({
+                instance_name: instanceName,
+                sender_phone: senderPhone,
+                sender_name: typeof data.pushName === 'string' ? data.pushName : null,
+                message_text: String(text),
+                received_at: receivedAt,
+                external_id: externalId,
+              }),
+            });
+            if (!insertRes.ok) {
+              const errText = await insertRes.text();
+              throw new Error(errText.slice(0, 200));
+            }
+            sendJson(res, 200, { status: 'ok' });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Erro ao gravar mensagem';
+            sendJson(res, 500, { error: message });
+          }
+          return;
+        }
+
         if (req.url !== '/api/evolution-whatsapp' || req.method !== 'POST') {
           next();
           return;

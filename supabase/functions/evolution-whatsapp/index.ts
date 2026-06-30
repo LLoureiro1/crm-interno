@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-type Action = 'status' | 'connect' | 'create' | 'logout';
+type Action = 'status' | 'connect' | 'create' | 'logout' | 'setupWebhook';
 
 type RequestBody = {
   action?: Action;
@@ -144,6 +144,33 @@ async function connectInstance(instanceName: string) {
   };
 }
 
+async function setupWebhook(instanceName: string) {
+  const supabaseUrl = requireEnv('SUPABASE_URL').replace(/\/$/, '');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const webhookUrl = Deno.env.get('EVOLUTION_WEBHOOK_URL')?.trim() ||
+    `${supabaseUrl}/functions/v1/evolution-webhook`;
+  await evolutionFetch(`/webhook/set/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      webhook: {
+        url: webhookUrl,
+        webhook_by_events: false,
+        events: ['MESSAGES_UPSERT'],
+        enabled: true,
+        ...(anonKey
+          ? {
+            headers: {
+              Authorization: `Bearer ${anonKey}`,
+              apikey: anonKey,
+            },
+          }
+          : {}),
+      },
+    }),
+  });
+  return { ok: true, webhookUrl };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
@@ -151,7 +178,8 @@ serve(async (req) => {
   try {
     const body = (await req.json().catch(() => ({}))) as RequestBody;
     const action: Action =
-      body.action === 'connect' || body.action === 'create' || body.action === 'logout'
+      body.action === 'connect' || body.action === 'create' || body.action === 'logout' ||
+        body.action === 'setupWebhook'
         ? body.action
         : 'status';
     const instanceName = defaultInstanceName(body.instanceName);
@@ -198,6 +226,12 @@ serve(async (req) => {
 
     if (action === 'connect') {
       const result = await connectInstance(instanceName);
+      if (result.connected) await setupWebhook(instanceName).catch(() => undefined);
+      return jsonResponse(result);
+    }
+
+    if (action === 'setupWebhook') {
+      const result = await setupWebhook(instanceName);
       return jsonResponse(result);
     }
 

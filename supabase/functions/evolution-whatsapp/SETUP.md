@@ -52,12 +52,8 @@ Use `EVOLUTION_API_URL=http://127.0.0.1:8081` (não use `host.docker.internal`).
 
 3. No CRM: **Configurações → WhatsApp → Gerar QR Code**.
 
-## Deploy
-
-```powershell
-supabase secrets set EVOLUTION_API_URL=https://sua-evolution.exemplo.com EVOLUTION_API_KEY=sua-chave EVOLUTION_INSTANCE=aluno-first-crm
-supabase functions deploy evolution-whatsapp
-```
+# Deploy sem JWT — Evolution não envia Authorization header
+# supabase functions deploy evolution-webhook --no-verify-jwt
 
 ## Ações da API
 

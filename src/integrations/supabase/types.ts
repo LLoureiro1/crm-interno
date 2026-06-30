@@ -699,6 +699,39 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages: {
+        Row: {
+          id: string
+          instance_name: string
+          sender_phone: string
+          sender_name: string | null
+          message_text: string
+          received_at: string
+          external_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          instance_name: string
+          sender_phone: string
+          sender_name?: string | null
+          message_text: string
+          received_at?: string
+          external_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          instance_name?: string
+          sender_phone?: string
+          sender_name?: string | null
+          message_text?: string
+          received_at?: string
+          external_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           id: string

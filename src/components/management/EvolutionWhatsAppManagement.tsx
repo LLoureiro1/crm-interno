@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invokeEvolutionWhatsApp, type EvolutionWhatsAppResponse } from '@/lib/evolutionWhatsApp';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import {
   AlertCircle,
@@ -18,8 +21,11 @@ import {
 
 type EvolutionResponse = EvolutionWhatsAppResponse;
 
+type WhatsappMessage = Tables<'whatsapp_messages'>;
+
 const QR_REFRESH_SECONDS = 55;
 const POLL_CONNECTED_MS = 5000;
+const MESSAGES_POLL_MS = 8000;
 
 async function invokeEvolution(body: Record<string, unknown>): Promise<EvolutionResponse> {
   return invokeEvolutionWhatsApp(body);
@@ -69,6 +75,7 @@ export function EvolutionWhatsAppManagement() {
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(QR_REFRESH_SECONDS);
   const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<WhatsappMessage[]>([]);
   const pollRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
 
@@ -86,7 +93,20 @@ export function EvolutionWhatsAppManagement() {
   const loadStatus = useCallback(async (name: string) => {
     const data = await invokeEvolution({ action: 'status', instanceName: name });
     setStatus(data);
+    if (data.connected || data.state === 'open') {
+      void invokeEvolution({ action: 'setupWebhook', instanceName: name }).catch(() => undefined);
+    }
     return data;
+  }, []);
+
+  const loadMessages = useCallback(async (name: string) => {
+    const { data, error: fetchError } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('instance_name', name)
+      .order('received_at', { ascending: false })
+      .limit(50);
+    if (!fetchError && data) setMessages(data);
   }, []);
 
   const refreshQr = useCallback(
@@ -175,6 +195,14 @@ export function EvolutionWhatsAppManagement() {
   }, [clearTimers, instanceName, loadStatus, qrBase64, refreshQr, status?.connected, status?.state]);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
+
+  useEffect(() => {
+    const connected = status?.connected || status?.state === 'open';
+    if (!connected) return;
+    void loadMessages(instanceName);
+    const id = window.setInterval(() => void loadMessages(instanceName), MESSAGES_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [instanceName, loadMessages, status?.connected, status?.state]);
 
   const handleConnect = async () => {
     try {
@@ -334,6 +362,39 @@ export function EvolutionWhatsAppManagement() {
           )
         )}
       </div>
+
+      {isConnected && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <h3 className="mb-3 font-medium">Mensagens recebidas</h3>
+          {messages.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma mensagem recebida ainda.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Remetente</TableHead>
+                  <TableHead>Data/hora</TableHead>
+                  <TableHead>Mensagem</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {messages.map((msg) => (
+                  <TableRow key={msg.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {msg.sender_name ? `${msg.sender_name} · ` : ''}
+                      {formatPhone(msg.sender_phone) ?? msg.sender_phone}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {new Date(msg.received_at).toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="max-w-md truncate">{msg.message_text}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
 
       <Alert>
         <AlertCircle className="h-4 w-4" />
