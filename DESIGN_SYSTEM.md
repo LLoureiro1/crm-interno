@@ -247,7 +247,6 @@ Referência: `src/components/whatsapp/WhatsappConversationsList.tsx`, `src/compo
 |----------|---------|
 | Container | `rounded-xl border border-gray-200 bg-white p-4` |
 | Título seção | `font-medium` (“Conversas”) |
-| Avatar contato | `h-10 w-10 rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]` |
 | Nome contato | `font-medium` |
 | Telefone | `text-xs text-muted-foreground` |
 | Preview mensagem | `truncate text-sm text-muted-foreground` |
@@ -278,7 +277,7 @@ Ação compacta no **canto superior direito** de cada box de conversa (`absolute
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ [avatar] Nome truncado…              [Assumir Conversa]  [▼]  │
+│ Nome truncado…                       [Assumir Conversa]  [▼]  │
 │          badges + hora                                           │
 │          Preview da mensagem truncada…                           │
 └──────────────────────────────────────────────────────────────────┘

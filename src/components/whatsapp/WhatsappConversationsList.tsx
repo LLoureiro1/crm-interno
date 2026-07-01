@@ -131,11 +131,7 @@ export function WhatsappConversationsList({
             return (
               <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone} className="overflow-hidden">
                 <AccordionTrigger className="items-start gap-2 px-2 py-3 hover:no-underline [&>svg:last-child]:hidden [&[data-state=open]_.accordion-chevron]:rotate-180">
-                  <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]">
-                      {(conversation.senderName ?? displayPhone).slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="min-w-0 flex-1 overflow-hidden text-left">
                       <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                         <span className="truncate font-medium">
                           {conversation.senderName ?? displayPhone}
@@ -183,7 +179,6 @@ export function WhatsappConversationsList({
                         {latest.from_me ? 'Você: ' : ''}
                         {latest.message_text}
                       </p>
-                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1 self-start">
                     {!isAssignedToMe && (
