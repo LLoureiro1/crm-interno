@@ -18,9 +18,9 @@ export function QualificacaoTab() {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
         <MessageCircle className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-        <p className="font-medium">Sem acesso às conversas WhatsApp</p>
+        <p className="font-medium">Acesso restrito</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Peça a um administrador para liberar seu acesso em Configurações → WhatsApp.
+          A aba Leads está disponível apenas para administradores.
         </p>
       </div>
     );

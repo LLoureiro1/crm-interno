@@ -10,8 +10,8 @@ Cobre inscrição pública, operação interna do funil, automações de e-mail,
 
 ## WhatsApp e Qualificação (Leads)
 - Integração com **Evolution API** (Baileys): uma instância = um número WhatsApp conectado via QR Code.
-- **Admin** conecta/desconecta em Configurações → WhatsApp; libera visualizadores em `whatsapp_viewer_access`.
-- Aba **Leads** (`QualificacaoTab`): conversas agrupadas por contato, UI estilo WhatsApp; acesso via `useWhatsappAccess` (admin sempre; demais perfis só se autorizados).
+- **Admin** conecta/desconecta em Configurações → WhatsApp; pode liberar visualizadores em `whatsapp_viewer_access` (RLS; aba Leads só no menu para admin).
+- Aba **Leads** (`QualificacaoTab`): conversas agrupadas por contato, UI estilo WhatsApp; **visível apenas para perfil admin** (`useWhatsappAccess`).
 - Mensagens recebidas/enviadas gravadas em `whatsapp_messages` via webhook `evolution-webhook`; polling ~8s na UI.
 - **Assumir conversa:** usuário clica em “Assumir Conversa”; grava em `whatsapp_conversation_assignments` (`assigned_user_id`, `assigned_user_name`); badge visível para todos; upsert permite repasse entre usuários.
 - Proxy admin (status, QR, connect): dev via Vite; produção via `/api/evolution-whatsapp` (Vercel) apontando para Evolution hospedada (Oracle Cloud ou Cloudflare Tunnel). Ver `scripts/evolution/DEPLOY-PRODUCAO.md` e `ORACLE-CLOUD.md`.

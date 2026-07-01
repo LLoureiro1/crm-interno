@@ -11,16 +11,16 @@ type WhatsappAccessState = {
 export function useWhatsappAccess(): WhatsappAccessState {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [canView, setCanView] = useState(false);
   const [instanceName, setInstanceName] = useState<string | null>(null);
+
+  const isAdmin = profile?.profile === 'admin';
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      if (!user) {
+      if (!user || !isAdmin) {
         if (!cancelled) {
-          setCanView(false);
           setInstanceName(null);
           setLoading(false);
         }
@@ -33,27 +33,8 @@ export function useWhatsappAccess(): WhatsappAccessState {
         .eq('is_active', true)
         .maybeSingle();
 
-      const activeInstance = integration?.instance_name ?? 'aluno-first-crm';
-
-      if (profile?.profile === 'admin') {
-        if (!cancelled) {
-          setCanView(true);
-          setInstanceName(activeInstance);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: access } = await supabase
-        .from('whatsapp_viewer_access')
-        .select('instance_name')
-        .eq('user_id', user.id)
-        .eq('instance_name', activeInstance)
-        .maybeSingle();
-
       if (!cancelled) {
-        setCanView(Boolean(access));
-        setInstanceName(access ? activeInstance : null);
+        setInstanceName(integration?.instance_name ?? 'aluno-first-crm');
         setLoading(false);
       }
     })();
@@ -61,7 +42,11 @@ export function useWhatsappAccess(): WhatsappAccessState {
     return () => {
       cancelled = true;
     };
-  }, [user, profile?.profile]);
+  }, [user, isAdmin]);
 
-  return { loading, canView, instanceName };
+  return {
+    loading,
+    canView: isAdmin,
+    instanceName: isAdmin ? instanceName : null,
+  };
 }
