@@ -216,6 +216,10 @@ export function EvolutionWhatsAppManagement() {
       setStatus(data);
       setQrBase64(null);
       clearTimers();
+      await supabase
+        .from('whatsapp_integrations')
+        .update({ display_phone: null, updated_at: new Date().toISOString() })
+        .eq('instance_name', instanceName);
       toast.success('WhatsApp desconectado');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Falha ao desconectar';

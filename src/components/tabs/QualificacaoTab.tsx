@@ -1,9 +1,9 @@
-import { MessageCircle, Loader2 } from 'lucide-react';
+import { MessageCircle, Loader2, AlertCircle } from 'lucide-react';
 import { WhatsappConversationsList } from '@/components/whatsapp/WhatsappConversationsList';
 import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
 
 export function QualificacaoTab() {
-  const { loading, canView, instanceName } = useWhatsappAccess();
+  const { loading, canView, instanceName, isConnected } = useWhatsappAccess();
 
   if (loading) {
     return (
@@ -34,10 +34,25 @@ export function QualificacaoTab() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-primary">Leads</h2>
-          <p className="text-sm text-muted-foreground">Conversas do WhatsApp conectado</p>
+          <p className="text-sm text-muted-foreground">
+            {isConnected
+              ? 'Conversas do WhatsApp conectado'
+              : 'Nenhum WhatsApp conectado no momento'}
+          </p>
         </div>
       </div>
-      <WhatsappConversationsList instanceName={instanceName} />
+
+      {isConnected ? (
+        <WhatsappConversationsList instanceName={instanceName} />
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+          <AlertCircle className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <p className="font-medium">WhatsApp não conectado</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Conecte um número em Configurações → WhatsApp para visualizar as conversas aqui.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
