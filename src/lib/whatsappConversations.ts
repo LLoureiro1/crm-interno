@@ -1,6 +1,7 @@
 import type { Tables } from '@/integrations/supabase/types';
 
 export type WhatsappMessage = Tables<'whatsapp_messages'>;
+export type WhatsappConversationAssignment = Tables<'whatsapp_conversation_assignments'>;
 
 export type ConversationGroup = {
   senderPhone: string;
@@ -47,4 +48,10 @@ export function groupMessagesByPhone(messages: WhatsappMessage[]): ConversationG
       (a, b) =>
         new Date(b.latestMessage.received_at).getTime() - new Date(a.latestMessage.received_at).getTime(),
     );
+}
+
+export function assignmentsByPhone(
+  assignments: WhatsappConversationAssignment[],
+): Map<string, WhatsappConversationAssignment> {
+  return new Map(assignments.map((a) => [a.sender_phone, a]));
 }

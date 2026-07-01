@@ -699,6 +699,48 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversation_assignments: {
+        Row: {
+          id: string
+          instance_name: string
+          sender_phone: string
+          assigned_user_id: string
+          assigned_user_name: string
+          assigned_at: string
+        }
+        Insert: {
+          id?: string
+          instance_name: string
+          sender_phone: string
+          assigned_user_id: string
+          assigned_user_name: string
+          assigned_at?: string
+        }
+        Update: {
+          id?: string
+          instance_name?: string
+          sender_phone?: string
+          assigned_user_id?: string
+          assigned_user_name?: string
+          assigned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_assignments_instance_name_fkey"
+            columns: ["instance_name"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_integrations"
+            referencedColumns: ["instance_name"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_assignments_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_integrations: {
         Row: {
           id: string
