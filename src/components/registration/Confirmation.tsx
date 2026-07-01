@@ -197,7 +197,7 @@ const Confirmation: React.FC = () => {
             <div className="mt-4 p-4 border rounded-md bg-yellow-50 dark:bg-yellow-900 text-left">
               <h3 className="text-lg font-semibold mb-2 text-yellow-800 dark:text-yellow-200">Aguardando Agendamento de Prova</h3>
               <p className="text-yellow-700 dark:text-yellow-300">
-                Sua turma requer uma prova de seleção, mas não encontramos datas disponíveis no momento.
+                Sua turma requer uma prova de admissão, mas não encontramos datas disponíveis no momento.
                 Nossa equipe entrará em contato em breve para agendar sua avaliação.
               </p>
             </div>
