@@ -17,6 +17,7 @@ import { formatCpf } from '@/utils/cpf';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
 import { loadStudentsListFilters, saveStudentsListFilters } from '@/utils/studentsListFilters';
 
@@ -35,6 +36,7 @@ type ExamDate = Tables<'exam_dates'> & {
 export const StudentsTab = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { getVisibleUnits } = useUnitAccess();
   const cachedFiltersRef = useRef(loadStudentsListFilters());
   const cachedFilters = cachedFiltersRef.current;
   const skipPageResetRef = useRef(!!cachedFilters);
@@ -216,16 +218,7 @@ export const StudentsTab = () => {
     if (data) setUnits(data);
   };
 
-  const isCentralUser = !!(
-    profile?.unit_id &&
-    units.some(unit => unit.id === profile.unit_id && String(unit.name).toLowerCase() === 'central')
-  );
-
-  const visibleUnits = units.filter(unit => {
-    if (!profile?.unit_id) return true;
-    if (isCentralUser) return true;
-    return unit.id === profile.unit_id;
-  });
+  const visibleUnits = getVisibleUnits(units);
 
   const fetchSeries = async () => {
     const { data } = await supabase

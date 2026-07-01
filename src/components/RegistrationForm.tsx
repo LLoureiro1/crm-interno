@@ -21,6 +21,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 
 const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
 
@@ -35,6 +36,7 @@ export const RegistrationForm = () => {
   const navigate = useNavigate();
   const { unitSlug } = useParams<{ unitSlug?: string }>();
   const { user, profile } = useAuth();
+  const { fullAccess, allowedUnitIds } = useUnitAccess();
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
     responsibleName: '',
@@ -129,23 +131,15 @@ export const RegistrationForm = () => {
       } else {
         const isAdminOrDirecao = profile.profile === 'admin' || profile.profile === 'direcao';
 
-        // CORREÇÃO: buscar a unidade do usuário em TODAS as classes para verificar se é a Central
-        const userUnitName = classes
-          .filter(cls => cls.units)
-          .find(cls => cls.unit_id === profile.unit_id)?.units?.name;
-        const isFromCentral = userUnitName?.toLowerCase() === 'central';
-
-        if (isAdminOrDirecao || isFromCentral) {
-          // Admin, Direção ou Usuário da Central veem todas as unidades disponíveis para a série
+        if (isAdminOrDirecao || fullAccess) {
           visibleUnits = uniqueUnits;
+        } else if (allowedUnitIds.length > 0) {
+          const allowed = new Set(allowedUnitIds);
+          visibleUnits = uniqueUnits.filter((unit) => unit?.id && allowed.has(unit.id));
+        } else if (profile.unit_id) {
+          visibleUnits = uniqueUnits.filter((unit) => unit.id === profile.unit_id);
         } else {
-          // Entrevistador e Padrão de outras unidades veem apenas a unidade à qual estão associados
-          const userUnitId = profile.unit_id;
-          if (userUnitId) {
-            visibleUnits = uniqueUnits.filter(unit => unit.id === userUnitId);
-          } else {
-            visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
-          }
+          visibleUnits = uniqueUnits.filter(unit => String(unit.name).toLowerCase() !== 'central');
         }
       }
 
@@ -170,7 +164,7 @@ export const RegistrationForm = () => {
       setAvailableClasses([]);
       setAvailableUnits([]);
     }
-  }, [formData.seriesId, classes, preSelectedUnit, isUnitLocked]);
+  }, [formData.seriesId, classes, preSelectedUnit, isUnitLocked, profile, fullAccess, allowedUnitIds]);
 
   // Lógica inteligente de seleção de turma
   useEffect(() => {

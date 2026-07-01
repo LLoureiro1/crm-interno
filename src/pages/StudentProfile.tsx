@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { LoginForm } from '@/components/LoginForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { user, profile, loading: authLoading } = useAuth();
+  const { fullAccess, allowedUnitIds } = useUnitAccess();
   const navigate = useNavigate();
   const [student, setStudent] = useState<Student | null>(null);
   const [interviewers, setInterviewers] = useState<Profile[]>([]);
@@ -496,23 +498,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
   const fetchInterviewers = async () => {
     try {
-      // Determinar se o usuário é da unidade "Central"
-      let isCentralUser = false;
-      if (profile?.unit_id) {
-        const { data: userUnit, error: userUnitError } = await supabase
-          .from('units')
-          .select('id, name')
-          .eq('id', profile.unit_id)
-          .maybeSingle();
-
-        if (userUnitError) {
-          console.warn('Erro ao buscar unidade do usuário para checar central:', userUnitError);
-        }
-
-        const unitName = (userUnit?.name || '').toLowerCase();
-        isCentralUser = unitName === 'central';
-      }
-
       // Construir query de entrevistadores: apenas ativos e perfis elegíveis
       let interviewersQuery = supabase
         .from('staff_directory')
@@ -520,9 +505,12 @@ type ContactAttempt = Tables<'contact_attempts'> & {
         .in('profile', ['entrevistador', 'direcao', 'admin'])
         .eq('ativo', true);
 
-      // Se não for usuário da central, filtrar por mesma unidade
-      if (!isCentralUser && profile?.unit_id) {
-        interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+      if (!fullAccess) {
+        if (allowedUnitIds.length > 0) {
+          interviewersQuery = interviewersQuery.in('unit_id', allowedUnitIds);
+        } else if (profile?.unit_id) {
+          interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+        }
       }
 
       const { data, error } = await interviewersQuery.order('name');

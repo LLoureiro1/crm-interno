@@ -18,6 +18,7 @@ import {
 } from '@/utils/reportDateFilter';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 import {
   REPORT_SECTIONS,
   type ReportSectionId,
@@ -69,13 +70,13 @@ interface ReportData {
 
 export const ReportsTab = () => {
   const { profile } = useAuth();
+  const { fullAccess, allowedUnitIds, getVisibleUnits } = useUnitAccess();
   const { setReportsActiveSection, reportsScrollToSectionRef } = useDashboardNav();
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<string>('all');
-  const [isCentralUser, setIsCentralUser] = useState(false);
 
   const [dateFilterType, setDateFilterType] = useState<string>('default');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -152,32 +153,8 @@ export const ReportsTab = () => {
   }, []);
 
   useEffect(() => {
-    const checkCentral = async () => {
-      if (!profile?.unit_id) {
-        setIsCentralUser(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, name')
-        .eq('id', profile.unit_id)
-        .maybeSingle();
-
-      if (error || !data?.name) {
-        setIsCentralUser(false);
-        return;
-      }
-
-      setIsCentralUser(String(data.name).toLowerCase() === 'central');
-    };
-
-    checkCentral();
-  }, [profile?.unit_id]);
-
-  useEffect(() => {
     fetchReportData();
-  }, [selectedUnit, selectedSegment, selectedSeries, isCentralUser, profile?.unit_id, dateFilterType, customStartDate, customEndDate]);
+  }, [selectedUnit, selectedSegment, selectedSeries, fullAccess, allowedUnitIds, dateFilterType, customStartDate, customEndDate]);
 
   useEffect(() => {
     const navOffset = 64;
@@ -254,11 +231,7 @@ export const ReportsTab = () => {
     if (data) setSeries(data);
   };
 
-  const visibleUnits = units.filter(unit => {
-    if (!profile?.unit_id) return true;
-    if (isCentralUser) return true;
-    return unit.id === profile.unit_id;
-  });
+  const visibleUnits = useMemo(() => getVisibleUnits(units), [units, getVisibleUnits]);
 
   const totalGoal = useMemo(() => {
     if (units.length === 0) return 0;
@@ -267,34 +240,34 @@ export const ReportsTab = () => {
       return units.find((u) => u.id === selectedUnit)?.student_goal || 0;
     }
 
-    let allowedUnitIds: string[] | null = null;
-    if (isCentralUser) {
-      allowedUnitIds = null;
-    } else if (profile?.unit_id) {
-      allowedUnitIds = [profile.unit_id];
+    let scopedUnitIds: string[] | null = null;
+    if (fullAccess) {
+      scopedUnitIds = null;
+    } else if (allowedUnitIds.length > 0) {
+      scopedUnitIds = allowedUnitIds;
     } else {
-      allowedUnitIds = visibleUnits.map((u) => u.id);
+      scopedUnitIds = visibleUnits.map((u) => u.id);
     }
 
-    if (allowedUnitIds && allowedUnitIds.length > 0) {
+    if (scopedUnitIds && scopedUnitIds.length > 0) {
       return units
-        .filter((u) => allowedUnitIds!.includes(u.id))
+        .filter((u) => scopedUnitIds!.includes(u.id))
         .reduce((acc, u) => acc + (u.student_goal || 0), 0);
     }
 
     return units.reduce((acc, u) => acc + (u.student_goal || 0), 0);
-  }, [units, selectedUnit, isCentralUser, profile?.unit_id, visibleUnits]);
+  }, [units, selectedUnit, fullAccess, allowedUnitIds, visibleUnits]);
 
-  /** Unidades cujo bloco «Por turma» pode ser exibido (Central vê todas; demais só a própria). */
+  /** Unidades cujo bloco «Por turma» pode ser exibido. */
   const getAllowedUnitIdsForChart = (): string[] | null => {
     if (selectedUnit !== 'all') {
       return [selectedUnit];
     }
-    if (isCentralUser) {
+    if (fullAccess) {
       return null;
     }
-    if (profile?.unit_id) {
-      return [profile.unit_id];
+    if (allowedUnitIds.length > 0) {
+      return allowedUnitIds;
     }
     return visibleUnits.map((u) => u.id);
   };

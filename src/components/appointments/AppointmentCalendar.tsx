@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { CalendarIcon, CalendarX, Clock, User, Building2, GraduationCap, Loader2, ClipboardList, Trash2, DollarSign, AlertCircle, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -47,6 +48,7 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const { profile } = useAuth();
+  const { fullAccess, allowedUnitIds } = useUnitAccess();
   
   // Log para depuração da data selecionada
   useEffect(() => {
@@ -146,23 +148,6 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
   const fetchFiltersData = async () => {
     setFiltersLoading(true);
     try {
-      // Determinar se o usuário é da unidade "Central" definida no banco
-      let isCentralUser = false;
-      if (profile?.unit_id) {
-        const { data: userUnit, error: userUnitError } = await supabase
-          .from('units')
-          .select('id, name')
-          .eq('id', profile.unit_id)
-          .maybeSingle();
-
-        if (userUnitError) {
-          console.warn('Erro ao buscar unidade do usuário para checar central:', userUnitError);
-        }
-
-        const unitName = (userUnit?.name || '').toLowerCase();
-        isCentralUser = unitName === 'central';
-      }
-
       // Construir query de entrevistadores: apenas ativos, roles elegíveis
       let interviewersQuery = supabase
         .from('staff_directory')
@@ -170,9 +155,12 @@ export function AppointmentCalendar({ onDateSelect, view = 'full', onTodayCountC
         .in('profile', ['entrevistador', 'direcao', 'admin'])
         .eq('ativo', true);
 
-      // Se não for usuário da central, filtrar por mesma unidade
-      if (!isCentralUser && profile?.unit_id) {
-        interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+      if (!fullAccess) {
+        if (allowedUnitIds.length > 0) {
+          interviewersQuery = interviewersQuery.in('unit_id', allowedUnitIds);
+        } else if (profile?.unit_id) {
+          interviewersQuery = interviewersQuery.eq('unit_id', profile.unit_id);
+        }
       }
 
       const [unitsData, seriesData, interviewersData] = await Promise.all([

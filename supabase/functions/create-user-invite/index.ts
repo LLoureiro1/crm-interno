@@ -14,6 +14,7 @@ interface CreateUserRequest {
   email: string;
   profile: 'admin' | 'direcao' | 'entrevistador' | 'padrao';
   unit_id?: string;
+  unit_ids?: string[];
 }
 
 serve(async (req) => {
@@ -97,7 +98,11 @@ serve(async (req) => {
       )
     }
 
-    const { name, email, profile: userProfile, unit_id } = requestBody;
+    const { name, email, profile: userProfile, unit_id, unit_ids } = requestBody;
+    const resolvedUnitIds = Array.isArray(unit_ids) && unit_ids.length > 0
+      ? unit_ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : (unit_id ? [unit_id] : []);
+    const primaryUnitId = resolvedUnitIds[0] ?? null;
 
     // Validate required fields
     if (!name?.trim() || !email?.trim() || !userProfile) {
@@ -198,7 +203,7 @@ serve(async (req) => {
       user_metadata: {
         name: name,
         profile: userProfile,
-        unit_id: unit_id || null
+        unit_id: primaryUnitId
       }
     })
 
@@ -244,7 +249,7 @@ serve(async (req) => {
         name: name,
         email: email.toLowerCase().trim(),
         profile: userProfile,
-        unit_id: unit_id || null
+        unit_id: primaryUnitId
       }, {
         onConflict: 'id',
         ignoreDuplicates: false
@@ -275,6 +280,20 @@ serve(async (req) => {
 
     console.log(`Profile created/updated successfully for user: ${authData.user.id}`)
 
+    if (resolvedUnitIds.length > 0) {
+      const profileUnits = resolvedUnitIds.map((uid) => ({
+        profile_id: authData.user.id,
+        unit_id: uid,
+      }))
+      const { error: profileUnitsError } = await supabaseAdmin
+        .from('profile_units')
+        .upsert(profileUnits, { onConflict: 'profile_id,unit_id', ignoreDuplicates: true })
+
+      if (profileUnitsError) {
+        console.error('Error upserting profile_units:', profileUnitsError.message, profileUnitsError)
+      }
+    }
+
     // Send invite email using Supabase's built-in email system
     const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/') || 'http://localhost:5173';
     console.log(`Sending invite email to: ${email.toLowerCase().trim()}`)
@@ -285,7 +304,7 @@ serve(async (req) => {
         data: {
           name: name,
           profile: userProfile,
-          unit_id: unit_id || null
+          unit_id: primaryUnitId
         }
       }
     )
@@ -310,7 +329,8 @@ serve(async (req) => {
           email: authData.user.email,
           name: name,
           profile: userProfile,
-          unit_id: unit_id
+          unit_id: primaryUnitId,
+          unit_ids: resolvedUnitIds
         },
         invite_link: inviteData?.user?.email || null,
         invite_error: inviteError?.message || null

@@ -18,6 +18,7 @@ import { formatDateForDisplay, formatRegistrationTimeForDisplay, getCurrentDate 
 import { formatCpf } from '@/utils/cpf';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -34,6 +35,7 @@ type ExamDate = Tables<'exam_dates'> & {
 export const StudentsTabWithAcademicYear = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { getVisibleUnits } = useUnitAccess();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [examDates, setExamDates] = useState<ExamDate[]>([]);
@@ -94,16 +96,7 @@ export const StudentsTabWithAcademicYear = () => {
     if (data) setUnits(data);
   };
 
-  const isCentralUser = !!(
-    profile?.unit_id &&
-    units.some(unit => unit.id === profile.unit_id && String(unit.name).toLowerCase() === 'central')
-  );
-
-  const visibleUnits = units.filter(unit => {
-    if (!profile?.unit_id) return true;
-    if (isCentralUser) return true;
-    return unit.id === profile.unit_id;
-  });
+  const visibleUnits = getVisibleUnits(units);
 
   const fetchSeries = async () => {
     const { data } = await supabase.from('series').select('*');

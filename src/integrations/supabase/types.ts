@@ -648,6 +648,39 @@ export type Database = {
           },
         ]
       }
+      profile_units: {
+        Row: {
+          created_at: string
+          profile_id: string
+          unit_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          unit_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_units_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_units_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sophia_students: {
         Row: {
           codigo_externo: string
@@ -1430,7 +1463,19 @@ export type Database = {
           profile: Database["public"]["Enums"]["user_profile"]
           ativo: boolean
           created_at: string
+          unit_ids: string[] | null
         }[]
+      },
+      get_my_unit_access: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      },
+      admin_set_profile_units: {
+        Args: {
+          p_profile_id: string
+          p_unit_ids: string[]
+        }
+        Returns: undefined
       },
       generate_student_code: {
         Args: Record<PropertyKey, never>

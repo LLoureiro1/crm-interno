@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { toPng } from 'html-to-image';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitAccess } from '@/hooks/useUnitAccess';
 import {
   ADVANCED_REPORT_SECTIONS,
   type AdvancedReportSectionId,
@@ -264,6 +265,7 @@ const getCurrentAcademicYear = () => {
 
 export const AdvancedReportsTab = () => {
   const { profile } = useAuth();
+  const { getVisibleUnits } = useUnitAccess();
   const { setAdvancedReportsActiveSection, advancedReportsScrollToSectionRef } =
     useDashboardNav();
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -365,7 +367,6 @@ export const AdvancedReportsTab = () => {
     students: Array<{ id: string; student_name: string; responsible_name: string | null; phone: string | null; status: string; class_name: string; unit_name: string }>;
   }>({ open: false, title: '', loading: false, students: [] });
   const [contactsByAttendant, setContactsByAttendant] = useState<Array<{ attendant_name: string; total: number }>>([]);
-  const [isCentralUser, setIsCentralUser] = useState(false);
 
   // Estados do dialog de alunos por prova
   const [examStudentsDialog, setExamStudentsDialog] = useState<{
@@ -374,30 +375,6 @@ export const AdvancedReportsTab = () => {
     loading: boolean;
     students: Array<{ id: string; student_name: string; responsible_name: string | null; phone: string | null; status: string; class_name: string; unit_name: string }>;
   }>({ open: false, title: '', loading: false, students: [] });
-
-  useEffect(() => {
-    const checkCentral = async () => {
-      if (!profile?.unit_id) {
-        setIsCentralUser(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('units')
-        .select('id, name')
-        .eq('id', profile.unit_id)
-        .maybeSingle();
-
-      if (error || !data?.name) {
-        setIsCentralUser(false);
-        return;
-      }
-
-      setIsCentralUser(String(data.name).toLowerCase() === 'central');
-    };
-
-    checkCentral();
-  }, [profile?.unit_id]);
 
   // Funções para buscar dados de filtros
   const fetchUnits = async () => {
@@ -415,14 +392,8 @@ export const AdvancedReportsTab = () => {
   };
 
   const visibleUnits = useMemo(
-    () =>
-      units.filter((unit) => {
-        if (unit.name.toLowerCase() === 'central') return false;
-        if (!profile?.unit_id) return true;
-        if (isCentralUser) return true;
-        return unit.id === profile.unit_id;
-      }),
-    [units, profile?.unit_id, isCentralUser]
+    () => getVisibleUnits(units).filter((unit) => unit.name.toLowerCase() !== 'central'),
+    [units, getVisibleUnits],
   );
 
   const buildEmptyUnitRows = (targetUnits: Tables<'units'>[]): UnitStatusOverviewRow[] =>
@@ -1925,7 +1896,6 @@ export const AdvancedReportsTab = () => {
     selectedSeriesId,
     units.length,
     visibleUnits.length,
-    isCentralUser,
     dateFilterType,
     customStartDate,
     customEndDate,
@@ -1954,7 +1924,6 @@ export const AdvancedReportsTab = () => {
     units.length,
     classes.length,
     series.length,
-    isCentralUser,
     dateFilterType,
     customStartDate,
     customEndDate,
