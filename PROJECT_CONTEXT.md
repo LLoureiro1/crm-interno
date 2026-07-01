@@ -6,7 +6,16 @@ Cobre inscrição pública, operação interna do funil, automações de e-mail,
 - SPA React 18 + TypeScript + Vite + Tailwind/shadcn.
 - Supabase como backend: Auth, Postgres, RLS, Realtime, RPCs SQL e Edge Functions.
 - Front-end concentrado em src; regras críticas em supabase/migrations; automações serverless em supabase/functions; rotas auxiliares em api.
-- Módulos principais: inscrições, alunos, agendamentos, configurações, relatórios, listas de contato e automação de e-mails.
+- Módulos principais: inscrições, alunos, agendamentos, configurações, relatórios, listas de contato, automação de e-mails e **WhatsApp (Leads / Qualificação)**.
+
+## WhatsApp e Qualificação (Leads)
+- Integração com **Evolution API** (Baileys): uma instância = um número WhatsApp conectado via QR Code.
+- **Admin** conecta/desconecta em Configurações → WhatsApp; libera visualizadores em `whatsapp_viewer_access`.
+- Aba **Leads** (`QualificacaoTab`): conversas agrupadas por contato, UI estilo WhatsApp; acesso via `useWhatsappAccess` (admin sempre; demais perfis só se autorizados).
+- Mensagens recebidas/enviadas gravadas em `whatsapp_messages` via webhook `evolution-webhook`; polling ~8s na UI.
+- **Assumir conversa:** usuário clica em “Assumir Conversa”; grava em `whatsapp_conversation_assignments` (`assigned_user_id`, `assigned_user_name`); badge visível para todos; upsert permite repasse entre usuários.
+- Proxy admin (status, QR, connect): dev via Vite; produção via `/api/evolution-whatsapp` (Vercel) apontando para Evolution hospedada (Oracle Cloud ou Cloudflare Tunnel). Ver `scripts/evolution/DEPLOY-PRODUCAO.md` e `ORACLE-CLOUD.md`.
+- Tabelas: `whatsapp_integrations`, `whatsapp_viewer_access`, `whatsapp_messages`, `whatsapp_conversation_assignments`. RLS via `auth_user_can_view_whatsapp()`.
 
 ## Autenticação e Acesso
 - Login interno via Supabase Auth; o hook de auth carrega profiles e força logout de usuário inativo.
@@ -24,6 +33,7 @@ Cobre inscrição pública, operação interna do funil, automações de e-mail,
 6. Atualização manual de status exige campos obrigatórios por caso: motivo de desistência, motivo de cadastro inválido e código ERP para matriculado.
 7. Falta ao atendimento pode virar reagendamento público único por link; o fluxo cancela agendamentos abertos anteriores e cria um novo.
 8. Crons e Edge Functions atualizam status atrasados, processam fila de e-mails, enviam lembretes e recalculam score de engajamento.
+9. WhatsApp: webhook Evolution grava mensagens; equipe vê conversas em Leads, assume responsabilidade por contato e acompanha histórico no accordion estilo chat.
 
 ## Regras de negócio críticas
 - Aluno matriculado só pode mudar para desistente ou cadastro_invalido; somente admin pode definir matriculado.
@@ -39,9 +49,11 @@ Cobre inscrição pública, operação interna do funil, automações de e-mail,
 - Sincronismo entre students.status, appointments.status/attended, interações e automações pode gerar regressão silenciosa.
 - Datas, timezone e bloqueio de horários passados impactam agendamento, reagendamento e detecção de faltas.
 - Listas de contato são dinâmicas e redistribuem itens por carga, então qualquer mudança em filtros/status afeta distribuição.
+- WhatsApp: Evolution precisa de URL pública estável em produção; sessão fica no servidor Docker; webhook Supabase deve permanecer acessível sem JWT ou com headers anon configurados.
 
 ## Convenções importantes
 - Regra de negócio prioritariamente no banco via RPCs SECURITY DEFINER, triggers e policies; o front-end orquestra a UI.
 - Componentes são organizados por domínio; hooks centralizam auth, formulário e dados; utils concentram validação e sanitização.
 - Status e enums do banco são a fonte de verdade e precisam permanecer consistentes entre UI, SQL e Edge Functions.
 - Mudanças em auth, status, e-mails ou scheduling devem considerar sempre os fluxos autenticado, anon, cron e webhook.
+- Componentes WhatsApp em `src/components/whatsapp/`; lógica de agrupamento em `src/lib/whatsappConversations.ts`; proxy Evolution em `api/evolution-whatsapp.js`.

@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, UserCheck } from 'lucide-react';
+import { Loader2, UserCheck, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   assignmentsByPhone,
@@ -129,68 +129,84 @@ export function WhatsappConversationsList({
             const isAssuming = assumingPhone === conversation.senderPhone;
 
             return (
-              <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone}>
-                <div className="flex items-start gap-2">
-                  <AccordionTrigger className="min-w-0 flex-1 px-2 hover:no-underline">
-                    <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]">
-                        {(conversation.senderName ?? displayPhone).slice(0, 1).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">{conversation.senderName ?? displayPhone}</span>
-                          {conversation.senderName && (
-                            <span className="text-xs text-muted-foreground">{displayPhone}</span>
-                          )}
-                          <Badge variant="secondary" className="text-xs">
-                            {conversation.messages.length}
-                          </Badge>
-                          {assignment && (
-                            <Badge
-                              variant="outline"
-                              className={`gap-1 text-xs ${
-                                isAssignedToMe
-                                  ? 'border-primary/40 bg-primary/10 text-primary'
-                                  : 'border-amber-200 bg-amber-50 text-amber-900'
-                              }`}
-                            >
-                              <UserCheck className="h-3 w-3" />
-                              {isAssignedToMe ? 'Você' : assignment.assigned_user_name}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {latest.from_me ? 'Você: ' : ''}
-                          {latest.message_text}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {new Date(latest.received_at).toLocaleString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
+              <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone} className="overflow-hidden">
+                <AccordionTrigger className="items-start gap-2 px-2 py-3 hover:no-underline [&>svg:last-child]:hidden [&[data-state=open]_.accordion-chevron]:rotate-180">
+                  <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]">
+                      {(conversation.senderName ?? displayPhone).slice(0, 1).toUpperCase()}
                     </div>
-                  </AccordionTrigger>
-                  {!isAssignedToMe && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-2 shrink-0"
-                      disabled={isAssuming}
-                      onClick={(e) => void handleAssumeConversation(e, conversation.senderPhone)}
-                    >
-                      {isAssuming ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        'Assumir Conversa'
-                      )}
-                    </Button>
-                  )}
-                </div>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                        <span className="truncate font-medium">
+                          {conversation.senderName ?? displayPhone}
+                        </span>
+                        {conversation.senderName && (
+                          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                            {displayPhone}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        {conversation.senderName && (
+                          <span className="truncate text-xs text-muted-foreground sm:hidden">
+                            {displayPhone}
+                          </span>
+                        )}
+                        <Badge variant="secondary" className="shrink-0 text-xs">
+                          {conversation.messages.length}
+                        </Badge>
+                        {assignment && (
+                          <Badge
+                            variant="outline"
+                            className={`shrink-0 gap-1 text-xs ${
+                              isAssignedToMe
+                                ? 'border-primary/40 bg-primary/10 text-primary'
+                                : 'border-amber-200 bg-amber-50 text-amber-900'
+                            }`}
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            <span className="max-w-[8rem] truncate">
+                              {isAssignedToMe ? 'Você' : assignment.assigned_user_name}
+                            </span>
+                          </Badge>
+                        )}
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {new Date(latest.received_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">
+                        {latest.from_me ? 'Você: ' : ''}
+                        {latest.message_text}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1 self-start">
+                    {!isAssignedToMe && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isAssuming}
+                        className="h-8 shrink-0 gap-1.5 rounded-full border border-[#25D366]/30 bg-[#25D366]/10 px-3 text-xs font-semibold text-[#128C7E] shadow-none hover:bg-[#25D366]/20 hover:text-[#0e6b5c] focus-visible:ring-[#25D366]/40"
+                        onClick={(e) => void handleAssumeConversation(e, conversation.senderPhone)}
+                      >
+                        {isAssuming ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <UserCheck className="h-3.5 w-3.5" />
+                            Assumir Conversa
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <ChevronDown className="accordion-chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent className="px-2">
                   <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg bg-[#efeae2] p-3">
                     {conversation.messages.map((msg) => (
@@ -199,7 +215,7 @@ export function WhatsappConversationsList({
                         className={`flex flex-col gap-0.5 ${msg.from_me ? 'items-end' : 'items-start'}`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                          className={`max-w-[80%] break-words rounded-lg px-3 py-2 text-sm shadow-sm ${
                             msg.from_me
                               ? 'rounded-tr-none bg-[#d9fdd3] text-gray-900'
                               : 'rounded-tl-none bg-white text-gray-900'

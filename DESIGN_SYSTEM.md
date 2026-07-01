@@ -218,6 +218,94 @@ Hook: `useIsMobile()` → `max-width: 767px`.
 - Login: `bg-blue-50`, card `max-w-md`
 - Confirmação inscrição: `bg-gray-100`, card `max-w-2xl`
 
+### WhatsApp — Leads / Qualificação
+
+Referência: `src/components/whatsapp/WhatsappConversationsList.tsx`, `src/components/tabs/QualificacaoTab.tsx`.
+
+#### Cores WhatsApp
+
+| Nome | Hex | Uso |
+|------|-----|-----|
+| Verde WhatsApp | `#25D366` | Ícone aba Leads, fundo avatar (`/10` opacity) |
+| Verde escuro | `#128C7E` | Inicial do avatar, ícone header |
+| Fundo chat | `#efeae2` | Área de mensagens expandida (accordion) |
+| Bolha enviada | `#d9fdd3` | Mensagens `from_me` (direita) |
+| Bolha recebida | `#ffffff` | Mensagens do contato (esquerda) |
+
+#### Cabeçalho da aba Leads
+
+| Elemento | Classes |
+|----------|---------|
+| Ícone circular | `h-11 w-11 rounded-full bg-[#25D366]/10` |
+| Ícone | `MessageCircle h-5 w-5 text-[#128C7E]` |
+| Título | `text-xl font-bold text-primary` (“Leads”) |
+| Subtítulo | `text-sm text-muted-foreground` |
+
+#### Lista de conversas (card)
+
+| Elemento | Classes |
+|----------|---------|
+| Container | `rounded-xl border border-gray-200 bg-white p-4` |
+| Título seção | `font-medium` (“Conversas”) |
+| Avatar contato | `h-10 w-10 rounded-full bg-[#25D366]/10 text-sm font-semibold text-[#128C7E]` |
+| Nome contato | `font-medium` |
+| Telefone | `text-xs text-muted-foreground` |
+| Preview mensagem | `truncate text-sm text-muted-foreground` |
+| Timestamp | `text-xs text-muted-foreground` |
+| Badge contagem | `Badge variant="secondary" className="text-xs"` |
+
+#### Botão “Assumir Conversa”
+
+Ação compacta no **canto superior direito** de cada box de conversa (`absolute`), fora do fluxo do texto — não expande o accordion ao clicar.
+
+| Propriedade | Valor |
+|-------------|-------|
+| Componente | `Button` (shadcn), estilo WhatsApp customizado |
+| `size` | `sm` |
+| `type` | `button` |
+| Posição | `flex items-center gap-1 self-start` à direita do conteúdo, **mesma linha** que o chevron |
+| Chevron expandir | `ChevronDown` customizado ao lado do botão; ocultar o ícone padrão do accordion com `[&>svg:last-child]:hidden` |
+| Classes do botão | `h-8 shrink-0 gap-1.5 rounded-full border border-[#25D366]/30 bg-[#25D366]/10 px-3 text-xs font-semibold text-[#128C7E] shadow-none hover:bg-[#25D366]/20 hover:text-[#0e6b5c] focus-visible:ring-[#25D366]/40` |
+| Ícone | `UserCheck h-3.5 w-3.5` à esquerda do label |
+| Label | `Assumir Conversa` |
+| Loading | `Loader2 h-3.5 w-3.5 animate-spin` |
+| Visibilidade | Oculto quando a conversa já está assumida pelo usuário logado |
+| Comportamento | `e.stopPropagation()` no click; toast via `sonner` |
+
+**Overflow do texto:** container `min-w-0 overflow-hidden`; nome e preview com `truncate`.
+
+**Layout da linha:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ [avatar] Nome truncado…              [Assumir Conversa]  [▼]  │
+│          badges + hora                                           │
+│          Preview da mensagem truncada…                           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### Badge de responsável (conversa assumida)
+
+Exibido ao lado do nome quando existe registro em `whatsapp_conversation_assignments`.
+
+| Estado | Classes | Conteúdo |
+|--------|---------|----------|
+| Assumida por mim | `variant="outline" gap-1 text-xs border-primary/40 bg-primary/10 text-primary` | ícone `UserCheck h-3 w-3` + texto **“Você”** |
+| Assumida por outro | `variant="outline" gap-1 text-xs border-amber-200 bg-amber-50 text-amber-900` | ícone `UserCheck h-3 w-3` + `assigned_user_name` |
+
+Quando outro usuário já assumiu, o botão **Assumir Conversa** permanece visível (upsert repassa a responsabilidade).
+
+#### Bolhas de chat (accordion expandido)
+
+| Tipo | Alinhamento | Classes bolha |
+|------|-------------|---------------|
+| Enviada (`from_me`) | `items-end` | `max-w-[80%] rounded-lg rounded-tr-none bg-[#d9fdd3] px-3 py-2 text-sm shadow-sm text-gray-900` |
+| Recebida | `items-start` | `max-w-[80%] rounded-lg rounded-tl-none bg-white px-3 py-2 text-sm shadow-sm text-gray-900` |
+| Horário | — | `text-[10px] text-muted-foreground px-1` |
+| Área scroll | — | `max-h-96 overflow-y-auto rounded-lg bg-[#efeae2] p-3 space-y-2` |
+
+Preview na linha fechada: prefixo `Você: ` quando `from_me`.
+
 ### Impressão
 
 - Classe `.proposal-print-area` para propostas
@@ -246,3 +334,5 @@ Hook: `useIsMobile()` → `max-width: 767px`.
 | Cores de status | `src/utils/studentStatus.ts` |
 | Badges | `src/components/ui/badge.tsx` |
 | Botões | `src/components/ui/button.tsx` |
+| WhatsApp / Leads | `src/components/whatsapp/WhatsappConversationsList.tsx` |
+| Aba Leads | `src/components/tabs/QualificacaoTab.tsx` |
