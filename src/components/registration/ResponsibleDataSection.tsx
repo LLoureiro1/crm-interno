@@ -3,7 +3,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ValidationErrors, RegistrationFormData } from '@/types/registration';
 import { sanitizeEmail } from '@/utils/sanitization';
-import { formatCpf } from '@/utils/cpf';
 import { MultiplePhones } from '@/components/ui/MultiplePhones';
 
 interface ResponsibleDataSectionProps {
@@ -30,25 +29,6 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange, o
         />
         {fieldErrors.responsibleName && (
           <p className="text-red-600 text-sm mt-1">{fieldErrors.responsibleName}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="responsibleCpf" className={fieldErrors.responsibleCpf ? 'text-red-600' : ''}>
-          CPF do Responsável *
-        </Label>
-        <Input
-          id="responsibleCpf"
-          value={formData.responsibleCpf}
-          onChange={(e) => onInputChange('responsibleCpf', formatCpf(e.target.value))}
-          placeholder="000.000.000-00"
-          inputMode="numeric"
-          maxLength={14}
-          className={fieldErrors.responsibleCpf ? 'border-red-500 focus:border-red-500' : ''}
-          required
-        />
-        {fieldErrors.responsibleCpf && (
-          <p className="text-red-600 text-sm mt-1">{fieldErrors.responsibleCpf}</p>
         )}
       </div>
 

@@ -38,7 +38,6 @@ export const RegistrationForm = () => {
   const [formData, setFormData] = useState<RegistrationFormData>({
     studentName: '',
     responsibleName: '',
-    responsibleCpf: '',
     birthDate: '',
     phone: '',
     additionalPhones: [],
@@ -296,7 +295,7 @@ export const RegistrationForm = () => {
         p_payload: {
           student_name: sanitizedFormData.studentName,
           responsible_name: sanitizedFormData.responsibleName,
-          responsible_cpf: sanitizedFormData.responsibleCpf,
+          responsible_cpf: null,
           birth_date: null,
           phone: sanitizedFormData.phone,
           email: sanitizedFormData.email,
@@ -342,7 +341,6 @@ export const RegistrationForm = () => {
       setFormData({
         studentName: '',
         responsibleName: '',
-        responsibleCpf: '',
         birthDate: '',
         phone: '',
         additionalPhones: [],

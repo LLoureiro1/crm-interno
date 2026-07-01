@@ -1,6 +1,5 @@
 import { RegistrationFormData, ValidationErrors } from '@/types/registration';
 import { validateEmailFormat } from '@/utils/sanitization';
-import { isValidCpf } from '@/utils/cpf';
 
 // Função auxiliar para validar telefone (aceita 10 ou 11 dígitos)
 const isValidPhone = (phone: string): boolean => {
@@ -22,12 +21,6 @@ export const validateForm = (
   
   if (!formData.responsibleName.trim()) {
     errors.responsibleName = 'Nome do responsável é obrigatório';
-  }
-
-  if (!formData.responsibleCpf.trim()) {
-    errors.responsibleCpf = 'CPF do responsável é obrigatório';
-  } else if (!isValidCpf(formData.responsibleCpf)) {
-    errors.responsibleCpf = 'CPF inválido';
   }
   
   // Validar telefone principal (obrigatório)
