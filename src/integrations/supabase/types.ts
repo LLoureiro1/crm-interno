@@ -699,6 +699,51 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversation_labels: {
+        Row: {
+          id: string
+          instance_name: string
+          sender_phone: string
+          label_type: Database["public"]["Enums"]["whatsapp_lead_label_type"]
+          propensity_stars: number
+          updated_by: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          instance_name: string
+          sender_phone: string
+          label_type: Database["public"]["Enums"]["whatsapp_lead_label_type"]
+          propensity_stars: number
+          updated_by: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          instance_name?: string
+          sender_phone?: string
+          label_type?: Database["public"]["Enums"]["whatsapp_lead_label_type"]
+          propensity_stars?: number
+          updated_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_labels_instance_name_fkey"
+            columns: ["instance_name"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_integrations"
+            referencedColumns: ["instance_name"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversation_labels_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversation_assignments: {
         Row: {
           id: string
@@ -1510,6 +1555,7 @@ export type Database = {
         | "sent"
         | "failed"
         | "cancelled"
+      whatsapp_lead_label_type: "propensao"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, UserCheck, ChevronDown, Search, ExternalLink } from 'lucide-react';
+import { Loader2, UserCheck, ChevronDown, Search, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   assignmentsByPhone,
@@ -15,10 +14,14 @@ import {
   findStudentByPhone,
   formatWhatsappPhone,
   groupMessagesByPhone,
+  labelsByPhone,
+  resolveLeadLabelKind,
   type StudentPhoneLink,
   type WhatsappConversationAssignment,
+  type WhatsappConversationLabel,
   type WhatsappMessage,
 } from '@/lib/whatsappConversations';
+import { WhatsappLeadLabelRow } from '@/components/whatsapp/WhatsappLeadLabelRow';
 
 const MESSAGES_POLL_MS = 8000;
 
@@ -34,11 +37,13 @@ export function WhatsappConversationsList({
   const { profile } = useAuth();
   const [messages, setMessages] = useState<WhatsappMessage[]>([]);
   const [assignments, setAssignments] = useState<WhatsappConversationAssignment[]>([]);
+  const [labels, setLabels] = useState<WhatsappConversationLabel[]>([]);
   const [studentPhoneIndex, setStudentPhoneIndex] = useState<Map<string, StudentPhoneLink>>(
     new Map(),
   );
   const [loading, setLoading] = useState(true);
   const [assumingPhone, setAssumingPhone] = useState<string | null>(null);
+  const [savingLabelPhone, setSavingLabelPhone] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadStudents = useCallback(async () => {
@@ -53,7 +58,7 @@ export function WhatsappConversationsList({
   }, []);
 
   const loadData = useCallback(async (name: string) => {
-    const [messagesRes, assignmentsRes] = await Promise.all([
+    const [messagesRes, assignmentsRes, labelsRes] = await Promise.all([
       supabase
         .from('whatsapp_messages')
         .select('*')
@@ -64,10 +69,15 @@ export function WhatsappConversationsList({
         .from('whatsapp_conversation_assignments')
         .select('*')
         .eq('instance_name', name),
+      supabase
+        .from('whatsapp_conversation_labels')
+        .select('*')
+        .eq('instance_name', name),
     ]);
 
     if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data);
     if (!assignmentsRes.error && assignmentsRes.data) setAssignments(assignmentsRes.data);
+    if (!labelsRes.error && labelsRes.data) setLabels(labelsRes.data);
     setLoading(false);
   }, []);
 
@@ -89,6 +99,7 @@ export function WhatsappConversationsList({
     [conversations, searchTerm],
   );
   const assignmentMap = useMemo(() => assignmentsByPhone(assignments), [assignments]);
+  const labelMap = useMemo(() => labelsByPhone(labels), [labels]);
 
   const handleAssumeConversation = async (
     e: React.MouseEvent,
@@ -134,6 +145,60 @@ export function WhatsappConversationsList({
     toast.success('Conversa assumida com sucesso.');
   };
 
+  const handleSetPropensityLabel = async (senderPhone: string, stars: number) => {
+    if (!profile?.id) {
+      toast.error('Faça login para definir propensão.');
+      return;
+    }
+
+    const existing = labelMap.get(senderPhone);
+    if (existing?.label_type === 'propensao' && existing.propensity_stars === stars) {
+      setSavingLabelPhone(senderPhone);
+      const { error } = await supabase
+        .from('whatsapp_conversation_labels')
+        .delete()
+        .eq('instance_name', instanceName)
+        .eq('sender_phone', senderPhone);
+      setSavingLabelPhone(null);
+      if (error) {
+        toast.error('Não foi possível remover a propensão.');
+        return;
+      }
+      setLabels((prev) => prev.filter((l) => l.sender_phone !== senderPhone));
+      return;
+    }
+
+    setSavingLabelPhone(senderPhone);
+    const payload = {
+      instance_name: instanceName,
+      sender_phone: senderPhone,
+      label_type: 'propensao' as const,
+      propensity_stars: stars,
+      updated_by: profile.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_conversation_labels')
+      .upsert(payload, { onConflict: 'instance_name,sender_phone' })
+      .select()
+      .single();
+
+    setSavingLabelPhone(null);
+
+    if (error) {
+      toast.error('Não foi possível salvar a propensão.');
+      return;
+    }
+
+    if (data) {
+      setLabels((prev) => {
+        const next = prev.filter((l) => l.sender_phone !== senderPhone);
+        return [...next, data];
+      });
+    }
+  };
+
   if (loading && conversations.length === 0) {
     return (
       <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
@@ -168,9 +233,13 @@ export function WhatsappConversationsList({
             const displayPhone = formatWhatsappPhone(conversation.senderPhone) ?? conversation.senderPhone;
             const latest = conversation.latestMessage;
             const assignment = assignmentMap.get(conversation.senderPhone);
+            const conversationLabel = labelMap.get(conversation.senderPhone);
             const isAssignedToMe = assignment?.assigned_user_id === profile?.id;
             const isAssuming = assumingPhone === conversation.senderPhone;
             const linkedStudent = findStudentByPhone(conversation.senderPhone, studentPhoneIndex);
+            const labelKind = resolveLeadLabelKind(linkedStudent, conversationLabel);
+            const propensityStars =
+              conversationLabel?.label_type === 'propensao' ? conversationLabel.propensity_stars : null;
 
             return (
               <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone} className="overflow-hidden">
@@ -195,15 +264,19 @@ export function WhatsappConversationsList({
                       <Badge variant="secondary" className="shrink-0 text-xs">
                         {conversation.messages.length}
                       </Badge>
-                      {linkedStudent && (
-                        <Link
-                          to={`/student/${linkedStudent.id}`}
-                          className="inline-flex max-w-[10rem] shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
+                      {labelKind === 'inscrito' && linkedStudent && (
+                        <Badge className="shrink-0 border-green-200 bg-green-50 text-xs text-green-800 hover:bg-green-50">
+                          Inscrito
+                        </Badge>
+                      )}
+                      {labelKind === 'propensao' && propensityStars !== null && (
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 gap-1 border-amber-200 bg-amber-50 text-xs text-amber-900"
                         >
-                          <ExternalLink className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{linkedStudent.student_name}</span>
-                        </Link>
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          {propensityStars}/5
+                        </Badge>
                       )}
                       {assignment && (
                         <Badge
@@ -256,6 +329,12 @@ export function WhatsappConversationsList({
                     <ChevronDown className="accordion-chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
                   </div>
                 </AccordionTrigger>
+                <WhatsappLeadLabelRow
+                  linkedStudent={linkedStudent}
+                  label={conversationLabel}
+                  saving={savingLabelPhone === conversation.senderPhone}
+                  onSetPropensity={(stars) => void handleSetPropensityLabel(conversation.senderPhone, stars)}
+                />
                 <AccordionContent className="px-2">
                   <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg bg-[#efeae2] p-3">
                     {conversation.messages.map((msg) => (

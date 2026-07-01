@@ -2,6 +2,9 @@ import type { Tables } from '@/integrations/supabase/types';
 
 export type WhatsappMessage = Tables<'whatsapp_messages'>;
 export type WhatsappConversationAssignment = Tables<'whatsapp_conversation_assignments'>;
+export type WhatsappConversationLabel = Tables<'whatsapp_conversation_labels'>;
+
+export type LeadLabelKind = 'inscrito' | 'propensao' | null;
 
 export type ConversationGroup = {
   senderPhone: string;
@@ -168,4 +171,19 @@ export function assignmentsByPhone(
   assignments: WhatsappConversationAssignment[],
 ): Map<string, WhatsappConversationAssignment> {
   return new Map(assignments.map((a) => [a.sender_phone, a]));
+}
+
+export function labelsByPhone(
+  labels: WhatsappConversationLabel[],
+): Map<string, WhatsappConversationLabel> {
+  return new Map(labels.map((l) => [l.sender_phone, l]));
+}
+
+export function resolveLeadLabelKind(
+  linkedStudent: StudentPhoneLink | null,
+  label: WhatsappConversationLabel | undefined,
+): LeadLabelKind {
+  if (linkedStudent) return 'inscrito';
+  if (label?.label_type === 'propensao' && label.propensity_stars) return 'propensao';
+  return null;
 }
