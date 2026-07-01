@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, UserCheck, ChevronDown } from 'lucide-react';
+import { Loader2, UserCheck, ChevronDown, Search, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   assignmentsByPhone,
+  buildStudentPhoneIndex,
+  filterConversationsBySearch,
+  findStudentByPhone,
   formatWhatsappPhone,
   groupMessagesByPhone,
+  type StudentPhoneLink,
   type WhatsappConversationAssignment,
   type WhatsappMessage,
 } from '@/lib/whatsappConversations';
@@ -28,8 +34,23 @@ export function WhatsappConversationsList({
   const { profile } = useAuth();
   const [messages, setMessages] = useState<WhatsappMessage[]>([]);
   const [assignments, setAssignments] = useState<WhatsappConversationAssignment[]>([]);
+  const [studentPhoneIndex, setStudentPhoneIndex] = useState<Map<string, StudentPhoneLink>>(
+    new Map(),
+  );
   const [loading, setLoading] = useState(true);
   const [assumingPhone, setAssumingPhone] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadStudents = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, student_name, phone, student_phones(phone_number)')
+      .neq('status', 'cadastro_invalido');
+
+    if (!error && data) {
+      setStudentPhoneIndex(buildStudentPhoneIndex(data));
+    }
+  }, []);
 
   const loadData = useCallback(async (name: string) => {
     const [messagesRes, assignmentsRes] = await Promise.all([
@@ -51,6 +72,10 @@ export function WhatsappConversationsList({
   }, []);
 
   useEffect(() => {
+    void loadStudents();
+  }, [loadStudents]);
+
+  useEffect(() => {
     if (!instanceName) return;
     setLoading(true);
     void loadData(instanceName);
@@ -59,6 +84,10 @@ export function WhatsappConversationsList({
   }, [instanceName, loadData]);
 
   const conversations = useMemo(() => groupMessagesByPhone(messages), [messages]);
+  const filteredConversations = useMemo(
+    () => filterConversationsBySearch(conversations, searchTerm),
+    [conversations, searchTerm],
+  );
   const assignmentMap = useMemo(() => assignmentsByPhone(assignments), [assignments]);
 
   const handleAssumeConversation = async (
@@ -117,68 +146,93 @@ export function WhatsappConversationsList({
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
       <h3 className="mb-3 font-medium">{title}</h3>
+
+      <div className="relative mb-4">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Buscar por número, nome ou termo da conversa..."
+          className="pl-9"
+        />
+      </div>
+
       {conversations.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
+      ) : filteredConversations.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma conversa encontrada para a busca.</p>
       ) : (
         <Accordion type="single" collapsible className="w-full">
-          {conversations.map((conversation) => {
+          {filteredConversations.map((conversation) => {
             const displayPhone = formatWhatsappPhone(conversation.senderPhone) ?? conversation.senderPhone;
             const latest = conversation.latestMessage;
             const assignment = assignmentMap.get(conversation.senderPhone);
             const isAssignedToMe = assignment?.assigned_user_id === profile?.id;
             const isAssuming = assumingPhone === conversation.senderPhone;
+            const linkedStudent = findStudentByPhone(conversation.senderPhone, studentPhoneIndex);
 
             return (
               <AccordionItem key={conversation.senderPhone} value={conversation.senderPhone} className="overflow-hidden">
                 <AccordionTrigger className="items-start gap-2 px-2 py-3 hover:no-underline [&>svg:last-child]:hidden [&[data-state=open]_.accordion-chevron]:rotate-180">
                   <div className="min-w-0 flex-1 overflow-hidden text-left">
-                      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                        <span className="truncate font-medium">
-                          {conversation.senderName ?? displayPhone}
+                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                      <span className="truncate font-medium">
+                        {conversation.senderName ?? displayPhone}
+                      </span>
+                      {conversation.senderName && (
+                        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                          {displayPhone}
                         </span>
-                        {conversation.senderName && (
-                          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-                            {displayPhone}
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {conversation.senderName && (
+                        <span className="truncate text-xs text-muted-foreground sm:hidden">
+                          {displayPhone}
+                        </span>
+                      )}
+                      <Badge variant="secondary" className="shrink-0 text-xs">
+                        {conversation.messages.length}
+                      </Badge>
+                      {linkedStudent && (
+                        <Link
+                          to={`/student/${linkedStudent.id}`}
+                          className="inline-flex max-w-[10rem] shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{linkedStudent.student_name}</span>
+                        </Link>
+                      )}
+                      {assignment && (
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 gap-1 text-xs ${
+                            isAssignedToMe
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : 'border-amber-200 bg-amber-50 text-amber-900'
+                          }`}
+                        >
+                          <UserCheck className="h-3 w-3" />
+                          <span className="max-w-[8rem] truncate">
+                            {isAssignedToMe ? 'Você' : assignment.assigned_user_name}
                           </span>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        {conversation.senderName && (
-                          <span className="truncate text-xs text-muted-foreground sm:hidden">
-                            {displayPhone}
-                          </span>
-                        )}
-                        <Badge variant="secondary" className="shrink-0 text-xs">
-                          {conversation.messages.length}
                         </Badge>
-                        {assignment && (
-                          <Badge
-                            variant="outline"
-                            className={`shrink-0 gap-1 text-xs ${
-                              isAssignedToMe
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-amber-200 bg-amber-50 text-amber-900'
-                            }`}
-                          >
-                            <UserCheck className="h-3 w-3" />
-                            <span className="max-w-[8rem] truncate">
-                              {isAssignedToMe ? 'Você' : assignment.assigned_user_name}
-                            </span>
-                          </Badge>
-                        )}
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {new Date(latest.received_at).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-sm text-muted-foreground">
-                        {latest.from_me ? 'Você: ' : ''}
-                        {latest.message_text}
-                      </p>
+                      )}
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {new Date(latest.received_at).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                      {latest.from_me ? 'Você: ' : ''}
+                      {latest.message_text}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1 self-start">
                     {!isAssignedToMe && (
