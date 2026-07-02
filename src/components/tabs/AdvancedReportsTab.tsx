@@ -20,10 +20,11 @@ import {
 } from '@/contexts/DashboardNavContext';
 import { Link } from 'react-router-dom';
 import {
-  getClassIdsForSeriesFilter,
+  getClassIdsForMultiSeriesFilter,
   getSegmentLabel,
   sortSegments,
 } from '@/utils/educationLevel';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import {
   getDateYYYYMMDD,
   getReportPeriodBounds,
@@ -279,9 +280,9 @@ export const AdvancedReportsTab = () => {
   // Estados dos filtros
   const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
-  const [selectedSegment, setSelectedSegment] = useState<string>('all');
-  const [selectedSeriesId, setSelectedSeriesId] = useState<string>('all');
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
+  const [selectedSeriesIds, setSelectedSeriesIds] = useState<string[]>([]);
   const [dateFilterType, setDateFilterType] = useState<string>('default');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
@@ -306,13 +307,20 @@ export const AdvancedReportsTab = () => {
   );
 
   const filteredSeriesOptions = useMemo(() => {
-    if (selectedSegment === 'all') return series;
-    return series.filter((s) => s.level === selectedSegment);
-  }, [series, selectedSegment]);
+    const list = selectedSegments.length > 0
+      ? series.filter((s) => selectedSegments.includes(s.level))
+      : series;
+    return list.map((s) => ({ value: s.id, label: s.name }));
+  }, [series, selectedSegments]);
 
-  const handleSegmentChange = (value: string) => {
-    setSelectedSegment(value);
-    setSelectedSeriesId('all');
+  const handleSegmentFilterChange = (newSegments: string[]) => {
+    setSelectedSegments(newSegments);
+    if (newSegments.length > 0 && selectedSeriesIds.length > 0) {
+      const allowedIds = new Set(
+        series.filter((s) => newSegments.includes(s.level)).map((s) => s.id)
+      );
+      setSelectedSeriesIds((prev) => prev.filter((id) => allowedIds.has(id)));
+    }
   };
   const [registrationSourcesPie, setRegistrationSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
   const [trackingSourcesPie, setTrackingSourcesPie] = useState<{ data: Array<{ name: string; value: number }> }>({ data: [] });
@@ -451,8 +459,8 @@ export const AdvancedReportsTab = () => {
         .lt('exam_date', today)
         .order('exam_date', { ascending: true });
 
-      if (selectedUnitId !== 'all') {
-        examDatesQuery = examDatesQuery.eq('unit_id', selectedUnitId);
+      if (selectedUnitIds.length > 0) {
+        examDatesQuery = examDatesQuery.in('unit_id', selectedUnitIds);
       }
 
       const { data: examDates, error: examDatesError } = await examDatesQuery;
@@ -676,14 +684,14 @@ export const AdvancedReportsTab = () => {
     const currentAcademicYear = getCurrentAcademicYear();
     query = query.eq('ano_letivo', parseInt(currentAcademicYear));
 
-    if (!options?.skipUnit && selectedUnitId !== 'all') {
-      query = query.eq('unit_id', selectedUnitId);
+    if (!options?.skipUnit && selectedUnitIds.length > 0) {
+      query = query.in('unit_id', selectedUnitIds);
     }
-    const classIds = getClassIdsForSeriesFilter(
+    const classIds = getClassIdsForMultiSeriesFilter(
       classes,
       series,
-      selectedSeriesId,
-      selectedSegment
+      selectedSeriesIds,
+      selectedSegments
     );
     if (classIds !== null) {
       if (classIds.length > 0) {
@@ -1383,18 +1391,18 @@ export const AdvancedReportsTab = () => {
           return false;
         }
 
-        const classIds = getClassIdsForSeriesFilter(
+        const classIds = getClassIdsForMultiSeriesFilter(
           classes,
           series,
-          selectedSeriesId,
-          selectedSegment
+          selectedSeriesIds,
+          selectedSegments
         );
         if (classIds !== null) {
-          if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
+          if (selectedUnitIds.length > 0 && !selectedUnitIds.includes(interaction.students.unit_id)) {
             return false;
           }
           if (!classIds.includes(interaction.students.class_id)) return false;
-        } else if (selectedUnitId !== 'all' && interaction.students.unit_id !== selectedUnitId) {
+        } else if (selectedUnitIds.length > 0 && !selectedUnitIds.includes(interaction.students.unit_id)) {
           return false;
         }
 
@@ -1891,9 +1899,9 @@ export const AdvancedReportsTab = () => {
     fetchUnitStatusOverview();
     fetchEnrollmentTimeline();
   }, [
-    selectedUnitId,
-    selectedSegment,
-    selectedSeriesId,
+    selectedUnitIds,
+    selectedSegments,
+    selectedSeriesIds,
     units.length,
     visibleUnits.length,
     dateFilterType,
@@ -1918,9 +1926,9 @@ export const AdvancedReportsTab = () => {
       fetchContactsPerAttendant();
     }
   }, [
-    selectedUnitId,
-    selectedSegment,
-    selectedSeriesId,
+    selectedUnitIds,
+    selectedSegments,
+    selectedSeriesIds,
     units.length,
     classes.length,
     series.length,
@@ -2020,57 +2028,39 @@ export const AdvancedReportsTab = () => {
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Unidade
               </label>
-              <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as unidades" />
-                </SelectTrigger>
-                <SelectContent side="bottom">
-                  <SelectItem value="all">Todas as unidades</SelectItem>
-                  {visibleUnits.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={visibleUnits.map((unit) => ({ value: unit.id, label: unit.name }))}
+                selected={selectedUnitIds}
+                onChange={setSelectedUnitIds}
+                placeholder="Todas as unidades"
+              />
             </div>
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Segmento
               </label>
-              <Select value={selectedSegment} onValueChange={handleSegmentChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os segmentos" />
-                </SelectTrigger>
-                <SelectContent side="bottom">
-                  <SelectItem value="all">Todos os segmentos</SelectItem>
-                  {availableSegments.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {getSegmentLabel(level)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={availableSegments.map((level) => ({
+                  value: level,
+                  label: getSegmentLabel(level),
+                }))}
+                selected={selectedSegments}
+                onChange={handleSegmentFilterChange}
+                placeholder="Todos os segmentos"
+              />
             </div>
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
                 Série
               </label>
-              <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as séries" />
-                </SelectTrigger>
-                <SelectContent side="bottom">
-                  <SelectItem value="all">Todas as séries</SelectItem>
-                  {filteredSeriesOptions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={filteredSeriesOptions}
+                selected={selectedSeriesIds}
+                onChange={setSelectedSeriesIds}
+                placeholder="Todas as séries"
+              />
             </div>
 
             <div>
@@ -2157,9 +2147,9 @@ export const AdvancedReportsTab = () => {
         visibleUnits={visibleUnits}
         classes={classes}
         series={series}
-        selectedUnitId={selectedUnitId}
-        selectedSeriesId={selectedSeriesId}
-        selectedSegment={selectedSegment}
+        selectedUnitIds={selectedUnitIds}
+        selectedSeriesIds={selectedSeriesIds}
+        selectedSegments={selectedSegments}
         currentAcademicYear={getCurrentAcademicYear()}
       />
       </ReportSectionCard>

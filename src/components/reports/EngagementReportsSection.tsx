@@ -9,7 +9,7 @@ import {
   getScoreTier,
   getScoreTierLabel,
 } from '@/utils/engagementScore';
-import { getClassIdsForSeriesFilter } from '@/utils/educationLevel';
+import { getClassIdsForMultiSeriesFilter } from '@/utils/educationLevel';
 import { STUDENT_STATUS_LABELS } from '@/utils/studentStatus';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
@@ -36,9 +36,9 @@ type EngagementReportsSectionProps = {
   visibleUnits: Tables<'units'>[];
   classes: Tables<'classes'>[];
   series: Tables<'series'>[];
-  selectedUnitId: string;
-  selectedSeriesId: string;
-  selectedSegment: string;
+  selectedUnitIds: string[];
+  selectedSeriesIds: string[];
+  selectedSegments: string[];
   currentAcademicYear: string;
 };
 
@@ -55,9 +55,9 @@ export function EngagementReportsSection({
   visibleUnits,
   classes,
   series,
-  selectedUnitId,
-  selectedSeriesId,
-  selectedSegment,
+  selectedUnitIds,
+  selectedSeriesIds,
+  selectedSegments,
   currentAcademicYear,
 }: EngagementReportsSectionProps) {
   const [loading, setLoading] = useState(false);
@@ -68,8 +68,8 @@ export function EngagementReportsSection({
 
   const filterKey = useMemo(
     () =>
-      [selectedUnitId, selectedSeriesId, selectedSegment, currentAcademicYear, visibleUnits.map((u) => u.id).join(',')].join('|'),
-    [selectedUnitId, selectedSeriesId, selectedSegment, currentAcademicYear, visibleUnits]
+      [selectedUnitIds.join(','), selectedSeriesIds.join(','), selectedSegments.join(','), currentAcademicYear, visibleUnits.map((u) => u.id).join(',')].join('|'),
+    [selectedUnitIds, selectedSeriesIds, selectedSegments, currentAcademicYear, visibleUnits]
   );
 
   useEffect(() => {
@@ -99,15 +99,15 @@ export function EngagementReportsSection({
           .eq('ano_letivo', parseInt(currentAcademicYear, 10))
           .not('status', 'in', `(${EXCLUDED_STATUSES.join(',')})`);
 
-        if (selectedUnitId !== 'all') {
-          query = query.eq('unit_id', selectedUnitId);
+        if (selectedUnitIds.length > 0) {
+          query = query.in('unit_id', selectedUnitIds);
         }
 
-        const classIds = getClassIdsForSeriesFilter(
+        const classIds = getClassIdsForMultiSeriesFilter(
           classes,
           series,
-          selectedSeriesId,
-          selectedSegment
+          selectedSeriesIds,
+          selectedSegments
         );
         if (classIds !== null) {
           if (classIds.length > 0) {
@@ -190,7 +190,7 @@ export function EngagementReportsSection({
     };
 
     fetchEngagementReports();
-  }, [filterKey, visibleUnits, classes, series, currentAcademicYear, selectedUnitId, selectedSeriesId, selectedSegment]);
+  }, [filterKey, visibleUnits, classes, series, currentAcademicYear, selectedUnitIds, selectedSeriesIds, selectedSegments]);
 
   const hasData = useMemo(
     () => topLeadsByUnit.length > 0 || distribution.some((d) => d.alto + d.medio + d.baixo + d.sem > 0),

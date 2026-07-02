@@ -54,6 +54,24 @@ export function getClassIdsForSeriesFilter(
   return null;
 }
 
+export function getClassIdsForMultiSeriesFilter(
+  classes: Tables<'classes'>[],
+  seriesList: Tables<'series'>[],
+  selectedSeriesIds: string[],
+  selectedSegments: string[]
+): string[] | null {
+  if (selectedSeriesIds.length > 0) {
+    return classes.filter((c) => selectedSeriesIds.includes(c.series_id)).map((c) => c.id);
+  }
+  if (selectedSegments.length > 0) {
+    const seriesIds = seriesList
+      .filter((s) => selectedSegments.includes(s.level))
+      .map((s) => s.id);
+    return classes.filter((c) => seriesIds.includes(c.series_id)).map((c) => c.id);
+  }
+  return null;
+}
+
 function normalizeImportText(value: string): string {
   return value
     .trim()
