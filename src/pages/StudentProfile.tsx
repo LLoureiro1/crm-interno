@@ -50,7 +50,7 @@ const PROFILE_SECTIONS = [
   { id: 'engajamento', label: 'Engajamento' },
 ] as const;
 
-type ProfileSectionId = (typeof PROFILE_SECTIONS)[number]['id'];
+type ProfileSectionId = (typeof PROFILE_SECTIONS)[number]['id'] | 'registrar-atendimento';
 
 function EngagementHeaderWidget({ score }: { score: number | null | undefined }) {
   const displayScore = score ?? 0;
@@ -160,6 +160,26 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'interactions' | 'contacts'>('all');
   const [activeSection, setActiveSection] = useState<string>(PROFILE_SECTIONS[0].id);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [forceOpenAttendance, setForceOpenAttendance] = useState(false);
+
+  const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
+  const today = getCurrentDate();
+  const isInterviewDay = student?.interview_date === today;
+
+  const showRegistrarAtendimento =
+    canRegisterAttendance &&
+    (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) &&
+    student?.status !== 'atendimento_recentemente';
+
+  const navSections = useMemo(() => {
+    if (!showRegistrarAtendimento) return [...PROFILE_SECTIONS];
+    const propostaIndex = PROFILE_SECTIONS.findIndex((section) => section.id === 'proposta');
+    return [
+      ...PROFILE_SECTIONS.slice(0, propostaIndex + 1),
+      { id: 'registrar-atendimento' as const, label: 'Registrar Atendimento' },
+      ...PROFILE_SECTIONS.slice(propostaIndex + 1),
+    ];
+  }, [showRegistrarAtendimento]);
 
   // Relações por telefone
   const [relatedByPhone, setRelatedByPhone] = useState<{ id: string; student_name: string }[]>([]);
@@ -278,12 +298,12 @@ type ContactAttempt = Tables<'contact_attempts'> & {
     const navOffset = 140;
 
     const getActiveSectionId = () => {
-      const sections = PROFILE_SECTIONS.map(({ id }) => ({
+      const sections = navSections.map(({ id }) => ({
         id,
         element: document.getElementById(id),
       })).filter((section): section is { id: ProfileSectionId; element: HTMLElement } => !!section.element);
 
-      if (sections.length === 0) return PROFILE_SECTIONS[0].id;
+      if (sections.length === 0) return navSections[0].id;
 
       const scrollBottom = window.scrollY + window.innerHeight;
       const pageBottom = document.documentElement.scrollHeight;
@@ -317,11 +337,11 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
     };
-  }, [student?.id]);
+  }, [student?.id, navSections]);
 
   const scrollToSection = useCallback((sectionId: string) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setActiveSection(sectionId);
+    setActiveSection(sectionId as ProfileSectionId);
   }, []);
 
   const scrollToTop = useCallback(() => {
@@ -410,14 +430,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   const [birthDateDisplay, setBirthDateDisplay] = useState<string>('');
 
   const canUpdateToMatriculado = profile?.profile === 'admin';
-  const canRegisterAttendance = profile?.profile === 'entrevistador' || profile?.profile === 'direcao' || profile?.profile === 'admin';
   const canEditPersonalData = !!profile; // todos os perfis autenticados podem editar
-  
-  // Verificar se hoje é o dia da entrevista (usando data local)
-  const today = getCurrentDate();
-  const isInterviewDay = student?.interview_date === today;
-  const [forceOpenAttendance, setForceOpenAttendance] = useState(false);
-
 
   // Carregar aluno quando o id mudar
   useEffect(() => {
@@ -1379,7 +1392,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
         </div>
 
         <nav className="sticky top-0 z-20 -mx-1 mb-6 flex flex-wrap gap-2 bg-slate-50/95 px-1 py-2 backdrop-blur">
-          {PROFILE_SECTIONS.map(({ id, label }) => (
+          {navSections.map(({ id, label }) => (
             <button
               key={id}
               type="button"
@@ -1871,12 +1884,15 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           </Badge>
                         </div>
                       )}
-                      {canRegisterAttendance && !!student?.interview_date && !((isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente') && (
+                      {canRegisterAttendance && !!student?.interview_date && !showRegistrarAtendimento && (
                         <div className="mt-2 ml-4">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setForceOpenAttendance(true)}
+                            onClick={() => {
+                              setForceOpenAttendance(true);
+                              setTimeout(() => scrollToSection('registrar-atendimento'), 0);
+                            }}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             title="Abrir Registrar Atendimento"
                           >
@@ -2074,7 +2090,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
             </Card>
           </section>
 
-          {canRegisterAttendance && (isInterviewDay || (forceOpenAttendance && !!student?.interview_date)) && student.status !== 'atendimento_recentemente' && (
+          {showRegistrarAtendimento && (
+            <section id="registrar-atendimento" className="scroll-mt-28">
             <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
               <CardHeader>
                 <CardTitle>Registrar Atendimento</CardTitle>
@@ -2213,6 +2230,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                   </Button>
                 </CardContent>
               </Card>
+            </section>
             )}
 
           <section id="agendar-entrevista" className="scroll-mt-28">
