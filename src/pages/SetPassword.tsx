@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_TEXT } from '@/utils/passwordPolicy';
+import { assertStrongPasswordOnServer } from '@/utils/assertStrongPasswordRpc';
 
 const SetPassword = () => {
   const navigate = useNavigate();
@@ -101,9 +102,7 @@ const SetPassword = () => {
     setLoading(true);
 
     try {
-      const { error: policyError } = await supabase.rpc('assert_strong_password', {
-        p_password: password,
-      });
+      const policyError = await assertStrongPasswordOnServer(password);
       if (policyError) throw policyError;
 
       // Atualizar a senha do usuário
