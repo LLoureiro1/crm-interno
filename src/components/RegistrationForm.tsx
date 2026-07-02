@@ -22,6 +22,7 @@ import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnitAccess } from '@/hooks/useUnitAccess';
+import { getRegistrationGroupBySlug } from '@/utils/registrationUnitGroups';
 
 const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
 
@@ -60,6 +61,8 @@ export const RegistrationForm = () => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [preSelectedUnit, setPreSelectedUnit] = useState<Unit | null>(null);
+  const [registrationUnitGroup, setRegistrationUnitGroup] = useState<Unit[] | null>(null);
+  const [registrationGroupLabel, setRegistrationGroupLabel] = useState<string | null>(null);
   const [isUnitLocked, setIsUnitLocked] = useState(false);
   const [websiteHoneypot, setWebsiteHoneypot] = useState('');
 
@@ -69,39 +72,62 @@ export const RegistrationForm = () => {
 
   useEffect(() => {
     const loadUnitBySlug = async () => {
-      if (unitSlug) {
-        console.log('🔗 Slug detectado na URL:', unitSlug);
+      if (!unitSlug) return;
 
-        try {
+      console.log('🔗 Slug detectado na URL:', unitSlug);
+
+      try {
+        const group = getRegistrationGroupBySlug(unitSlug);
+        if (group) {
           const { data: units, error } = await (supabase as any)
             .from('units')
             .select('*')
-            .eq('slug', unitSlug);
+            .in('slug', group.unitSlugs);
 
-          const unit = units?.[0];
-
-          if (error) {
-            console.error('Erro ao buscar unidade pelo slug:', error);
-            toast.error(`Unidade "${unitSlug}" não encontrada. Redirecionando...`);
+          if (error || !units?.length) {
+            console.error('Erro ao buscar unidades do grupo:', error);
+            toast.error(`Grupo de unidades "${unitSlug}" não encontrado. Redirecionando...`);
             setTimeout(() => navigate('/inscricao'), 2000);
             return;
           }
 
-          if (unit) {
-            if (!user && String(unit.name).toLowerCase() === 'central') {
-              toast.error('A unidade Central não está disponível para inscrição online.');
-              setTimeout(() => navigate('/inscricao'), 2000);
-              return;
-            }
-            console.log('✅ Unidade encontrada:', unit);
-            setPreSelectedUnit(unit);
-            setIsUnitLocked(true);
-            // Não pré-seleciona o unitId ainda, apenas quando a série for escolhida
-          }
-        } catch (err) {
-          console.error('Erro ao buscar unidade:', err);
-          toast.error('Erro ao carregar informações da unidade');
+          console.log('✅ Grupo de unidades encontrado:', units);
+          setRegistrationUnitGroup(units);
+          setRegistrationGroupLabel(group.label);
+          setPreSelectedUnit(null);
+          setIsUnitLocked(false);
+          return;
         }
+
+        const { data: units, error } = await (supabase as any)
+          .from('units')
+          .select('*')
+          .eq('slug', unitSlug);
+
+        const unit = units?.[0];
+
+        if (error) {
+          console.error('Erro ao buscar unidade pelo slug:', error);
+          toast.error(`Unidade "${unitSlug}" não encontrada. Redirecionando...`);
+          setTimeout(() => navigate('/inscricao'), 2000);
+          return;
+        }
+
+        if (unit) {
+          if (!user && String(unit.name).toLowerCase() === 'central') {
+            toast.error('A unidade Central não está disponível para inscrição online.');
+            setTimeout(() => navigate('/inscricao'), 2000);
+            return;
+          }
+          console.log('✅ Unidade encontrada:', unit);
+          setRegistrationUnitGroup(null);
+          setRegistrationGroupLabel(null);
+          setPreSelectedUnit(unit);
+          setIsUnitLocked(true);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar unidade:', err);
+        toast.error('Erro ao carregar informações da unidade');
       }
     };
 
@@ -144,7 +170,22 @@ export const RegistrationForm = () => {
       }
 
       // Se há uma unidade pré-selecionada por slug, filtrar apenas ela
-      if (preSelectedUnit && isUnitLocked) {
+      if (registrationUnitGroup && registrationUnitGroup.length > 0) {
+        const groupIds = new Set(registrationUnitGroup.map((unit) => unit.id));
+        const groupUnits = visibleUnits.filter((unit) => groupIds.has(unit.id));
+        if (groupUnits.length === 0) {
+          setAvailableUnits([]);
+          toast.warning('Nenhuma unidade deste grupo possui turmas para a série selecionada');
+          setFormData((prev) => ({ ...prev, classId: '', unitId: '' }));
+        } else {
+          setAvailableUnits(groupUnits);
+          setFormData((prev) => ({
+            ...prev,
+            classId: '',
+            unitId: groupUnits.length === 1 ? groupUnits[0].id : '',
+          }));
+        }
+      } else if (preSelectedUnit && isUnitLocked) {
         const unitInList = visibleUnits.find(u => u.id === preSelectedUnit.id);
         if (unitInList) {
           setAvailableUnits([unitInList]);
@@ -164,7 +205,7 @@ export const RegistrationForm = () => {
       setAvailableClasses([]);
       setAvailableUnits([]);
     }
-  }, [formData.seriesId, classes, preSelectedUnit, isUnitLocked, profile, fullAccess, allowedUnitIds]);
+  }, [formData.seriesId, classes, preSelectedUnit, registrationUnitGroup, isUnitLocked, profile, fullAccess, allowedUnitIds]);
 
   // Lógica inteligente de seleção de turma
   useEffect(() => {
@@ -359,7 +400,7 @@ export const RegistrationForm = () => {
   };
 
   const formCard = (content: ReactNode) => (
-    <RegistrationLandingLayout unitName={preSelectedUnit?.name}>
+    <RegistrationLandingLayout unitName={preSelectedUnit?.name ?? registrationGroupLabel}>
       {content}
     </RegistrationLandingLayout>
   );

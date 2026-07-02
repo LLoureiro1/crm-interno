@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
+import { getRegistrationLinkForUnit } from '@/utils/registrationUnitGroups';
 
 const menuButtonClass =
   'group/nav-btn relative h-auto gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-sm text-white/90 shadow-none transition-all hover:bg-white/10 hover:!text-white hover:shadow-sm focus-visible:bg-white/10 focus-visible:!text-white focus-visible:ring-2 focus-visible:ring-[#ffac1a]/40 active:bg-white/15 active:!text-white data-[active=true]:!bg-[#ffac1a] data-[active=true]:!text-white data-[active=true]:font-semibold data-[active=true]:shadow-md group-data-[collapsible=icon]:!mx-auto group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!gap-0 group-data-[collapsible=icon]:!rounded-lg group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:hover:bg-white/10 data-[active=true]:group-data-[collapsible=icon]:shadow-sm';
@@ -111,7 +112,7 @@ export function AppSidebar() {
         const isCentral = unitName === 'central';
         const slug = userUnit?.slug;
 
-        setInscricaoLink(!isCentral && slug ? `/inscricao/${slug}` : '/inscricao');
+        setInscricaoLink(getRegistrationLinkForUnit(slug, isCentral));
       } catch {
         setInscricaoLink('/inscricao');
       }
