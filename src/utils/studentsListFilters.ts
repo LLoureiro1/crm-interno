@@ -9,6 +9,8 @@ export type StudentsListFiltersState = {
   sortField: 'created_at';
   sortOrder: 'desc' | 'asc';
   contactAttemptsFilter: 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5';
+  engagementTierFilter: string[];
+  emptyEmailFilter: 'all' | 'com_email' | 'sem_email';
   currentPage: number;
 };
 

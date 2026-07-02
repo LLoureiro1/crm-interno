@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
+import { ENGAGEMENT_WEIGHTS, matchesScoreTierFilter } from '@/utils/engagementScore';
 import { loadStudentsListFilters, saveStudentsListFilters } from '@/utils/studentsListFilters';
 
 type Student = Tables<'students'> & {
@@ -63,6 +64,12 @@ export const StudentsTab = () => {
   const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>(
     cachedFilters?.contactAttemptsFilter ?? 'all'
   );
+  const [engagementTierFilter, setEngagementTierFilter] = useState<string[]>(
+    (cachedFilters?.engagementTierFilter ?? []).filter((tier) => tier !== 'sem')
+  );
+  const [emptyEmailFilter, setEmptyEmailFilter] = useState<'all' | 'com_email' | 'sem_email'>(
+    cachedFilters?.emptyEmailFilter ?? 'all'
+  );
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
 
   // Estados para paginação
@@ -93,7 +100,7 @@ export const StudentsTab = () => {
 
   useEffect(() => {
     filterStudents();
-  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, contactCounts]);
+  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, contactCounts]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
@@ -108,7 +115,7 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter]);
+  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
@@ -122,6 +129,8 @@ export const StudentsTab = () => {
       sortField,
       sortOrder,
       contactAttemptsFilter,
+      engagementTierFilter,
+      emptyEmailFilter,
       currentPage,
     });
   }, [
@@ -135,6 +144,8 @@ export const StudentsTab = () => {
     sortField,
     sortOrder,
     contactAttemptsFilter,
+    engagementTierFilter,
+    emptyEmailFilter,
     currentPage,
   ]);
 
@@ -356,7 +367,17 @@ export const StudentsTab = () => {
       }
     }
 
+    if (engagementTierFilter.length > 0) {
+      filtered = filtered.filter((student) =>
+        matchesScoreTierFilter(student.engagement_score, engagementTierFilter)
+      );
+    }
 
+    if (emptyEmailFilter === 'sem_email') {
+      filtered = filtered.filter((student) => !student.email?.trim());
+    } else if (emptyEmailFilter === 'com_email') {
+      filtered = filtered.filter((student) => !!student.email?.trim());
+    }
 
     filtered = filtered.slice().sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -436,6 +457,8 @@ export const StudentsTab = () => {
       sortField,
       sortOrder,
       contactAttemptsFilter,
+      engagementTierFilter,
+      emptyEmailFilter,
       currentPage,
     });
     navigate(`/student/${studentId}`);
@@ -651,6 +674,36 @@ export const StudentsTab = () => {
                   <SelectItem value="3">3 contatos</SelectItem>
                   <SelectItem value="4">4 contatos</SelectItem>
                   <SelectItem value="ge_5">≥ 5 contatos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={[
+                  { value: 'alto', label: `Alto (≥${ENGAGEMENT_WEIGHTS.tierHigh})` },
+                  { value: 'medio', label: `Médio (${ENGAGEMENT_WEIGHTS.tierMedium}–${ENGAGEMENT_WEIGHTS.tierHigh - 1})` },
+                  { value: 'baixo', label: `Baixo (1–${ENGAGEMENT_WEIGHTS.tierMedium - 1})` },
+                ]}
+                selected={engagementTierFilter}
+                onChange={setEngagementTierFilter}
+                placeholder="Engajamento"
+                className="w-full"
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <Select
+                value={emptyEmailFilter}
+                onValueChange={(value) => setEmptyEmailFilter(value as 'all' | 'com_email' | 'sem_email')}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="E-mail" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="com_email">Com e-mail</SelectItem>
+                  <SelectItem value="sem_email">Sem e-mail</SelectItem>
                 </SelectContent>
               </Select>
             </div>
