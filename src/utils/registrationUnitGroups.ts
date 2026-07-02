@@ -9,7 +9,7 @@ export const REGISTRATION_UNIT_GROUPS: RegistrationUnitGroup[] = [
   {
     slug: 'uba',
     unitSlugs: ['uba-1', 'uba-2'],
-    label: 'UBA — Unidades 1 e 2',
+    label: 'UBÁ',
   },
 ];
 
