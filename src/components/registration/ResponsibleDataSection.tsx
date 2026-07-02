@@ -52,6 +52,11 @@ export const ResponsibleDataSection = ({ formData, fieldErrors, onInputChange, o
           placeholder="email@exemplo.com"
           className={fieldErrors.email ? 'border-red-500 focus:border-red-500' : ''}
         />
+        <p className="mt-1 text-sm text-muted-foreground">
+          Não é obrigatório, mas{' '}
+          <span className="font-medium text-foreground">recomendamos informar</span> para receber
+          atualizações sobre o processo de admissão.
+        </p>
         {fieldErrors.email && (
           <p className="text-red-600 text-sm mt-1">{fieldErrors.email}</p>
         )}
