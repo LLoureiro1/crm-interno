@@ -22,7 +22,7 @@ import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnitAccess } from '@/hooks/useUnitAccess';
-import { getRegistrationGroupBySlug } from '@/utils/registrationUnitGroups';
+import { getRegistrationGroupBySlug, getGroupAutoSelectedUnitId } from '@/utils/registrationUnitGroups';
 
 const montserrat = "font-['Montserrat',ui-sans-serif,system-ui,sans-serif]";
 
@@ -172,18 +172,32 @@ export const RegistrationForm = () => {
       // Se há uma unidade pré-selecionada por slug, filtrar apenas ela
       if (registrationUnitGroup && registrationUnitGroup.length > 0) {
         const groupIds = new Set(registrationUnitGroup.map((unit) => unit.id));
+        const groupClasses = validClasses.filter(
+          (cls) => cls.unit_id && groupIds.has(cls.unit_id)
+        );
+        const autoUnitId = getGroupAutoSelectedUnitId(groupClasses);
         const groupUnits = visibleUnits.filter((unit) => groupIds.has(unit.id));
+
         if (groupUnits.length === 0) {
           setAvailableUnits([]);
           toast.warning('Nenhuma unidade deste grupo possui turmas para a série selecionada');
           setFormData((prev) => ({ ...prev, classId: '', unitId: '' }));
-        } else {
-          setAvailableUnits(groupUnits);
+        } else if (autoUnitId) {
+          const unitClasses = groupClasses.filter((cls) => cls.unit_id === autoUnitId);
+          const autoUnit = groupUnits.find((unit) => unit.id === autoUnitId) ?? groupUnits[0];
+          setAvailableUnits([autoUnit]);
+          setAvailableClasses(unitClasses);
+          setShowClassSelector(unitClasses.length > 1);
           setFormData((prev) => ({
             ...prev,
-            classId: '',
-            unitId: groupUnits.length === 1 ? groupUnits[0].id : '',
+            classId: unitClasses.length === 1 ? unitClasses[0].id : '',
+            unitId: autoUnitId,
           }));
+        } else {
+          setAvailableUnits(groupUnits);
+          setAvailableClasses(groupClasses);
+          setShowClassSelector(groupClasses.length > 1);
+          setFormData((prev) => ({ ...prev, classId: '', unitId: '' }));
         }
       } else if (preSelectedUnit && isUnitLocked) {
         const unitInList = visibleUnits.find(u => u.id === preSelectedUnit.id);
@@ -198,17 +212,18 @@ export const RegistrationForm = () => {
       } else {
         setAvailableUnits(visibleUnits);
         setFormData(prev => ({ ...prev, classId: '', unitId: '' }));
+        setAvailableClasses([]);
       }
-
-      setAvailableClasses([]);
     } else {
       setAvailableClasses([]);
       setAvailableUnits([]);
     }
   }, [formData.seriesId, classes, preSelectedUnit, registrationUnitGroup, isUnitLocked, profile, fullAccess, allowedUnitIds]);
 
-  // Lógica inteligente de seleção de turma
+  // Lógica inteligente de seleção de turma (modo unidade única / fora de grupo)
   useEffect(() => {
+    if (registrationUnitGroup?.length) return;
+
     if (formData.unitId && formData.seriesId) {
       const filteredClasses = classes.filter(
         cls => cls.series_id === formData.seriesId
@@ -236,9 +251,34 @@ export const RegistrationForm = () => {
       setShowClassSelector(false);
       setFormData(prev => ({ ...prev, classId: '' }));
     }
-  }, [formData.unitId, formData.seriesId, classes]);
+  }, [formData.unitId, formData.seriesId, classes, registrationUnitGroup]);
+
+  const isGroupRegistration = Boolean(registrationUnitGroup?.length);
+  const isGroupUnitAutoLocked = isGroupRegistration && availableUnits.length === 1 && !!formData.unitId;
 
   const handleInputChange = (field: string, value: string) => {
+    if (field === 'classId' && isGroupRegistration && value) {
+      const selectedClass = classes.find((cls) => cls.id === value);
+      if (selectedClass?.unit_id) {
+        const autoUnit = registrationUnitGroup!.find((unit) => unit.id === selectedClass.unit_id);
+        setFormData((prev) => ({
+          ...prev,
+          classId: value,
+          unitId: selectedClass.unit_id!,
+        }));
+        if (autoUnit) {
+          setAvailableUnits([autoUnit]);
+        }
+        if (fieldErrors.classId) {
+          setFieldErrors((prev) => ({ ...prev, classId: '' }));
+        }
+        if (fieldErrors.unitId) {
+          setFieldErrors((prev) => ({ ...prev, unitId: '' }));
+        }
+        return;
+      }
+    }
+
     setFormData(prev => ({ ...prev, [field]: value }));
     // Limpar erro do campo quando ele for alterado
     if (fieldErrors[field]) {
@@ -445,8 +485,9 @@ export const RegistrationForm = () => {
             availableUnits={availableUnits}
             showClassSelector={showClassSelector}
             onInputChange={handleInputChange}
-            isUnitLocked={isUnitLocked}
-            preSelectedUnitName={preSelectedUnit?.name}
+            isUnitLocked={isUnitLocked || isGroupUnitAutoLocked}
+            isGroupRegistration={isGroupRegistration}
+            preSelectedUnitName={preSelectedUnit?.name ?? (isGroupUnitAutoLocked ? availableUnits[0]?.name : undefined)}
           />
 
           <RegistrationSourceSection

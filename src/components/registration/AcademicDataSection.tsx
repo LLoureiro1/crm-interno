@@ -22,6 +22,7 @@ interface AcademicDataSectionProps {
   showClassSelector: boolean;
   onInputChange: (field: string, value: string) => void;
   isUnitLocked?: boolean;
+  isGroupRegistration?: boolean;
   preSelectedUnitName?: string;
 }
 
@@ -34,6 +35,7 @@ export const AcademicDataSection = ({
   showClassSelector,
   onInputChange,
   isUnitLocked = false,
+  isGroupRegistration = false,
   preSelectedUnitName
 }: AcademicDataSectionProps) => {
   console.log('🎓 AcademicDataSection renderizado com:', { 
@@ -92,7 +94,7 @@ export const AcademicDataSection = ({
         )}
       </div>
 
-      {formData.seriesId && (
+      {formData.seriesId && !(isGroupRegistration && availableUnits.length > 1 && !formData.unitId) && (
         <div>
           <Label htmlFor="unit" className={fieldErrors.unitId ? 'text-red-600' : ''}>
             Unidade *
@@ -139,7 +141,7 @@ export const AcademicDataSection = ({
         </div>
       )}
 
-      {formData.unitId && formData.seriesId && (
+      {formData.seriesId && (formData.unitId || (isGroupRegistration && showClassSelector)) && (
         <div>
           {/* Mostrar seletor apenas quando há múltiplas turmas */}
           {showClassSelector && availableClasses.length > 1 && (

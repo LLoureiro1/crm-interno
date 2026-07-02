@@ -33,3 +33,13 @@ export function getRegistrationLinkForUnit(
   if (group) return `/inscricao/${group.slug}`;
   return `/inscricao/${unitSlug}`;
 }
+
+/** Retorna a unidade quando só uma do grupo possui turmas para a série. */
+export function getGroupAutoSelectedUnitId(
+  classesInGroup: Array<{ unit_id: string | null }>
+): string | null {
+  const unitIds = [
+    ...new Set(classesInGroup.map((cls) => cls.unit_id).filter((id): id is string => !!id)),
+  ];
+  return unitIds.length === 1 ? unitIds[0] : null;
+}
