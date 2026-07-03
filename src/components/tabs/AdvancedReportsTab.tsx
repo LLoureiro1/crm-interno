@@ -273,6 +273,14 @@ export const AdvancedReportsTab = () => {
   const [conversionRate, setConversionRate] = useState(0);
   const [conversionEnrolled, setConversionEnrolled] = useState(0);
   const [conversionTotal, setConversionTotal] = useState(0);
+  const [networkMetrics, setNetworkMetrics] = useState<{
+    conversionRate: number;
+    averageDiscount: number;
+    averageMonthlyFee: number;
+    scheduledInterviews: number;
+    completedInterviews: number;
+    interviewCompletionRate: number;
+  } | null>(null);
   const [averageDiscount, setAverageDiscount] = useState(0);
   const [averageMonthlyFee, setAverageMonthlyFee] = useState(0);
   const [interviewerStats, setInterviewerStats] = useState<Array<{ name: string, conversion: number, total: number, enrolled: number }>>([]);
@@ -403,6 +411,26 @@ export const AdvancedReportsTab = () => {
     () => getVisibleUnits(units).filter((unit) => unit.name.toLowerCase() !== 'central'),
     [units, getVisibleUnits],
   );
+
+  const isPartialUnitFilter = useMemo(
+    () => selectedUnitIds.length > 0 && selectedUnitIds.length < visibleUnits.length,
+    [selectedUnitIds.length, visibleUnits.length],
+  );
+
+  const visibleUnitIdSet = useMemo(
+    () => new Set(visibleUnits.map((unit) => unit.id)),
+    [visibleUnits],
+  );
+
+  const selectedUnitLabel = useMemo(() => {
+    if (selectedUnitIds.length === 0) return 'Unidade selecionada';
+    const names = visibleUnits
+      .filter((unit) => selectedUnitIds.includes(unit.id))
+      .map((unit) => unit.name);
+    if (names.length === 1) return names[0];
+    if (names.length <= 2) return names.join(' e ');
+    return `${names.length} unidades selecionadas`;
+  }, [selectedUnitIds, visibleUnits]);
 
   const buildEmptyUnitRows = (targetUnits: Tables<'units'>[]): UnitStatusOverviewRow[] =>
     targetUnits.map((unit) => ({
@@ -1165,11 +1193,44 @@ export const AdvancedReportsTab = () => {
     }
   };
 
+  const computeConversionMetrics = async (
+    targetStudents: Array<{
+      id: string;
+      status: string;
+      created_at: string | null;
+      updated_at: string | null;
+    }>
+  ) => {
+    const enrolledIds = targetStudents.filter((s) => s.status === 'matriculado').map((s) => s.id);
+    const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+    const totalStudents = targetStudents.filter((s) =>
+      matchesCreatedDateFilter(s.created_at)
+    ).length;
+
+    const enrolledStudents = targetStudents.filter((s) => {
+      if (s.status !== 'matriculado') return false;
+      const enrollmentDate = resolveEnrollmentDate(
+        s.id,
+        enrollmentDates,
+        s.updated_at,
+        s.created_at
+      );
+      return matchesEnrollmentDateFilter(enrollmentDate);
+    }).length;
+
+    return {
+      rate: totalStudents > 0 ? (enrolledStudents / totalStudents) * 100 : 0,
+      enrolled: enrolledStudents,
+      total: totalStudents,
+    };
+  };
+
   const fetchConversionRate = async () => {
     try {
       let totalQuery = supabase
         .from('students')
-        .select('id, status, created_at, updated_at')
+        .select('id, status, created_at, updated_at, unit_id')
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
 
       totalQuery = applyFilters(totalQuery);
@@ -1186,40 +1247,135 @@ export const AdvancedReportsTab = () => {
         status: string;
         created_at: string | null;
         updated_at: string | null;
+        unit_id: string;
       }>;
 
-      const enrolledIds = students.filter((s) => s.status === 'matriculado').map((s) => s.id);
-      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
-
-      const totalStudents = students.filter((s) =>
-        matchesCreatedDateFilter(s.created_at)
-      ).length;
-
-      const enrolledStudents = students.filter((s) => {
-        if (s.status !== 'matriculado') return false;
-        const enrollmentDate = resolveEnrollmentDate(
-          s.id,
-          enrollmentDates,
-          s.updated_at,
-          s.created_at
-        );
-        return matchesEnrollmentDateFilter(enrollmentDate);
-      }).length;
-
-      if (totalStudents > 0) {
-        setConversionRate((enrolledStudents / totalStudents) * 100);
-        setConversionEnrolled(enrolledStudents);
-        setConversionTotal(totalStudents);
-      } else {
-        setConversionRate(0);
-        setConversionEnrolled(0);
-        setConversionTotal(0);
-      }
+      const filteredMetrics = await computeConversionMetrics(students);
+      setConversionRate(filteredMetrics.rate);
+      setConversionEnrolled(filteredMetrics.enrolled);
+      setConversionTotal(filteredMetrics.total);
     } catch (error) {
       console.error('Erro ao calcular taxa de conversão:', error);
       setConversionRate(0);
       setConversionEnrolled(0);
       setConversionTotal(0);
+    }
+  };
+
+  const fetchNetworkMetrics = async () => {
+    if (!isPartialUnitFilter || visibleUnitIdSet.size === 0) {
+      setNetworkMetrics(null);
+      return;
+    }
+
+    try {
+      let studentsQuery = supabase
+        .from('students')
+        .select(`
+          id,
+          status,
+          created_at,
+          updated_at,
+          unit_id,
+          discount_percentage,
+          interview_date,
+          classes (
+            monthly_fee
+          )
+        `)
+        .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
+
+      studentsQuery = applyFilters(studentsQuery, { skipUnit: true });
+
+      const { data, error } = await studentsQuery;
+      if (error) throw error;
+
+      type NetworkStudent = {
+        id: string;
+        status: string;
+        created_at: string | null;
+        updated_at: string | null;
+        unit_id: string;
+        discount_percentage: number | null;
+        interview_date: string | null;
+        classes: { monthly_fee: number | null } | null;
+      };
+
+      const students = ((data || []) as NetworkStudent[]).filter((student) =>
+        visibleUnitIdSet.has(student.unit_id)
+      );
+
+      const conversion = await computeConversionMetrics(students);
+
+      const enrolledIds = students.filter((s) => s.status === 'matriculado').map((s) => s.id);
+      const enrollmentDates = await fetchEnrollmentDatesByStudentIds(enrolledIds);
+
+      const enrolledInPeriod = students.filter((student) => {
+        if (student.status !== 'matriculado') return false;
+        const enrollmentDate = resolveEnrollmentDate(
+          student.id,
+          enrollmentDates,
+          student.updated_at,
+          student.created_at
+        );
+        return matchesEnrollmentDateFilter(enrollmentDate);
+      });
+
+      const withDiscount = enrolledInPeriod.filter((student) => student.discount_percentage !== null);
+      const averageDiscount =
+        withDiscount.length > 0
+          ? withDiscount.reduce((sum, student) => sum + (student.discount_percentage || 0), 0) /
+            withDiscount.length
+          : 0;
+
+      let totalFeeWithDiscount = 0;
+      let validFeeStudents = 0;
+      enrolledInPeriod.forEach((student) => {
+        if (student.classes?.monthly_fee) {
+          const discountMultiplier = 1 - (student.discount_percentage || 0) / 100;
+          totalFeeWithDiscount += student.classes.monthly_fee * discountMultiplier;
+          validFeeStudents++;
+        }
+      });
+      const averageMonthlyFee = validFeeStudents > 0 ? totalFeeWithDiscount / validFeeStudents : 0;
+
+      const scheduledInterviews = students.filter(
+        (student) => student.interview_date && matchesCreatedDateFilter(student.interview_date)
+      ).length;
+
+      const networkStudentIds = new Set(students.map((student) => student.id));
+      const { data: completedInteractions, error: completedError } = await supabase
+        .from('student_interactions')
+        .select('student_id, created_at')
+        .eq('interaction_type', 'atendimento');
+
+      if (completedError) throw completedError;
+
+      const completedInterviews = new Set(
+        (completedInteractions || [])
+          .filter(
+            (interaction) =>
+              interaction.student_id &&
+              networkStudentIds.has(interaction.student_id) &&
+              matchesCreatedDateFilter(interaction.created_at)
+          )
+          .map((interaction) => interaction.student_id as string)
+      ).size;
+
+      const interviewCompletionRate =
+        scheduledInterviews > 0 ? (completedInterviews / scheduledInterviews) * 100 : 0;
+
+      setNetworkMetrics({
+        conversionRate: conversion.rate,
+        averageDiscount,
+        averageMonthlyFee,
+        scheduledInterviews,
+        completedInterviews,
+        interviewCompletionRate,
+      });
+    } catch (error) {
+      console.error('Erro ao calcular métricas da rede:', error);
+      setNetworkMetrics(null);
     }
   };
 
@@ -1865,6 +2021,7 @@ export const AdvancedReportsTab = () => {
     fetchEnrollmentTimeline();
     if (units.length > 0 && classes.length > 0) {
       fetchConversionRate();
+      fetchNetworkMetrics();
       fetchAverageDiscount();
       fetchAverageMonthlyFee();
       fetchInterviewerConversion();
@@ -1912,6 +2069,7 @@ export const AdvancedReportsTab = () => {
   useEffect(() => {
     if (units.length > 0 && classes.length > 0) {
       fetchConversionRate();
+      fetchNetworkMetrics();
       fetchAverageDiscount();
       fetchAverageMonthlyFee();
       fetchInterviewerConversion();
@@ -1930,6 +2088,7 @@ export const AdvancedReportsTab = () => {
     selectedSegments,
     selectedSeriesIds,
     units.length,
+    visibleUnits.length,
     classes.length,
     series.length,
     dateFilterType,
@@ -2187,6 +2346,62 @@ export const AdvancedReportsTab = () => {
         <MetricKpiCard compact label="Taxa de Realização" value={`${interviewCompletionRate.toFixed(1)}%`} />
       </div>
 
+      {networkMetrics && isPartialUnitFilter && (
+        <ReportAccentInnerCard
+          icon={TrendingUp}
+          title="Unidade(s) vs Rede"
+          description={`Comparativo de ${selectedUnitLabel} com a média da rede`}
+        >
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Métrica</TableHead>
+                  <TableHead>Unidade(s)</TableHead>
+                  <TableHead>Rede</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Conversão de Matrículas</TableCell>
+                  <TableCell>{conversionRate.toFixed(1)}%</TableCell>
+                  <TableCell>{networkMetrics.conversionRate.toFixed(1)}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Desconto Médio</TableCell>
+                  <TableCell>{averageDiscount.toFixed(0)}%</TableCell>
+                  <TableCell>{networkMetrics.averageDiscount.toFixed(0)}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Mensalidade Média</TableCell>
+                  <TableCell>{averageMonthlyFee > 0 ? `R$ ${averageMonthlyFee.toFixed(0)}` : 'R$ 0'}</TableCell>
+                  <TableCell>
+                    {networkMetrics.averageMonthlyFee > 0
+                      ? `R$ ${networkMetrics.averageMonthlyFee.toFixed(0)}`
+                      : 'R$ 0'}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Entrevistas Marcadas</TableCell>
+                  <TableCell>{scheduledInterviews}</TableCell>
+                  <TableCell>{networkMetrics.scheduledInterviews}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Entrevistas Realizadas</TableCell>
+                  <TableCell>{completedInterviews}</TableCell>
+                  <TableCell>{networkMetrics.completedInterviews}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Taxa de Realização</TableCell>
+                  <TableCell>{interviewCompletionRate.toFixed(1)}%</TableCell>
+                  <TableCell>{networkMetrics.interviewCompletionRate.toFixed(1)}%</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </ReportAccentInnerCard>
+      )}
+
       <ReportAccentInnerCard
         icon={Users}
         title="Presença em Provas"
@@ -2253,7 +2468,7 @@ export const AdvancedReportsTab = () => {
         tone="red"
         icon={AlertTriangle}
         title="Motivos de Desistência"
-        description="Distribuição dos motivos registrados"
+        description="Clique em um motivo para ver a lista de inscritos que se encaixam neste motivo"
       >
         {dropoutReasonStats.length > 0 ? (
           dropoutReasonStats.map((item) => (
@@ -2261,7 +2476,7 @@ export const AdvancedReportsTab = () => {
               key={item.reason}
               role="button"
               tabIndex={0}
-              className="cursor-pointer"
+              className="cursor-pointer rounded-md transition-colors hover:bg-red-50/80"
               onClick={() => fetchStudentsForDropoutReason(item.reason_key, item.reason)}
               onKeyDown={(e) => e.key === 'Enter' && fetchStudentsForDropoutReason(item.reason_key, item.reason)}
             >
