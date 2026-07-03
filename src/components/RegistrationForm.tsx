@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +69,30 @@ export const RegistrationForm = () => {
   const { series, classes, loading: dataLoading, error: dataError, refetch } = useRegistrationData();
   const { hasSources, loading: sourcesLoading, error: sourcesError } = useRegistrationSources(formData.unitId);
   const { activeTrackingCode } = useTrackingCode();
+
+  const availableSeries = useMemo(() => {
+    const allowedUnitIds = registrationUnitGroup?.length
+      ? new Set(registrationUnitGroup.map((unit) => unit.id))
+      : preSelectedUnit && isUnitLocked
+        ? new Set([preSelectedUnit.id])
+        : null;
+
+    if (!allowedUnitIds) return series;
+
+    const seriesIdsWithClasses = new Set(
+      classes
+        .filter((cls) => cls.units !== null && cls.unit_id && allowedUnitIds.has(cls.unit_id))
+        .map((cls) => cls.series_id)
+    );
+
+    return series.filter((item) => seriesIdsWithClasses.has(item.id));
+  }, [series, classes, registrationUnitGroup, preSelectedUnit, isUnitLocked]);
+
+  useEffect(() => {
+    if (!formData.seriesId) return;
+    if (availableSeries.some((item) => item.id === formData.seriesId)) return;
+    setFormData((prev) => ({ ...prev, seriesId: '', classId: '', unitId: '' }));
+  }, [availableSeries, formData.seriesId]);
 
   useEffect(() => {
     const loadUnitBySlug = async () => {
@@ -480,7 +504,7 @@ export const RegistrationForm = () => {
           <AcademicDataSection
             formData={formData}
             fieldErrors={fieldErrors}
-            series={series}
+            series={availableSeries}
             availableClasses={availableClasses}
             availableUnits={availableUnits}
             showClassSelector={showClassSelector}
