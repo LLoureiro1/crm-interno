@@ -13,6 +13,7 @@ const databaseUrl =
 const bootstrapFiles = [
   'tests/smoke/sql/ci/01_minimal_schema.sql',
   'tests/smoke/sql/ci/02_validate_cpf.sql',
+  'tests/smoke/sql/ci/03_p1_funnel.sql',
   'supabase/migrations/20260629130000_smoke_test_schema.sql',
   'supabase/migrations/20260629140000_smoke_test_password_access.sql',
   'supabase/migrations/20260608150000_fix_engagement_student_emails_only.sql',
