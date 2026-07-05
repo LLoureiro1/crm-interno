@@ -11,6 +11,7 @@ export type StudentsListFiltersState = {
   contactAttemptsFilter: 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5';
   engagementTierFilter: string[];
   emptyEmailFilter: 'all' | 'com_email' | 'sem_email';
+  attendedByFilter: string[];
   currentPage: number;
 };
 

@@ -37,7 +37,7 @@ type ExamDate = Tables<'exam_dates'> & {
 export const StudentsTab = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { getVisibleUnits } = useUnitAccess();
+  const { getVisibleUnits, fullAccess, allowedUnitIds } = useUnitAccess();
   const cachedFiltersRef = useRef(loadStudentsListFilters());
   const cachedFilters = cachedFiltersRef.current;
   const skipPageResetRef = useRef(!!cachedFilters);
@@ -70,6 +70,11 @@ export const StudentsTab = () => {
   const [emptyEmailFilter, setEmptyEmailFilter] = useState<'all' | 'com_email' | 'sem_email'>(
     cachedFilters?.emptyEmailFilter ?? 'all'
   );
+  const [attendedByFilter, setAttendedByFilter] = useState<string[]>(
+    cachedFilters?.attendedByFilter ?? []
+  );
+  const [attendants, setAttendants] = useState<Tables<'staff_directory'>[]>([]);
+  const [attendedByMap, setAttendedByMap] = useState<Record<string, string[]>>({});
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
 
   // Estados para paginação
@@ -96,11 +101,12 @@ export const StudentsTab = () => {
     fetchSeries();
     fetchExamDates();
     fetchAvailableAcademicYears();
-  }, []);
+    fetchAttendants();
+  }, [fullAccess, allowedUnitIds, profile?.unit_id]);
 
   useEffect(() => {
     filterStudents();
-  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, contactCounts]);
+  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter, contactCounts, attendedByMap]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
@@ -115,7 +121,7 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter]);
+  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
@@ -131,6 +137,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      attendedByFilter,
       currentPage,
     });
   }, [
@@ -146,6 +153,7 @@ export const StudentsTab = () => {
     contactAttemptsFilter,
     engagementTierFilter,
     emptyEmailFilter,
+    attendedByFilter,
     currentPage,
   ]);
 
@@ -174,6 +182,77 @@ export const StudentsTab = () => {
     }
   };
 
+  const fetchAttendants = async () => {
+    let query = supabase
+      .from('staff_directory')
+      .select('*')
+      .in('profile', ['entrevistador', 'direcao', 'admin'])
+      .eq('ativo', true);
+
+    if (!fullAccess) {
+      if (allowedUnitIds.length > 0) {
+        query = query.in('unit_id', allowedUnitIds);
+      } else if (profile?.unit_id) {
+        query = query.eq('unit_id', profile.unit_id);
+      }
+    }
+
+    const { data, error } = await query.order('name');
+    if (error) {
+      console.error('Erro ao buscar atendentes:', error);
+      return;
+    }
+    setAttendants((data || []).filter((p) => p?.id));
+  };
+
+  const fetchAttendedByMap = async (studentIds: string[]) => {
+    if (studentIds.length === 0) {
+      setAttendedByMap({});
+      return;
+    }
+
+    try {
+      const [interactionsRes, appointmentsRes] = await Promise.all([
+        supabase
+          .from('student_interactions')
+          .select('student_id, user_id')
+          .eq('interaction_type', 'atendimento')
+          .not('user_id', 'is', null)
+          .in('student_id', studentIds),
+        supabase
+          .from('appointments')
+          .select('student_id, interviewer_id')
+          .eq('attended', true)
+          .not('interviewer_id', 'is', null)
+          .in('student_id', studentIds),
+      ]);
+
+      if (interactionsRes.error) throw interactionsRes.error;
+      if (appointmentsRes.error) throw appointmentsRes.error;
+
+      const map: Record<string, Set<string>> = {};
+      const addAttendant = (studentId: string | null, userId: string | null) => {
+        if (!studentId || !userId) return;
+        if (!map[studentId]) map[studentId] = new Set();
+        map[studentId].add(userId);
+      };
+
+      (interactionsRes.data || []).forEach((row) => addAttendant(row.student_id, row.user_id));
+      (appointmentsRes.data || []).forEach((row) =>
+        addAttendant(row.student_id, row.interviewer_id)
+      );
+
+      const serialized: Record<string, string[]> = {};
+      Object.entries(map).forEach(([studentId, userIds]) => {
+        serialized[studentId] = Array.from(userIds);
+      });
+      setAttendedByMap(serialized);
+    } catch (e) {
+      console.error('Erro ao buscar atendimentos:', e);
+      setAttendedByMap({});
+    }
+  };
+
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
@@ -197,8 +276,9 @@ export const StudentsTab = () => {
   
     const list = (data as Student[]) || [];
     setStudents(list);
+    const ids = list.map(s => s.id).filter(Boolean);
+    void fetchAttendedByMap(ids);
     try {
-      const ids = list.map(s => s.id).filter(Boolean);
       if (ids.length === 0) {
         setContactCounts({});
       } else {
@@ -379,6 +459,13 @@ export const StudentsTab = () => {
       filtered = filtered.filter((student) => !!student.email?.trim());
     }
 
+    if (attendedByFilter.length > 0) {
+      filtered = filtered.filter((student) => {
+        const attendantsForStudent = attendedByMap[student.id] || [];
+        return attendedByFilter.some((userId) => attendantsForStudent.includes(userId));
+      });
+    }
+
     filtered = filtered.slice().sort((a, b) => {
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -459,6 +546,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      attendedByFilter,
       currentPage,
     });
     navigate(`/student/${studentId}`);
@@ -688,6 +776,16 @@ export const StudentsTab = () => {
                 selected={engagementTierFilter}
                 onChange={setEngagementTierFilter}
                 placeholder="Engajamento"
+                className="w-full"
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <MultiSelect
+                options={attendants.map((a) => ({ value: a.id, label: a.name || 'Sem nome' }))}
+                selected={attendedByFilter}
+                onChange={setAttendedByFilter}
+                placeholder="Atendido por"
                 className="w-full"
               />
             </div>
