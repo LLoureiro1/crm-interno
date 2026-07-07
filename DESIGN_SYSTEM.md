@@ -21,7 +21,7 @@ ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", …
 | Token / classe | Tamanho | Uso típico |
 |----------------|---------|------------|
 | `text-[10px]` | 10px | Labels da sidebar (grupos), nav mobile inferior |
-| `text-[11px]` | 11px | Subtítulo da sidebar (“CRM Parceiros”) |
+| `text-[11px]` | 11px | Subtítulo da sidebar (“CRM Interno”) |
 | `text-xs` | 12px | Badges, pills de seção compacta, metadados |
 | `text-sm` | 14px | **Corpo padrão**, menu lateral, header, botões |
 | `text-base` | 16px | Títulos de listas/tabelas |

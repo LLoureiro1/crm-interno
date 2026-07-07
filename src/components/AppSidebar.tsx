@@ -190,7 +190,7 @@ export function AppSidebar() {
             </div>
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
               <p className="truncate text-sm font-bold leading-tight text-white">APOGEU</p>
-              <p className="truncate text-[11px] text-white/60">CRM Parceiros</p>
+              <p className="truncate text-[11px] text-white/60">CRM Interno</p>
             </div>
             <Button
               variant="ghost"
