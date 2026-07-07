@@ -30,7 +30,7 @@ function LoginCard({ children }: { children: ReactNode }) {
           className="mx-auto h-12 w-auto object-contain"
         />
         <div>
-          <CardTitle className="text-2xl font-bold text-primary">CRM Apogeu</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary">CRM Interno</CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             Faça login para acessar o sistema
           </CardDescription>

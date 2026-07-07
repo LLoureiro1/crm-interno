@@ -1,4 +1,4 @@
-# Design System — CRM Apogeu
+# Design System — CRM Interno
 
 Referência sintética de tipografia, cores e layout extraída do código (`src/index.css`, `tailwind.config.ts`, `Layout`, `AppSidebar`, componentes UI).
 
