@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, Calendar, ExternalLink } from 'lucide-react';
+import { Search, Download, Eye, Calendar, ExternalLink, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -20,7 +20,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
 import { ENGAGEMENT_WEIGHTS, matchesScoreTierFilter } from '@/utils/engagementScore';
-import { loadStudentsListFilters, saveStudentsListFilters } from '@/utils/studentsListFilters';
+import {
+  buildFilterChips,
+  getCurrentAcademicYear,
+  getDefaultAcademicYearFilter,
+  hasAdvancedFiltersActive,
+  hasNonDefaultFilters,
+  loadStudentsListFilters,
+  saveStudentsListFilters,
+  STATUS_LABELS,
+  type FilterChip,
+} from '@/utils/studentsListFilters';
 
 type Student = Tables<'students'> & {
   classes: Tables<'classes'> & {
@@ -76,24 +86,14 @@ export const StudentsTab = () => {
   const [attendants, setAttendants] = useState<Tables<'staff_directory'>[]>([]);
   const [attendedByMap, setAttendedByMap] = useState<Record<string, string[]>>({});
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
+  const [defaultAcademicYear, setDefaultAcademicYear] = useState<string[]>([]);
+  const [filtersExpanded, setFiltersExpanded] = useState(() =>
+    cachedFilters ? hasAdvancedFiltersActive(cachedFilters) : false
+  );
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(cachedFilters?.currentPage ?? 1);
   const itemsPerPage = 50;
-
-  // Função para calcular o ano letivo atual
-  const getCurrentAcademicYear = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12
-
-    // Se é agosto ou depois, o ano letivo é o próximo ano
-    if (currentMonth >= 8) {
-      return String(currentYear + 1);
-    }
-    // Caso contrário, é o ano atual
-    return String(currentYear);
-  };
 
   useEffect(() => {
     fetchStudents();
@@ -334,17 +334,15 @@ export const StudentsTab = () => {
     const years = Array.from(new Set(data.map(item => item.ano_letivo))).filter(Boolean) as string[];
     setAvailableAcademicYears(years);
 
+    const defaultYear = getDefaultAcademicYearFilter(years);
+    setDefaultAcademicYear(defaultYear);
+
     if (cachedFiltersRef.current?.academicYearFilter?.length) {
       return;
     }
 
-    // Definir o ano letivo atual como padrão
-    const currentAcademicYear = getCurrentAcademicYear();
-    if (years.includes(currentAcademicYear)) {
-      setAcademicYearFilter([currentAcademicYear]);
-    } else if (years.length > 0) {
-      // Se o ano atual não estiver disponível, usar o mais recente
-      setAcademicYearFilter([years[0]]);
+    if (defaultYear.length > 0) {
+      setAcademicYearFilter(defaultYear);
     }
   };
 
@@ -606,11 +604,136 @@ export const StudentsTab = () => {
     new Map(examDates.map(ed => [ed.exam_date, ed])).values()
   );
 
+  const examDateLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    uniqueExamDates.forEach((date) => {
+      labels[`date_${date.exam_date}`] = formatDateForDisplay(date.exam_date);
+    });
+    return labels;
+  }, [uniqueExamDates]);
+
+  const currentFiltersState = useMemo(
+    () => ({
+      searchTerm,
+      statusFilter,
+      unitFilter,
+      segmentFilter,
+      seriesFilter,
+      examDateFilter,
+      academicYearFilter,
+      sortField,
+      sortOrder,
+      contactAttemptsFilter,
+      engagementTierFilter,
+      emptyEmailFilter,
+      attendedByFilter,
+      currentPage,
+    }),
+    [
+      searchTerm,
+      statusFilter,
+      unitFilter,
+      segmentFilter,
+      seriesFilter,
+      examDateFilter,
+      academicYearFilter,
+      sortField,
+      sortOrder,
+      contactAttemptsFilter,
+      engagementTierFilter,
+      emptyEmailFilter,
+      attendedByFilter,
+      currentPage,
+    ]
+  );
+
+  const activeFilterChips = useMemo(
+    () =>
+      buildFilterChips(currentFiltersState, {
+        defaultAcademicYear,
+        unitNames: Object.fromEntries(visibleUnits.map((u) => [u.id, u.name || 'Sem nome'])),
+        seriesNames: Object.fromEntries(series.map((s) => [s.id, s.name || 'Sem nome'])),
+        segmentNames: Object.fromEntries(
+          availableSegments.map((level) => [level, getSegmentLabel(level)])
+        ),
+        attendantNames: Object.fromEntries(attendants.map((a) => [a.id, a.name || 'Sem nome'])),
+        examDateLabels,
+      }),
+    [
+      currentFiltersState,
+      defaultAcademicYear,
+      visibleUnits,
+      series,
+      availableSegments,
+      attendants,
+      examDateLabels,
+    ]
+  );
+
+  const showClearFilters = hasNonDefaultFilters(currentFiltersState, defaultAcademicYear);
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter([]);
+    setUnitFilter([]);
+    setSegmentFilter([]);
+    setSeriesFilter([]);
+    setExamDateFilter([]);
+    setAcademicYearFilter(defaultAcademicYear);
+    setSortField('created_at');
+    setSortOrder('desc');
+    setContactAttemptsFilter('all');
+    setEngagementTierFilter([]);
+    setEmptyEmailFilter('all');
+    setAttendedByFilter([]);
+  };
+
+  const handleRemoveFilterChip = (chip: FilterChip) => {
+    switch (chip.type) {
+      case 'search':
+        setSearchTerm('');
+        break;
+      case 'academicYear':
+        setAcademicYearFilter((prev) => prev.filter((y) => y !== chip.value));
+        break;
+      case 'status':
+        setStatusFilter((prev) => prev.filter((s) => s !== chip.value));
+        break;
+      case 'unit':
+        setUnitFilter((prev) => prev.filter((u) => u !== chip.value));
+        break;
+      case 'segment':
+        setSegmentFilter((prev) => prev.filter((s) => s !== chip.value));
+        break;
+      case 'series':
+        setSeriesFilter((prev) => prev.filter((s) => s !== chip.value));
+        break;
+      case 'examDate':
+        setExamDateFilter((prev) => prev.filter((e) => e !== chip.value));
+        break;
+      case 'contactAttempts':
+        setContactAttemptsFilter('all');
+        break;
+      case 'engagement':
+        setEngagementTierFilter((prev) => prev.filter((t) => t !== chip.value));
+        break;
+      case 'email':
+        setEmptyEmailFilter('all');
+        break;
+      case 'attendedBy':
+        setAttendedByFilter((prev) => prev.filter((a) => a !== chip.value));
+        break;
+      case 'sort':
+        setSortField('created_at');
+        setSortOrder('desc');
+        break;
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Lista de Inscritos</h3>
           <p className="text-sm text-muted-foreground">
             Filtre e gerencie candidatos do ano letivo selecionado
           </p>
@@ -625,11 +748,12 @@ export const StudentsTab = () => {
         <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
         <CardHeader className="pb-3 pl-5">
           <CardTitle className="text-base">Filtros</CardTitle>
-          <CardDescription>Refine a busca por ano letivo, status, unidade e prova</CardDescription>
+          <CardDescription>Busque e refine a lista — use + Filtros para opções avançadas</CardDescription>
         </CardHeader>
-        <CardContent className="pl-5">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="md:col-span-1">
+        <CardContent className="space-y-3 pl-5">
+          {/* Linha principal: essenciais */}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="shrink-0 lg:w-36">
               <MultiSelect
                 options={availableAcademicYears.map(year => ({
                   value: year,
@@ -638,55 +762,84 @@ export const StudentsTab = () => {
                 selected={academicYearFilter}
                 onChange={setAcademicYearFilter}
                 placeholder="Ano Letivo"
-                className="w-40"
+                className="w-full"
               />
             </div>
 
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="Buscar por nome, código ou telefone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="border-primary/20 bg-white pl-10 shadow-sm focus-visible:ring-primary/30"
               />
             </div>
 
-            {/* Ordem de inscrição (movido para o final) */}
-            
-            <div className="md:col-span-1">
-              <MultiSelect
-                options={[
-                  { value: 'nao_confirmado', label: 'Não Confirmado' },
-                  { value: 'confirmado', label: 'Confirmado' },
-                  { value: 'cadastro_invalido', label: 'Cadastro Inválido' },
-                  { value: 'matriculado', label: 'Matriculado' },
-                  { value: 'desistente', label: 'Desistente' },
-                  { value: 'nenhum_agendamento', label: 'Nenhum Agendamento' },
-                  { value: 'atendimento_agendado', label: 'Atendimento Agendado' },
-                  { value: 'faltou_ao_atendimento', label: 'Faltou ao Atendimento' },
-                  { value: 'atendimento_recentemente', label: 'Atendimento Recentemente' },
-                  { value: 'atendimento_ha_mais_de_uma_semana', label: 'Atendimento há mais de uma semana' },
-                  { value: 'ausente', label: 'Ausente' }
-                ]}
-                selected={statusFilter}
-                onChange={setStatusFilter}
-                placeholder="Status"
-                className="w-full"
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:shrink-0 lg:items-center">
+              <div className="lg:w-44">
+                <MultiSelect
+                  options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+                  selected={statusFilter}
+                  onChange={setStatusFilter}
+                  placeholder="Status"
+                  className="w-full"
+                />
+              </div>
 
-            <div className="md:col-span-1">
-              <MultiSelect
-                options={visibleUnits.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
-                selected={unitFilter}
-                onChange={setUnitFilter}
-                placeholder="Unidade"
-                className="w-full"
-              />
-            </div>
+              <div className="lg:w-44">
+                <MultiSelect
+                  options={visibleUnits.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
+                  selected={unitFilter}
+                  onChange={setUnitFilter}
+                  placeholder="Unidade"
+                  className="w-full"
+                />
+              </div>
 
-            <div className="md:col-span-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setFiltersExpanded((prev) => !prev)}
+                className="col-span-2 h-10 border-dashed border-primary/30 text-primary hover:bg-primary/5 sm:col-span-1"
+              >
+                {filtersExpanded ? '− Filtros' : '+ Filtros'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Chips de filtros ativos */}
+          {activeFilterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => handleRemoveFilterChip(chip)}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                  aria-label={`Remover filtro ${chip.label}`}
+                >
+                  <span>{chip.label}</span>
+                  <X className="h-3 w-3 shrink-0 opacity-70" />
+                </button>
+              ))}
+              {showClearFilters && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Filtros avançados (expandidos) */}
+          {filtersExpanded && (
+            <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2 lg:grid-cols-4">
               <MultiSelect
                 options={availableSegments.map((level) => ({
                   value: level,
@@ -697,9 +850,7 @@ export const StudentsTab = () => {
                 placeholder="Segmento"
                 className="w-full"
               />
-            </div>
 
-            <div className="md:col-span-1">
               <MultiSelect
                 options={filteredSeriesOptions}
                 selected={seriesFilter}
@@ -707,9 +858,7 @@ export const StudentsTab = () => {
                 placeholder="Série"
                 className="w-full"
               />
-            </div>
 
-            <div className="md:col-span-1">
               <MultiSelect
                 options={[
                   { value: 'sem_data', label: 'Sem Data' },
@@ -726,10 +875,7 @@ export const StudentsTab = () => {
                 placeholder="Data da Prova"
                 className="w-full"
               />
-            </div>
 
-            {/* Ordenação */}
-            <div className="md:col-span-1">
               <Select
                 value={`${sortField}:${sortOrder}`}
                 onValueChange={(v) => {
@@ -739,17 +885,14 @@ export const StudentsTab = () => {
                 }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Ordenar por" />
+                  <SelectValue placeholder="Inscrições" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="created_at:desc">Inscrições mais recentes</SelectItem>
                   <SelectItem value="created_at:asc">Inscrições mais antigas</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
 
-            {/* Tentativas de contato */}
-            <div className="md:col-span-1">
               <Select value={contactAttemptsFilter} onValueChange={(v) => setContactAttemptsFilter(v as 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Tentativas de contato" />
@@ -764,9 +907,7 @@ export const StudentsTab = () => {
                   <SelectItem value="ge_5">≥ 5 contatos</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="md:col-span-1">
               <MultiSelect
                 options={[
                   { value: 'alto', label: `Alto (≥${ENGAGEMENT_WEIGHTS.tierHigh})` },
@@ -775,12 +916,10 @@ export const StudentsTab = () => {
                 ]}
                 selected={engagementTierFilter}
                 onChange={setEngagementTierFilter}
-                placeholder="Engajamento"
+                placeholder="Nota / Engajamento"
                 className="w-full"
               />
-            </div>
 
-            <div className="md:col-span-1">
               <MultiSelect
                 options={attendants.map((a) => ({ value: a.id, label: a.name || 'Sem nome' }))}
                 selected={attendedByFilter}
@@ -788,9 +927,7 @@ export const StudentsTab = () => {
                 placeholder="Atendido por"
                 className="w-full"
               />
-            </div>
 
-            <div className="md:col-span-1">
               <Select
                 value={emptyEmailFilter}
                 onValueChange={(value) => setEmptyEmailFilter(value as 'all' | 'com_email' | 'sem_email')}
@@ -805,7 +942,7 @@ export const StudentsTab = () => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

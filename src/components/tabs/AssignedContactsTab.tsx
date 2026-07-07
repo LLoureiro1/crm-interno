@@ -185,7 +185,6 @@ export const AssignedContactsTab = () => {
   return (
     <div className="min-w-0 w-full max-w-full space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-gray-900">Minhas Listas</h3>
         <p className="text-sm text-muted-foreground">Veja suas listas e alunos atribuídos a você.</p>
       </div>
 
