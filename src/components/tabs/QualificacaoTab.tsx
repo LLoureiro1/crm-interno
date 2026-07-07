@@ -33,7 +33,7 @@ export function QualificacaoTab() {
           <MessageCircle className="h-5 w-5 text-[#128C7E]" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-primary">Leads</h2>
+          <h2 className="text-xl font-bold text-primary">Leads (Em Breve)</h2>
           <p className="text-sm text-muted-foreground">
             {isConnected
               ? 'Conversas do WhatsApp conectado'

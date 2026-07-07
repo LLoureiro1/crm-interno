@@ -81,7 +81,7 @@ export function AppSidebar() {
     { id: 'students', label: 'Inscritos', icon: Users },
     { id: 'appointments', label: 'Agendamentos', icon: Calendar },
     ...(canAccessQualificacao
-      ? [{ id: 'qualificacao', label: 'Leads', icon: MessageCircle }]
+      ? [{ id: 'qualificacao', label: 'Leads (Em Breve)', icon: MessageCircle }]
       : []),
   ];
 
