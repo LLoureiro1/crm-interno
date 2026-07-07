@@ -47,7 +47,7 @@ O problema geralmente ocorre por uma das seguintes razões:
 #### **Passo 1: Verificar Dados no Banco**
 
 1. Acesse o [Supabase Dashboard](https://supabase.com/dashboard)
-2. Vá para o projeto `jfpzbsfywfcuylqgafpp`
+2. Vá para o projeto `vibbpmjjfgzfievvserr`
 3. Acesse **Table Editor** → **series**
 4. Verifique se há dados na tabela
 

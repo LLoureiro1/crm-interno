@@ -35,5 +35,5 @@ Para reconfigurar manualmente:
 curl -X POST "http://127.0.0.1:8081/webhook/set/aluno-first-crm" `
   -H "apikey: SUA-CHAVE" `
   -H "Content-Type: application/json" `
-  -d '{"webhook":{"url":"https://jfpzbsfywfcuylqgafpp.supabase.co/functions/v1/evolution-webhook","webhook_by_events":false,"events":["MESSAGES_UPSERT"],"enabled":true}}'
+  -d '{"webhook":{"url":"https://vibbpmjjfgzfievvserr.supabase.co/functions/v1/evolution-webhook","webhook_by_events":false,"events":["MESSAGES_UPSERT"],"enabled":true}}'
 ```
