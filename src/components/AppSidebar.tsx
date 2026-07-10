@@ -26,6 +26,7 @@ import {
   UserPlus,
   Users,
   MessageCircle,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,8 +79,8 @@ export function AppSidebar() {
     ...(canAccessAdvancedReports
       ? [{ id: 'advanced-reports', label: 'Relatórios Estratégicos', icon: TrendingUp }]
       : []),
-    { id: 'students', label: 'Inscritos', icon: Users },
-    { id: 'appointments', label: 'Agendamentos', icon: Calendar },
+    { id: 'students', label: 'Escolas', icon: Building2 },
+    { id: 'appointments', label: 'Reuniões', icon: Calendar },
     ...(canAccessQualificacao
       ? [{ id: 'qualificacao', label: 'Leads (Em Breve)', icon: MessageCircle }]
       : []),
@@ -221,8 +222,8 @@ export function AppSidebar() {
                 onClick={closeMobileMenu}
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#ffac1a] px-2 py-2 text-xs font-semibold text-white shadow-md ring-1 ring-[#ffac1a]/30 transition-all hover:bg-[#e89b0f] hover:shadow-lg"
               >
-                <UserPlus className="h-3.5 w-3.5" />
-                <span>Nova Inscrição</span>
+                <Building2 className="h-3.5 w-3.5" />
+                <span>Nova Escola</span>
               </a>
             </SidebarGroupContent>
           </div>

@@ -8,10 +8,10 @@ import type { Tables } from '@/integrations/supabase/types';
 
 interface ReactivateStudentButtonProps {
   student: Tables<'students'> & {
-    classes: Tables<'classes'> & {
+    classes?: (Tables<'classes'> & {
       series: Tables<'series'>;
       units: Tables<'units'>;
-    };
+    }) | null;
   };
   onSuccess: () => void;
   className?: string;

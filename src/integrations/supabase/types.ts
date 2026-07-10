@@ -1053,9 +1053,9 @@ export type Database = {
       }
       students: {
         Row: {
-          birth_date: string
+          birth_date: string | null
           city: string | null
-          class_id: string
+          class_id: string | null
           code: string | null
           codigo_erp: string | null
           created_at: string
@@ -1068,7 +1068,7 @@ export type Database = {
           engagement_score_breakdown: Json | null
           engagement_score_source: string
           invalid_reason: Database["public"]["Enums"]["invalid_reason"] | null
-          email: string
+          email: string | null
           exam_date: string | null
           id: string
           interview_date: string | null
@@ -1077,11 +1077,11 @@ export type Database = {
           material_payment_type: string | null
           math_grade: number | null
           final_grade: number | null
-          neighborhood: string
-          origin_school: string
+          neighborhood: string | null
+          origin_school: string | null
           phone: string
           portuguese_grade: number | null
-          responsible_name: string
+          responsible_name: string | null
           responsible_cpf: string | null
           status: Database["public"]["Enums"]["student_status"]
           student_name: string
@@ -1092,11 +1092,17 @@ export type Database = {
           ano_letivo: string | null
           unit_id: string
           updated_at: string
+          inep_code: string | null
+          infantil_count: number | null
+          ef1_count: number | null
+          ef2_count: number | null
+          medio_count: number | null
+          total_students_count: number | null
         }
         Insert: {
-          birth_date: string
+          birth_date?: string | null
           city?: string | null
-          class_id: string
+          class_id?: string | null
           code?: string | null
           created_at?: string
           discount_percentage?: number | null
@@ -1108,7 +1114,7 @@ export type Database = {
           engagement_score_breakdown?: Json | null
           engagement_score_source?: string
           invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
-          email: string
+          email?: string | null
           exam_date?: string | null
           id?: string
           interview_date?: string | null
@@ -1117,11 +1123,11 @@ export type Database = {
           material_payment_type?: string | null
           math_grade?: number | null
           final_grade?: number | null
-          neighborhood: string
-          origin_school: string
+          neighborhood?: string | null
+          origin_school?: string | null
           phone: string
           portuguese_grade?: number | null
-          responsible_name: string
+          responsible_name?: string | null
           responsible_cpf?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_name: string
@@ -1132,11 +1138,17 @@ export type Database = {
           ano_letivo?: string | null
           unit_id: string
           updated_at?: string
+          inep_code?: string | null
+          infantil_count?: number | null
+          ef1_count?: number | null
+          ef2_count?: number | null
+          medio_count?: number | null
+          total_students_count?: number | null
         }
         Update: {
-          birth_date?: string
+          birth_date?: string | null
           city?: string | null
-          class_id?: string
+          class_id?: string | null
           code?: string | null
           created_at?: string
           discount_percentage?: number | null
@@ -1148,7 +1160,7 @@ export type Database = {
           engagement_score_breakdown?: Json | null
           engagement_score_source?: string
           invalid_reason?: Database["public"]["Enums"]["invalid_reason"] | null
-          email?: string
+          email?: string | null
           exam_date?: string | null
           id?: string
           interview_date?: string | null
@@ -1157,11 +1169,11 @@ export type Database = {
           material_payment_type?: string | null
           math_grade?: number | null
           final_grade?: number | null
-          neighborhood?: string
-          origin_school?: string
+          neighborhood?: string | null
+          origin_school?: string | null
           phone?: string
           portuguese_grade?: number | null
-          responsible_name?: string
+          responsible_name?: string | null
           responsible_cpf?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_name?: string
@@ -1172,6 +1184,12 @@ export type Database = {
           ano_letivo?: string | null
           unit_id?: string
           updated_at?: string
+          inep_code?: string | null
+          infantil_count?: number | null
+          ef1_count?: number | null
+          ef2_count?: number | null
+          medio_count?: number | null
+          total_students_count?: number | null
         }
         Relationships: [
           {

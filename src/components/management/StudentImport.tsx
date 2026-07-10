@@ -15,15 +15,19 @@ import type { Tables } from '@/integrations/supabase/types';
 
 interface ImportData {
   student_name: string;
-  responsible_name: string;
+  inep_code: string;
   email: string;
   phone: string;
-  birth_date: string;
+  city: string;
   status: string;
   tag: string;
   ano_letivo: string;
   unidade: string;
-  turma: string;
+  infantil_count: string;
+  ef1_count: string;
+  ef2_count: string;
+  medio_count: string;
+  total_students_count: string;
 }
 
 interface ValidationError {
@@ -34,7 +38,6 @@ interface ValidationError {
 
 interface MappedData extends ImportData {
   unit_id?: string;
-  class_id?: string;
   errors?: string[];
 }
 
@@ -54,26 +57,27 @@ export const StudentImport = () => {
   // Campos obrigatórios
   const requiredFields = [
     'student_name',
-    'responsible_name',
-    'phone',
     'status',
     'ano_letivo',
     'unidade',
-    'turma'
   ];
 
   // Campos reconhecidos (incluindo opcionais)
   const recognizedFields = [
     'student_name',
-    'responsible_name',
+    'inep_code',
     'email',
     'phone',
-    'birth_date',
+    'city',
     'status',
     'tag',
     'ano_letivo',
     'unidade',
-    'turma'
+    'infantil_count',
+    'ef1_count',
+    'ef2_count',
+    'medio_count',
+    'total_students_count',
   ];
 
   // Status válidos
@@ -300,28 +304,16 @@ export const StudentImport = () => {
           rowErrors.push(`Status inválido: ${row.status}`);
         }
 
-        // Validar data de nascimento
-        if (row.birth_date) {
-          const birthDate = new Date(row.birth_date);
-          if (isNaN(birthDate.getTime())) {
-            errors.push({
-              row: rowNumber,
-              field: 'birth_date',
-              message: 'Data de nascimento inválida'
-            });
-            rowErrors.push('Data de nascimento inválida');
-          }
-        }
+        // Remover validação de birth_date — escolas não têm data de nascimento
 
         // Mapear unidade - usando dados carregados diretamente
         console.log(`🔍 Buscando unidade: "${row.unidade}"`);
         const unit = loadedUnits.find(u => {
-          const match = u.name.toLowerCase().trim() === row.unidade.toLowerCase().trim();
-          console.log(`  - Comparando: "${u.name.toLowerCase().trim()}" === "${row.unidade.toLowerCase().trim()}" = ${match}`);
+          const match = u.name.toLowerCase().trim() === String(row.unidade || '').toLowerCase().trim();
           return match;
         });
         
-        if (!unit) {
+        if (row.unidade && !unit) {
           console.log(`❌ Unidade "${row.unidade}" não encontrada`);
           errors.push({
             row: rowNumber,
@@ -329,36 +321,13 @@ export const StudentImport = () => {
             message: `Unidade "${row.unidade}" não encontrada. Unidades disponíveis: ${loadedUnits.map(u => u.name).join(', ')}`
           });
           rowErrors.push(`Unidade "${row.unidade}" não encontrada`);
-        } else {
+        } else if (unit) {
           console.log(`✅ Unidade encontrada:`, unit);
-        }
-
-        // Mapear turma - usando dados carregados diretamente
-        console.log(`🔍 Buscando turma: "${row.turma}" na unidade: "${unit?.name}"`);
-        const classItem = loadedClasses.find(c => {
-          const nameMatch = c.name.toLowerCase().trim() === row.turma.toLowerCase().trim();
-          const unitMatch = c.unit_id === unit?.id;
-          console.log(`  - Turma: "${c.name.toLowerCase().trim()}" === "${row.turma.toLowerCase().trim()}" = ${nameMatch}`);
-          console.log(`  - Unidade: "${c.unit_id}" === "${unit?.id}" = ${unitMatch}`);
-          return nameMatch && unitMatch;
-        });
-        
-        if (!classItem) {
-          console.log(`❌ Turma "${row.turma}" não encontrada na unidade "${row.unidade}"`);
-          errors.push({
-            row: rowNumber,
-            field: 'turma',
-            message: `Turma "${row.turma}" não encontrada na unidade "${row.unidade}". Turmas disponíveis: ${loadedClasses.filter(c => c.unit_id === unit?.id).map(c => c.name).join(', ')}`
-          });
-          rowErrors.push(`Turma "${row.turma}" não encontrada na unidade "${row.unidade}"`);
-        } else {
-          console.log(`✅ Turma encontrada:`, classItem);
         }
 
         mapped.push({
           ...row,
           unit_id: unit?.id,
-          class_id: classItem?.id,
           errors: rowErrors
         });
       }
@@ -398,31 +367,37 @@ export const StudentImport = () => {
         const item = validData[i];
         
          try {
+           const parseCount = (val: string | undefined) => {
+             const n = parseInt(String(val || ''), 10);
+             return isNaN(n) ? null : n;
+           };
            const { error } = await supabase
              .from('students')
              .insert({
                student_name: item.student_name,
-               responsible_name: item.responsible_name,
+               inep_code: item.inep_code || null,
                email: item.email || null,
-               phone: item.phone,
-               birth_date: item.birth_date || null,
+               phone: item.phone || null,
+               city: item.city || null,
                status: item.status as any,
-               tag: item.tag || null, // Permitir null se tag estiver vazia
+               tag: item.tag || null,
                ano_letivo: item.ano_letivo,
                unit_id: item.unit_id,
-               class_id: item.class_id,
-               neighborhood: '', // Campo obrigatório, será preenchido com valor padrão
-               origin_school: '' // Campo obrigatório, será preenchido com valor padrão
+               infantil_count: parseCount(item.infantil_count),
+               ef1_count: parseCount(item.ef1_count),
+               ef2_count: parseCount(item.ef2_count),
+               medio_count: parseCount(item.medio_count),
+               total_students_count: parseCount(item.total_students_count),
              });
 
           if (error) {
-            console.error(`Erro ao inserir aluno ${item.student_name}:`, error);
+            console.error(`Erro ao inserir escola ${item.student_name}:`, error);
             errorCount++;
           } else {
             successCount++;
           }
         } catch (error) {
-          console.error(`Erro ao inserir aluno ${item.student_name}:`, error);
+          console.error(`Erro ao inserir escola ${item.student_name}:`, error);
           errorCount++;
         }
 
@@ -430,10 +405,10 @@ export const StudentImport = () => {
       }
 
       if (successCount > 0) {
-        toast.success(`${successCount} aluno(s) importado(s) com sucesso!`);
+        toast.success(`${successCount} escola(s) importada(s) com sucesso!`);
       }
       if (errorCount > 0) {
-        toast.error(`${errorCount} aluno(s) falharam na importação`);
+        toast.error(`${errorCount} escola(s) falharam na importação`);
       }
 
       // Limpar dados após importação
@@ -457,23 +432,27 @@ export const StudentImport = () => {
   const downloadTemplate = () => {
     const templateData = [
       {
-        student_name: 'João Silva',
-        responsible_name: 'Maria Silva',
-        email: 'joao@email.com',
-        phone: '(11) 99999-9999',
-        birth_date: '2010-05-15',
-        status: 'processo_anos_anteriores',
-        tag: 'Inscrito para 2025',
+        student_name: 'Escola Municipal Exemplo',
+        inep_code: '12345678',
+        email: 'contato@escola.edu.br',
+        phone: '(11) 3333-4444',
+        city: 'São Paulo',
+        status: 'nao_confirmado',
+        tag: 'Prospecto 2025',
         ano_letivo: '2025',
         unidade: 'Central',
-        turma: '6º ano'
+        infantil_count: 80,
+        ef1_count: 200,
+        ef2_count: 180,
+        medio_count: 120,
+        total_students_count: 580,
       }
     ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
-    XLSX.writeFile(wb, 'template_importacao_alunos.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Escolas');
+    XLSX.writeFile(wb, 'template_importacao_escolas.xlsx');
   };
 
   const resetImport = () => {
@@ -493,10 +472,10 @@ export const StudentImport = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Importação de Alunos em Massa
+            Importação de Escolas em Massa
           </CardTitle>
           <CardDescription>
-            Importe alunos através de planilha Excel com todos os dados necessários
+            Importe escolas através de planilha Excel com todos os dados necessários
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -546,15 +525,13 @@ export const StudentImport = () => {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Campos obrigatórios:</strong> student_name (Nome do aluno), responsible_name (Nome do responsável), phone (telefone principal), status, ano_letivo, unidade, serie, turma.
+              <strong>Campos obrigatórios:</strong> student_name (Nome da escola), status, ano_letivo, unidade.
               <br />
-              <strong>Campos opcionais:</strong> tag (tag do aluno), email, birth_date (data de nascimento).
+              <strong>Campos opcionais:</strong> inep_code (Código INEP), email, phone (telefone), city (cidade), tag, infantil_count, ef1_count, ef2_count, medio_count, total_students_count.
               <br />
-              <strong>Atenção:</strong> Siga o template de importação para garantir que os dados estarão corretos. Utilize o mesmo formato de data e telefone. 
+              <strong>Atenção:</strong> O campo <em>unidade</em> deve corresponder exatamente ao nome da unidade cadastrada no sistema.
               <br />
-              <p>Para preencher Unidade, Série e Turma, utilize exatamente o mesmo nome que está no sistema para evitar erros na importação.</p>
-              <br />
-              <p>Após fazer o upload do arquivo, clique em "Validar Dados" para verificar se os dados estão corretos. Caso algum campo esteja incorreto, corrija-o e clique em "Validar Dados" novamente.</p>
+              <p>Após fazer o upload do arquivo, clique em "Validar Dados" para verificar se os dados estão corretos.</p>
             </AlertDescription>
           </Alert>
 
@@ -575,7 +552,7 @@ export const StudentImport = () => {
           {isImporting && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Importando alunos...</span>
+                <span>Importando escolas...</span>
                 <span>{Math.round(importProgress)}%</span>
               </div>
               <Progress value={importProgress} />
@@ -621,13 +598,12 @@ export const StudentImport = () => {
                  <TableHeader>
                    <TableRow>
                      <TableHead>Linha</TableHead>
-                     <TableHead>Nome</TableHead>
-                     <TableHead>Email</TableHead>
+                     <TableHead>Nome da Escola</TableHead>
+                     <TableHead>INEP</TableHead>
+                     <TableHead>Cidade</TableHead>
                      <TableHead>Unidade</TableHead>
-                     <TableHead>Turma</TableHead>
                      <TableHead>Status</TableHead>
-                     <TableHead>Tag</TableHead>
-                     <TableHead>Ano Letivo</TableHead>
+                     <TableHead>Total Alunos</TableHead>
                      <TableHead>Validação</TableHead>
                    </TableRow>
                  </TableHeader>
@@ -636,18 +612,13 @@ export const StudentImport = () => {
                     <TableRow key={index}>
                       <TableCell>{index + 2}</TableCell>
                       <TableCell>{item.student_name}</TableCell>
-                      <TableCell>{item.email}</TableCell>
+                      <TableCell>{item.inep_code || '—'}</TableCell>
+                      <TableCell>{item.city || '—'}</TableCell>
                       <TableCell>{item.unidade}</TableCell>
-                      <TableCell>{item.turma}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{item.status}</Badge>
                       </TableCell>
-                      <TableCell>
-                        {item.tag && <Badge variant="secondary">{item.tag}</Badge>}
-                      </TableCell>
-                      <TableCell>
-                        {item.ano_letivo && <Badge variant="outline">{item.ano_letivo}</Badge>}
-                      </TableCell>
+                      <TableCell>{item.total_students_count || '—'}</TableCell>
                       <TableCell>
                         {item.errors && item.errors.length > 0 ? (
                           <div className="flex items-center gap-1 text-red-600">
@@ -689,7 +660,7 @@ export const StudentImport = () => {
                   disabled={isImporting}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  {isImporting ? 'Importando...' : 'Importar Alunos'}
+                  {isImporting ? 'Importando...' : 'Importar Escolas'}
                 </Button>
               </div>
             )}

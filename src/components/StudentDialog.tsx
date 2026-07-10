@@ -15,13 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, User, Phone, Mail, MapPin, GraduationCap, CreditCard, Book, Pen } from 'lucide-react';
+import { Calendar, Phone, Mail, MapPin, GraduationCap, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
-import { GradeEditor } from '@/components/GradeEditor';
-import { MaterialDidaticoCalculator } from '@/components/ui/MaterialDidaticoCalculator';
-import { MonthlyFeeCalculator } from '@/components/ui/MonthlyFeeCalculator';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +26,10 @@ const CARD_CLASS = 'overflow-hidden border border-slate-200 border-l-4 border-l-
 const CTA_CLASS = 'w-full bg-[#ffac1a] text-white hover:bg-[#e89b0f]';
 
 type Student = Tables<'students'> & {
-  classes: Tables<'classes'> & {
+  classes?: (Tables<'classes'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
-  };
+  }) | null;
 };
 
 interface StudentDialogProps {
@@ -215,13 +212,13 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
         <DialogHeader className="space-y-2 border-b border-slate-200 px-6 pb-4 pt-6">
           <div className="flex flex-wrap items-center gap-3">
             <DialogTitle className="flex items-center gap-2 text-xl font-bold text-primary">
-              <User className="h-5 w-5" />
-              <span>Ficha do Aluno — {student.student_name}</span>
+              <Building2 className="h-5 w-5" />
+              <span>Ficha da Escola — {student.student_name}</span>
             </DialogTitle>
             {getStatusBadge(student.status, 'header')}
           </div>
           <DialogDescription className="text-sm text-muted-foreground">
-            Código {student.code} • {student.classes.series.name} • {student.classes.units.name}
+            Código {student.code}{student.inep_code ? ` • INEP: ${student.inep_code}` : ''}{student.city ? ` • ${student.city}` : ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -237,43 +234,21 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
             <Card className={CARD_CLASS}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base text-primary">
-                  <User className="h-4 w-4" />
-                  <span>Dados Pessoais</span>
+                  <Building2 className="h-4 w-4" />
+                  <span>Dados da Escola</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Nome do Aluno</p>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground">Nome da Escola</p>
                     <p className="text-sm font-medium text-foreground">{student.student_name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Responsável</p>
+                    <p className="text-xs text-muted-foreground">Código INEP</p>
                     <p className="text-sm font-medium text-foreground">
-                      {student.responsible_name || <span className="italic text-muted-foreground">Não informado</span>}
+                      {student.inep_code || <span className="italic text-muted-foreground">Não informado</span>}
                     </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Data de Nascimento</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formatDateForDisplay(student.birth_date) || <span className="italic text-muted-foreground">Não informado</span>}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Telefone</p>
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                      <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      {student.phone || <span className="italic text-muted-foreground">Não informado</span>}
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2 sm:col-span-2">
-                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Email</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {student.email || <span className="italic text-muted-foreground">Não informado</span>}
-                      </p>
-                    </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -285,15 +260,26 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Bairro</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {student.neighborhood || <span className="italic text-muted-foreground">Não informado</span>}
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {student.phone || <span className="italic text-muted-foreground">Não informado</span>}
                     </p>
                   </div>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-muted-foreground">Escola de Origem</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {student.origin_school || <span className="italic text-muted-foreground">Não informado</span>}
+                  <div className="flex items-start gap-2">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {student.email || <span className="italic text-muted-foreground">Não informado</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Data do Cadastro</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}
                     </p>
                   </div>
                 </div>
@@ -304,92 +290,32 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <GraduationCap className="h-4 w-4" />
-                  <span>Dados Acadêmicos</span>
+                  <span>Alunos por Segmento</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Série</p>
-                    <p className="text-sm font-medium text-foreground">{student.classes.series.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Unidade</p>
-                    <p className="text-sm font-medium text-foreground">{student.classes.units.name}</p>
-                  </div>
-                  {student.classes?.has_exam && (
-                    <div className="sm:col-span-2">
-                      <GradeEditor student={student} onUpdate={onUpdate} variant="inline" />
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {([
+                    { label: 'Infantil', value: student.infantil_count },
+                    { label: 'Fund. I (EF1)', value: student.ef1_count },
+                    { label: 'Fund. II (EF2)', value: student.ef2_count },
+                    { label: 'Ensino Médio', value: student.medio_count },
+                  ] as { label: string; value: number | null }[]).map(({ label, value }) => (
+                    <div key={label} className="rounded-lg border border-slate-200 bg-muted/40 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="text-xl font-bold text-primary">
+                        {value != null ? value.toLocaleString('pt-BR') : <span className="text-sm font-normal italic text-muted-foreground">—</span>}
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-xs text-muted-foreground">% Desconto</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {student.discount_percentage !== null ? `${student.discount_percentage}%` : '—'}
+                  ))}
+                  <div className="col-span-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-center sm:col-span-3">
+                    <p className="text-xs font-medium text-primary">Total de Alunos</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {student.total_students_count != null
+                        ? student.total_students_count.toLocaleString('pt-BR')
+                        : <span className="text-sm font-normal italic text-muted-foreground">Não informado</span>}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Data da Inscrição</p>
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                      <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      {formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}
-                    </p>
-                  </div>
-                  {student.exam_date && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Data da Prova</p>
-                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.exam_date)}</p>
-                    </div>
-                  )}
-                  {student.interview_date && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Data da Entrevista</p>
-                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.interview_date)}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Financial Data */}
-            <Card className={CARD_CLASS}>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base text-primary">
-                  <Pen className="h-4 w-4" />
-                  <span>Proposta</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Monthly Fee Section */}
-                <div>
-                  <div className="flex items-center space-x-2 mb-3">
-                    <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-900">Mensalidade</span>
-                  </div>
-                  <MonthlyFeeCalculator
-                    originalFee={student.classes.monthly_fee || 0}
-                    discountPercentage={student.discount_percentage || 0}
-                    hasHadInterview={hasHadInterview}
-                    annuity={student.classes.annuity ?? ((student.classes.monthly_fee || 0) * (student.classes.parcelas || 12))}
-                    parcelas={student.classes.parcelas || 12}
-                  />
-                </div>
-
-                {/* Recursos Didáticos Section */}
-                <div>
-                  <div className="flex items-center space-x-2 mb-3">
-                    <Book className="h-4 w-4 text-purple-600" />
-                    <span className="font-medium text-purple-900">Recursos Didáticos</span>
-                  </div>
-                  <MaterialDidaticoCalculator
-                    materialAnual={student.classes.material_didatico_anual || 0}
-                    materialMensal={student.classes.material_didatico_mes || 0}
-                    discountMaterial={student.discount_material || 0}
-                    hasHadInterview={hasHadInterview}
-                    paymentType={(student as any).material_payment_type || null}
-                    installments={(student as any).material_installments || null}
-                    savedInstallmentValue={(student as any).material_parcela || null}
-                  />
                 </div>
               </CardContent>
             </Card>
@@ -409,24 +335,25 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <SelectContent side="bottom">
                       {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="matriculado">Matriculado</SelectItem>
-                          <SelectItem value="desistente">Desistente</SelectItem>
-                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
+                          <SelectItem value="matriculado">Parceria Fechada</SelectItem>
+                          <SelectItem value="desistente">Negociação Perdida</SelectItem>
+                          <SelectItem value="cadastro_invalido">Sem Perfil / Inválido</SelectItem>
                         </>
                       ) : (
                         <>
-                          {student.classes?.has_exam && (
-                            <>
-                              <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                              <SelectItem value="confirmado">Confirmado</SelectItem>
-                            </>
-                          )}
-                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
-                          <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                          <SelectItem value="desistente">Desistente</SelectItem>
+                          <SelectItem value="nao_confirmado">Lead Frio</SelectItem>
+                          <SelectItem value="confirmado">Lead Quente</SelectItem>
+                          <SelectItem value="nenhum_agendamento">Sem Contato</SelectItem>
+                          <SelectItem value="atendimento_agendado">Reunião Agendada</SelectItem>
+                          <SelectItem value="atendimento_recentemente">Proposta Apresentada</SelectItem>
+                          <SelectItem value="atendimento_ha_mais_de_uma_semana">Aguardando Retorno</SelectItem>
+                          <SelectItem value="faltou_ao_atendimento">Reunião Desmarcada</SelectItem>
+                          <SelectItem value="ausente">Sem Resposta</SelectItem>
+                          <SelectItem value="desistente">Negociação Perdida</SelectItem>
                           {canUpdateToMatriculado && (
-                            <SelectItem value="matriculado">Matriculado</SelectItem>
+                            <SelectItem value="matriculado">Parceria Fechada</SelectItem>
                           )}
+                          <SelectItem value="cadastro_invalido">Sem Perfil / Inválido</SelectItem>
                         </>
                       )}
                     </SelectContent>
@@ -531,7 +458,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                 <Textarea
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
-                  placeholder="Adicione um comentário sobre o aluno..."
+                  placeholder="Adicione um comentário sobre a escola..."
                   rows={3}
                 />
                 <Button 

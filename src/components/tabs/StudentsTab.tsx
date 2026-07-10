@@ -33,10 +33,11 @@ import {
 } from '@/utils/studentsListFilters';
 
 type Student = Tables<'students'> & {
-  classes: Tables<'classes'> & {
+  units?: Tables<'units'> | null;
+  classes?: (Tables<'classes'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
-  };
+  }) | null;
   student_phones?: { phone_number: string }[];
 };
 
@@ -258,7 +259,8 @@ export const StudentsTab = () => {
       .from('students')
       .select(`
         *,
-        classes!inner(
+        units(*),
+        classes(
           *,
           units(*),
           series(*)
@@ -476,45 +478,43 @@ export const StudentsTab = () => {
   const exportToExcel = () => {
     const exportData = filteredStudents.map(student => ({
       'Código': student.code,
-      'Nome do Aluno': student.student_name,
-      'Nome do Responsável': student.responsible_name,
-      'CPF do Responsável': student.responsible_cpf ? formatCpf(student.responsible_cpf) : '',
+      'Código INEP': student.inep_code || '',
+      'Nome da Escola': student.student_name,
+      'Contato Principal': student.responsible_name || '',
       'Telefone': student.phone,
-      'Email': student.email,
-      'Série': student.classes?.series?.name || '',
-      'Unidade': student.classes?.units?.name || '',
-      'Status': student.status,
-      'Data da Prova': student.exam_date ? formatDateForDisplay(student.exam_date) : '',
-      'Data da Entrevista': student.interview_date ? formatDateForDisplay(student.interview_date) : '',
-      'Nota Unificada': student.final_grade || '',
-      'Data de Inscrição': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
-      'Horário da Inscrição': formatRegistrationTimeForDisplay(student.created_at),
-      'Tracking Code': student.tracking_code || '',
-      'Percentual de Desconto': student.discount_percentage !== null ? `${student.discount_percentage}%` : '-',
+      'Email': student.email || '',
+      'Cidade': student.city || '',
+      'Qtd Infantil': student.infantil_count || 0,
+      'Qtd EF1': student.ef1_count || 0,
+      'Qtd EF2': student.ef2_count || 0,
+      'Qtd Ensino Médio': student.medio_count || 0,
+      'Total de Alunos': student.total_students_count || 0,
+      'Status': STATUS_LABELS[student.status] || student.status,
+      'Data de Cadastro': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
       'Ano Letivo': student.ano_letivo || '',
       'Tag': student.tag || ''
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
-    XLSX.writeFile(wb, `alunos_${getCurrentDate()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Escolas');
+    XLSX.writeFile(wb, `escolas_${getCurrentDate()}.xlsx`);
   };
 
   const getStatusBadge = (status: string, className?: string) => {
     const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-      'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
-      'confirmado': { label: 'Confirmado', variant: 'secondary' },
-      'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
-      'matriculado': { label: 'Matriculado', variant: 'success' },
-      'desistente': { label: 'Desistente', variant: 'destructive' },
-      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
-      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
-      'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
-      'ausente': { label: 'Ausente', variant: 'ausente' },
-      'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
+      'nao_confirmado': { label: 'Lead Frio', variant: 'outline' },
+      'confirmado': { label: 'Lead Quente', variant: 'secondary' },
+      'cadastro_invalido': { label: 'Sem Perfil / Inválido', variant: 'cadastro_invalido' },
+      'matriculado': { label: 'Parceria Fechada', variant: 'success' },
+      'desistente': { label: 'Negociação Perdida', variant: 'destructive' },
+      'nenhum_agendamento': { label: 'Sem Contato', variant: 'outline' },
+      'atendimento_agendado': { label: 'Reunião Agendada', variant: 'secondary' },
+      'faltou_ao_atendimento': { label: 'Reunião Desmarcada', variant: 'purple' },
+      'atendimento_recentemente': { label: 'Proposta Apresentada', variant: 'default' },
+      'atendimento_ha_mais_de_uma_semana': { label: 'Aguardando Retorno', variant: 'warning' },
+      'ausente': { label: 'Sem Resposta', variant: 'ausente' },
+      'processo_anos_anteriores': { label: 'Contatos Anteriores', variant: 'processo_anos_anteriores' }
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
@@ -735,7 +735,7 @@ export const StudentsTab = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            Filtre e gerencie candidatos do ano letivo selecionado
+            Filtre e gerencie as escolas do ano letivo selecionado
           </p>
         </div>
         <Button onClick={exportToExcel} variant="outline" className="shrink-0 border-primary/25 text-primary hover:bg-primary/5">
@@ -961,8 +961,7 @@ export const StudentsTab = () => {
         <CardContent className="min-w-0 pt-4">
           <div className="min-w-0 space-y-0 lg:hidden divide-y divide-gray-100">
             {currentStudents.map((student) => {
-              const seriesName = student.classes?.series?.name || '-';
-              const unitName = student.classes?.units?.name || '-';
+              const unitName = student.units?.name || student.classes?.units?.name || '-';
 
               return (
                 <div
@@ -982,29 +981,23 @@ export const StudentsTab = () => {
                         {student.student_name}
                       </h3>
                       <p className="text-sm text-gray-600">Código: {student.code}</p>
+                      {student.inep_code && (
+                        <p className="text-xs text-muted-foreground">INEP: {student.inep_code}</p>
+                      )}
                     </div>
 
-                  <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
-                      <p className="break-words">{seriesName}</p>
-                      <p className="break-words">{unitName}</p>
+                    <div className="min-w-0 space-y-0.5 text-sm text-gray-600">
+                      <p className="break-words"><strong>Unidade:</strong> {unitName}</p>
+                      <p className="break-words"><strong>Cidade:</strong> {student.city || '-'}</p>
+                      <p className="break-words"><strong>Total de Alunos:</strong> {student.total_students_count ?? 0}</p>
                     </div>
 
-                    {(student.exam_date || student.interview_date) && (
-                      <div className="min-w-0 space-y-1">
-                        {student.exam_date && (
-                          <p className="flex items-center gap-1 text-sm text-gray-600">
-                            <Calendar className="h-3 w-3 shrink-0" />
-                            <span>Prova: {formatDateForDisplay(student.exam_date)}</span>
-                          </p>
-                        )}
-                        {student.interview_date && (
-                          <p className="flex items-center gap-1 text-xs leading-tight text-blue-600">
-                            <Calendar className="h-2.5 w-2.5 shrink-0" />
-                            <span>Entrevista: {formatDateForDisplay(student.interview_date)}</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                      <div>Infantil: {student.infantil_count ?? 0}</div>
+                      <div>EF1: {student.ef1_count ?? 0}</div>
+                      <div>EF2: {student.ef2_count ?? 0}</div>
+                      <div>Ensino Médio: {student.medio_count ?? 0}</div>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <Button
@@ -1037,25 +1030,28 @@ export const StudentsTab = () => {
           <div className="hidden min-w-0 lg:block [&>div]:overflow-x-hidden">
             <Table className="table-fixed w-full">
               <colgroup>
-                <col className="w-[19%]" />
-                <col className="w-[26%]" />
-                <col className="w-[11%]" />
-                <col className="w-[18%]" />
-                <col className="w-[26%]" />
+                <col className="w-[20%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[22%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Aluno</TableHead>
-                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Unidade / Série</TableHead>
-                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Datas</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Escola</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Unidade</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Cidade</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Segmentos</TableHead>
+                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Total Alunos</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Status</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentStudents.map((student) => {
-                  const seriesName = student.classes?.series?.name || '-';
-                  const unitName = student.classes?.units?.name || '-';
+                  const unitName = student.units?.name || student.classes?.units?.name || '-';
 
                   return (
                     <TableRow key={student.id} className="hover:bg-gray-50/50">
@@ -1063,38 +1059,27 @@ export const StudentsTab = () => {
                         <p className="line-clamp-2 font-medium leading-snug text-gray-900" title={student.student_name}>
                           {student.student_name}
                         </p>
-                        <p className="truncate text-sm text-gray-600">Código: {student.code}</p>
+                        <p className="truncate text-xs text-gray-500">Código: {student.code}</p>
+                        {student.inep_code && (
+                          <p className="truncate text-xs text-muted-foreground">INEP: {student.inep_code}</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top text-sm text-gray-600">
+                        {unitName}
+                      </TableCell>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top text-sm text-gray-600">
+                        {student.city || '-'}
                       </TableCell>
                       <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
-                        <div
-                          className="line-clamp-3 text-sm leading-snug text-gray-600"
-                          title={`${seriesName}\n${unitName}`}
-                        >
-                          <span className="block">{seriesName}</span>
-                          <span className="block">{unitName}</span>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-gray-600">
+                          <span className="truncate">Infantil: {student.infantil_count ?? 0}</span>
+                          <span className="truncate">EF1: {student.ef1_count ?? 0}</span>
+                          <span className="truncate">EF2: {student.ef2_count ?? 0}</span>
+                          <span className="truncate">Médio: {student.medio_count ?? 0}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
-                        <div className="line-clamp-3 space-y-1">
-                          {student.exam_date && (
-                            <p className="flex items-start gap-1 text-xs leading-tight text-gray-600">
-                              <Calendar className="mt-0.5 h-2.5 w-2.5 shrink-0" />
-                              <span>
-                                <span className="block">Prova:</span>
-                                <span className="block">{formatDateForDisplay(student.exam_date)}</span>
-                              </span>
-                            </p>
-                          )}
-                          {student.interview_date && (
-                            <p className="flex items-start gap-1 text-xs leading-tight text-blue-600">
-                              <Calendar className="mt-0.5 h-2.5 w-2.5 shrink-0" />
-                              <span>
-                                <span className="block">Entrevista:</span>
-                                <span className="block">{formatDateForDisplay(student.interview_date)}</span>
-                              </span>
-                            </p>
-                          )}
-                        </div>
+                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top text-sm font-semibold text-gray-900">
+                        {student.total_students_count ?? 0}
                       </TableCell>
                       <TableCell className="min-w-0 overflow-hidden px-1.5 py-3 align-top">
                         {getStatusBadge(
@@ -1103,7 +1088,7 @@ export const StudentsTab = () => {
                         )}
                       </TableCell>
                       <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
-                        <div className="flex min-w-0 items-center gap-1">
+                        <div className="flex min-w-0 flex-col gap-1">
                           <Button
                             variant="outline"
                             size="sm"

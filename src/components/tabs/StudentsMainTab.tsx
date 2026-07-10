@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, UserCheck } from 'lucide-react';
+import { Building2, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StudentsTab } from './StudentsTab';
 import { AssignedContactsTab } from './AssignedContactsTab';
@@ -21,12 +21,12 @@ export const StudentsMainTab = () => {
     <div className="relative -mt-2 min-w-0 w-full max-w-full md:-mt-4 lg:-mt-6">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
-          <Users className="h-5 w-5 text-primary-foreground" />
+          <Building2 className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-primary">Gestão de Inscritos</h2>
+          <h2 className="text-xl font-bold text-primary">Gestão de Escolas</h2>
           <p className="text-sm text-muted-foreground">
-            Visualize e gerencie todos os candidatos cadastrados
+            Visualize e gerencie todas as escolas cadastradas
           </p>
         </div>
       </div>
@@ -44,8 +44,8 @@ export const StudentsMainTab = () => {
               'data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none'
             )}
           >
-            <Users className="h-4 w-4 shrink-0" />
-            <span>Lista de Inscritos</span>
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span>Lista de Escolas</span>
           </TabsTrigger>
           <TabsTrigger
             value="assigned"

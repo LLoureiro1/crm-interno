@@ -20,17 +20,17 @@ export type StudentsListFiltersState = {
 const STORAGE_KEY = 'students_list_filters';
 
 export const STATUS_LABELS: Record<string, string> = {
-  nao_confirmado: 'Não Confirmado',
-  confirmado: 'Confirmado',
-  cadastro_invalido: 'Cadastro Inválido',
-  matriculado: 'Matriculado',
-  desistente: 'Desistente',
-  nenhum_agendamento: 'Nenhum Agendamento',
-  atendimento_agendado: 'Atendimento Agendado',
-  faltou_ao_atendimento: 'Faltou ao Atendimento',
-  atendimento_recentemente: 'Atendimento Recentemente',
-  atendimento_ha_mais_de_uma_semana: 'Atendimento há mais de uma semana',
-  ausente: 'Ausente',
+  nao_confirmado: 'Lead Frio',
+  confirmado: 'Lead Quente',
+  cadastro_invalido: 'Sem Perfil / Inválido',
+  matriculado: 'Parceria Fechada',
+  desistente: 'Negociação Perdida',
+  nenhum_agendamento: 'Sem Contato',
+  atendimento_agendado: 'Reunião Agendada',
+  faltou_ao_atendimento: 'Reunião Desmarcada',
+  atendimento_recentemente: 'Proposta Apresentada',
+  atendimento_ha_mais_de_uma_semana: 'Aguardando Retorno',
+  ausente: 'Sem Resposta',
 };
 
 export const EXAM_DATE_LABELS: Record<string, string> = {

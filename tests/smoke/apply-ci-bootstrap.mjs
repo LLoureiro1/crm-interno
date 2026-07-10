@@ -18,6 +18,7 @@ const bootstrapFiles = [
   'supabase/migrations/20260629140000_smoke_test_password_access.sql',
   'supabase/migrations/20260608150000_fix_engagement_student_emails_only.sql',
   'supabase/migrations/20260609120000_engagement_recency_tiers.sql',
+  'supabase/migrations/20260710000000_transform_to_school_crm.sql',
 ];
 
 const sql = postgres(databaseUrl, { max: 1, idle_timeout: 5 });

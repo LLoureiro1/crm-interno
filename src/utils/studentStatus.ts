@@ -35,18 +35,18 @@ export const STUDENT_STATUS_FUNNEL_EXCLUDED = [
 ] as const;
 
 export const STUDENT_STATUS_LABELS: Record<string, string> = {
-  nao_confirmado: 'Não Confirmado',
-  confirmado: 'Confirmado',
-  cadastro_invalido: 'Cadastro Inválido',
-  nenhum_agendamento: 'Nenhum Agendamento',
-  atendimento_agendado: 'Atendimento Agendado',
-  atendimento_recentemente: 'Atendimento Recente',
-  atendimento_ha_mais_de_uma_semana: 'Atendimento há mais de uma semana',
-  faltou_ao_atendimento: 'Faltou ao Atendimento',
-  ausente: 'Ausente',
-  desistente: 'Desistente',
-  matriculado: 'Matriculado',
-  processo_anos_anteriores: 'Processo Anos Anteriores',
+  nao_confirmado: 'Lead Frio',
+  confirmado: 'Lead Quente',
+  cadastro_invalido: 'Sem Perfil / Inválido',
+  nenhum_agendamento: 'Sem Contato',
+  atendimento_agendado: 'Reunião Agendada',
+  atendimento_recentemente: 'Proposta Apresentada',
+  atendimento_ha_mais_de_uma_semana: 'Aguardando Retorno',
+  faltou_ao_atendimento: 'Reunião Desmarcada',
+  ausente: 'Sem Resposta',
+  desistente: 'Negociação Perdida',
+  matriculado: 'Parceria Fechada',
+  processo_anos_anteriores: 'Contatos Anteriores',
 };
 
 export const STUDENT_STATUS_COLORS: Record<string, string> = {
