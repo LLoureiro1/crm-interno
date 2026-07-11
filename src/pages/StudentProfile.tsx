@@ -97,10 +97,11 @@ function EngagementHeaderWidget({ score }: { score: number | null | undefined })
 }
 
 type Student = Tables<'students'> & {
-  classes: Tables<'classes'> & {
+  units?: Pick<Tables<'units'>, 'id' | 'name'> | null;
+  classes?: (Tables<'classes'> & {
     units: Tables<'units'>;
     series: Tables<'series'>;
-  };
+  }) | null;
 };
 
   type Profile = Tables<'profiles'>;
@@ -457,8 +458,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       fetchContactAttempts(); // Buscar tentativas de contato
       
       // Definir valores atuais como selecionados
-      setSelectedUnitId(student.classes.unit_id);
-      setSelectedSeriesId(student.classes.series_id);
+      setSelectedUnitId(student.classes?.unit_id || student.unit_id || '');
+      setSelectedSeriesId(student.classes?.series_id || '');
       setSelectedClassId(student.class_id);
 
       // Campos de contato (data/hora/status) são automáticos
@@ -491,18 +492,24 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       .from('students')
       .select(`
         *,
-        classes!inner(
+        units(id, name),
+        classes(
           *,
           units(*),
           series(*)
         )
       `)
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching student:', error);
-      toast.error('Erro ao carregar dados do aluno');
+      toast.error('Erro ao carregar dados da escola');
+      return;
+    }
+
+    if (!data) {
+      toast.error('Escola não encontrada');
       return;
     }
 
@@ -1385,7 +1392,14 @@ type ContactAttempt = Tables<'contact_attempts'> & {
               {getStatusBadge(student.status, 'header')}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Código {student.code} • {student.classes.series.name} • {student.classes.units.name}
+              {[
+                student.code ? `Código ${student.code}` : null,
+                student.inep_code ? `INEP ${student.inep_code}` : null,
+                student.city || student.classes?.units?.name || student.units?.name || null,
+                student.classes?.series?.name || null,
+              ]
+                .filter(Boolean)
+                .join(' • ')}
             </p>
           </div>
           <EngagementHeaderWidget score={student.engagement_score} />
@@ -1707,15 +1721,21 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-muted-foreground">Série</p>
-                    <p className="text-sm font-medium text-foreground">{student.classes.series.name}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.classes?.series?.name || '—'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Unidade</p>
-                    <p className="text-sm font-medium text-foreground">{student.classes.units.name}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.classes?.units?.name || student.units?.name || '—'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Turma</p>
-                    <p className="text-sm font-medium text-foreground">{student.classes.name}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.classes?.name || '—'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Data da Inscrição</p>
@@ -2050,6 +2070,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                   </div>
                 )}
                 {/* Monthly Fee Section */}
+                {student.classes && (
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
                     <CreditCard className="h-4 w-4 text-blue-600" />
@@ -2069,8 +2090,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     parcelas={student.classes.parcelas || 12}
                   />
                 </div>
+                )}
 
                 {/* Recursos Didáticos Section */}
+                {student.classes && (
                 <div>
                   <div className="flex items-center space-x-2 mb-3">
                     <BookOpen className="h-4 w-4 text-purple-600" />
@@ -2086,6 +2109,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     savedInstallmentValue={(student as any).material_parcela || null}
                   />
                 </div>
+                )}
               </CardContent>
             </Card>
           </section>
@@ -2674,11 +2698,11 @@ type ContactAttempt = Tables<'contact_attempts'> & {
         </div>
 
         {/* Modal de Resumo da Proposta */}
-        {hasHadInterview && (
+        {hasHadInterview && student.classes && (
           <ProposalSummaryModal
             open={showProposalModal}
             onOpenChange={setShowProposalModal}
-            student={student}
+            student={student as any}
           />
         )}
 

@@ -520,11 +520,11 @@ export const StudentsTab = () => {
       attendedByFilter,
       currentPage,
     });
-    navigate(`/student/${studentId}`);
+    navigate(`/school/${studentId}`);
   };
 
   const handleOpenStudentPageInNewTab = (studentId: string) => {
-    const url = `/student/${studentId}`;
+    const url = `/school/${studentId}`;
     window.open(url, '_blank');
   };
 

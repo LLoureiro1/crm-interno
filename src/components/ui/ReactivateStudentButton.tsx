@@ -126,6 +126,11 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
         return;
       }
 
+      if (!student.classes?.series_id || !student.classes?.unit_id) {
+        toast.error('Escola sem turma vinculada. Ajuste a turma manualmente.');
+        return;
+      }
+
       // Buscar série/turma de destino baseada na diferença de anos
       const targetSeriesData = await findTargetSeries(student.classes.series_id, student.classes.unit_id, yearsDifference);
       
@@ -204,9 +209,9 @@ export const ReactivateStudentButton: React.FC<ReactivateStudentButtonProps> = (
   console.log('🔢 Comparação (ano_letivo < ano_atual):', Number(student.ano_letivo), '<', currentAcademicYear, '=', Number(student.ano_letivo) < currentAcademicYear);
   console.log('✅ Deve mostrar botão:', shouldShowButton);
   console.log('👤 Nome do aluno:', student.student_name);
-  console.log('🏫 Série atual:', student.classes.series.name);
-  console.log('🔢 Ordenação da série atual:', student.classes.series.ordenar);
-  console.log('🎯 Ordenação da série de destino:', student.classes.series.ordenar + yearsDifference);
+  console.log('🏫 Série atual:', student.classes?.series?.name);
+  console.log('🔢 Ordenação da série atual:', student.classes?.series?.ordenar);
+  console.log('🎯 Ordenação da série de destino:', (student.classes?.series?.ordenar ?? 0) + yearsDifference);
   console.log('═══════════════════════════════════════');
 
   if (!shouldShowButton) {

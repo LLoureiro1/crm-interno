@@ -61,6 +61,7 @@ const App = () => (
                   <Route path="/inscricao/:unitSlug" element={<Registration />} />
                   <Route path="/inscricao" element={<Registration />} />
                   <Route path="/privacidade" element={<PrivacyPolicy />} />
+                  <Route path="/school/:id" element={<StudentProfile />} />
                   <Route path="/student/:id" element={<StudentProfile />} />
                   <Route path="/set-password" element={<SetPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />

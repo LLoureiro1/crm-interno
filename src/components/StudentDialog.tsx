@@ -207,7 +207,7 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
     };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="max-w-4xl max-h-[90vh] gap-0 overflow-y-auto p-0 sm:rounded-lg">
         <DialogHeader className="space-y-2 border-b border-slate-200 px-6 pb-4 pt-6">
           <div className="flex flex-wrap items-center gap-3">
