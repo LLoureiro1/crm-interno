@@ -1079,7 +1079,7 @@ export type Database = {
           final_grade: number | null
           neighborhood: string | null
           origin_school: string | null
-          phone: string
+          phone: string | null
           portuguese_grade: number | null
           responsible_name: string | null
           responsible_cpf: string | null
@@ -1098,6 +1098,8 @@ export type Database = {
           ef2_count: number | null
           medio_count: number | null
           total_students_count: number | null
+          estado: string | null
+          city_code: string | null
         }
         Insert: {
           birth_date?: string | null
@@ -1125,7 +1127,7 @@ export type Database = {
           final_grade?: number | null
           neighborhood?: string | null
           origin_school?: string | null
-          phone: string
+          phone?: string | null
           portuguese_grade?: number | null
           responsible_name?: string | null
           responsible_cpf?: string | null
@@ -1144,6 +1146,8 @@ export type Database = {
           ef2_count?: number | null
           medio_count?: number | null
           total_students_count?: number | null
+          estado?: string | null
+          city_code?: string | null
         }
         Update: {
           birth_date?: string | null
@@ -1171,7 +1175,7 @@ export type Database = {
           final_grade?: number | null
           neighborhood?: string | null
           origin_school?: string | null
-          phone?: string
+          phone?: string | null
           portuguese_grade?: number | null
           responsible_name?: string | null
           responsible_cpf?: string | null
@@ -1190,6 +1194,8 @@ export type Database = {
           ef2_count?: number | null
           medio_count?: number | null
           total_students_count?: number | null
+          estado?: string | null
+          city_code?: string | null
         }
         Relationships: [
           {

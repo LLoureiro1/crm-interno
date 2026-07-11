@@ -6,28 +6,43 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Upload, Download, AlertCircle, CheckCircle, X, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import type { Tables } from '@/integrations/supabase/types';
+import { useAuth } from '@/hooks/useAuth';
+
+/** Cabeçalhos exatos da planilha modelo */
+const TEMPLATE_HEADERS = [
+  'estado',
+  'código da cidade',
+  'cidade',
+  'nome da instituição',
+  'código da instituição',
+  'infantil_count',
+  'ef1_count',
+  'ef2_count',
+  'medio_count',
+  'total_students_count',
+  'telefone',
+  'email',
+] as const;
+
+type TemplateHeader = (typeof TEMPLATE_HEADERS)[number];
 
 interface ImportData {
+  estado: string;
+  city_code: string;
+  city: string;
   student_name: string;
   inep_code: string;
-  email: string;
-  phone: string;
-  city: string;
-  status: string;
-  tag: string;
-  ano_letivo: string;
-  unidade: string;
   infantil_count: string;
   ef1_count: string;
   ef2_count: string;
   medio_count: string;
   total_students_count: string;
+  phone: string;
+  email: string;
 }
 
 interface ValidationError {
@@ -41,7 +56,41 @@ interface MappedData extends ImportData {
   errors?: string[];
 }
 
+const normalizeHeader = (header: string) =>
+  header
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+/** Mapeia cabeçalho da planilha → campo interno */
+const HEADER_TO_FIELD: Record<string, keyof ImportData> = {
+  estado: 'estado',
+  'codigo da cidade': 'city_code',
+  cidade: 'city',
+  'nome da instituicao': 'student_name',
+  'codigo da instituicao': 'inep_code',
+  infantil_count: 'infantil_count',
+  ef1_count: 'ef1_count',
+  ef2_count: 'ef2_count',
+  medio_count: 'medio_count',
+  total_students_count: 'total_students_count',
+  telefone: 'phone',
+  email: 'email',
+};
+
+const REQUIRED_HEADERS: TemplateHeader[] = [
+  'nome da instituição',
+  'código da instituição',
+];
+
+const parseCount = (val: string | undefined) => {
+  const n = parseInt(String(val ?? '').replace(/\D/g, ''), 10);
+  return Number.isNaN(n) ? null : n;
+};
+
 export const StudentImport = () => {
+  const { profile } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [importData, setImportData] = useState<ImportData[]>([]);
   const [mappedData, setMappedData] = useState<MappedData[]>([]);
@@ -49,98 +98,8 @@ export const StudentImport = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [units, setUnits] = useState<Tables<'units'>[]>([]);
-  const [classes, setClasses] = useState<(Tables<'classes'> & { units: Tables<'units'> })[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Campos obrigatórios
-  const requiredFields = [
-    'student_name',
-    'status',
-    'ano_letivo',
-    'unidade',
-  ];
-
-  // Campos reconhecidos (incluindo opcionais)
-  const recognizedFields = [
-    'student_name',
-    'inep_code',
-    'email',
-    'phone',
-    'city',
-    'status',
-    'tag',
-    'ano_letivo',
-    'unidade',
-    'infantil_count',
-    'ef1_count',
-    'ef2_count',
-    'medio_count',
-    'total_students_count',
-  ];
-
-  // Status válidos
-  const validStatuses = [
-    'nao_confirmado',
-    'confirmado',
-    'cadastro_invalido',
-    'nenhum_agendamento',
-    'atendimento_agendado',
-    'atendimento_recentemente',
-    'atendimento_ha_mais_de_uma_semana',
-    'faltou_ao_atendimento',
-    'desistente',
-    'matriculado',
-    'ausente',
-    'processo_anos_anteriores'
-  ];
-
-  const loadReferenceData = async () => {
-    try {
-      console.log('🔄 Carregando dados de referência...');
-      
-      // Carregar unidades
-      const { data: unitsData, error: unitsError } = await supabase.from('units').select('*');
-      if (unitsError) {
-        console.error('❌ Erro ao carregar unidades:', unitsError);
-        toast.error('Erro ao carregar unidades');
-        return { units: [], classes: [] };
-      }
-      
-      console.log('✅ Unidades carregadas:', unitsData?.map(u => ({ id: u.id, name: u.name })));
-      setUnits(unitsData || []);
-
-      // Carregar turmas com unidades
-      const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select(`
-          *,
-          units(*)
-        `);
-      if (classesError) {
-        console.error('❌ Erro ao carregar turmas:', classesError);
-        toast.error('Erro ao carregar turmas');
-        return { units: unitsData || [], classes: [] };
-      }
-      
-      console.log('✅ Turmas carregadas:', classesData?.map(c => ({ 
-        id: c.id, 
-        name: c.name, 
-        unit_id: c.unit_id,
-        unit_name: c.units?.name 
-      })));
-      setClasses(classesData || []);
-      
-      // Retornar os dados diretamente para uso na validação
-      return { units: unitsData || [], classes: classesData || [] };
-      
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados de referência:', error);
-      toast.error('Erro ao carregar dados de referência');
-      return { units: [], classes: [] };
-    }
-  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
@@ -161,74 +120,39 @@ export const StudentImport = () => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
 
         if (jsonData.length < 2) {
           toast.error('A planilha deve ter pelo menos um cabeçalho e uma linha de dados');
           return;
         }
 
-        const headers = jsonData[0] as string[];
-        const rows = jsonData.slice(1) as any[][];
+        const headers = (jsonData[0] as string[]).map((h) => String(h ?? ''));
+        const normalizedHeaders = headers.map(normalizeHeader);
 
-        console.log('📋 Cabeçalhos encontrados:', headers);
-
-        // Verificar se todos os campos obrigatórios estão presentes
-        const missingFields = requiredFields.filter(field => 
-          !headers.some(header => header?.toLowerCase().trim() === field)
+        const missing = REQUIRED_HEADERS.filter(
+          (req) => !normalizedHeaders.includes(normalizeHeader(req)),
         );
-
-        if (missingFields.length > 0) {
-          toast.error(`Campos obrigatórios ausentes: ${missingFields.join(', ')}`);
+        if (missing.length > 0) {
+          toast.error(`Campos obrigatórios ausentes: ${missing.join(', ')}`);
           return;
         }
 
-        // Função para converter data do Excel para formato ISO
-        const convertExcelDate = (excelValue: any): string => {
-          if (!excelValue) return '';
-          
-          // Se já é uma string no formato de data, retornar como está
-          if (typeof excelValue === 'string') {
-            // Verificar se é um número de série do Excel (ex: "40445")
-            if (/^\d+$/.test(excelValue)) {
-              const excelDate = parseInt(excelValue);
-              const date = new Date((excelDate - 25569) * 86400 * 1000);
-              return date.toISOString().split('T')[0];
-            }
-            return excelValue;
-          }
-          
-          // Se é um número (número de série do Excel)
-          if (typeof excelValue === 'number') {
-            const date = new Date((excelValue - 25569) * 86400 * 1000);
-            return date.toISOString().split('T')[0];
-          }
-          
-          return String(excelValue);
-        };
-
-        // Converter dados para o formato esperado
-        const parsedData: ImportData[] = rows.map((row, index) => {
-          const rowData: any = {};
-          headers.forEach((header, colIndex) => {
-            const fieldName = header?.toLowerCase().trim();
-            if (recognizedFields.includes(fieldName)) {
-              let value = row[colIndex] || '';
-              
-              // Converter data de nascimento se necessário
-              if (fieldName === 'birth_date') {
-                value = convertExcelDate(value);
+        const parsedData: ImportData[] = (jsonData.slice(1) as unknown[][])
+          .map((row) => {
+            const rowData: Partial<ImportData> = {};
+            headers.forEach((header, colIndex) => {
+              const field = HEADER_TO_FIELD[normalizeHeader(header)];
+              if (field) {
+                const raw = row[colIndex];
+                rowData[field] = raw == null || raw === '' ? '' : String(raw).trim();
               }
-              
-              rowData[fieldName] = value;
-            }
-          });
-          return rowData as ImportData;
-        }).filter(row => row.student_name); // Filtrar linhas vazias
+            });
+            return rowData as ImportData;
+          })
+          .filter((row) => row.student_name);
 
-        console.log('📊 Dados parseados:', parsedData);
         setImportData(parsedData);
         toast.success(`${parsedData.length} registros carregados da planilha`);
       } catch (error) {
@@ -249,87 +173,40 @@ export const StudentImport = () => {
     setValidationErrors([]);
 
     try {
-      // Carregar dados de referência e usar diretamente na validação
-      const { units: loadedUnits, classes: loadedClasses } = await loadReferenceData();
-      
+      let unitId = profile?.unit_id ?? null;
+      if (!unitId) {
+        const { data: unitsData } = await supabase.from('units').select('id').order('name').limit(1);
+        unitId = unitsData?.[0]?.id ?? null;
+      }
+      if (!unitId) {
+        toast.error('Nenhuma unidade cadastrada. Cadastre uma unidade antes de importar.');
+        return;
+      }
+
       const errors: ValidationError[] = [];
       const mapped: MappedData[] = [];
-
-      console.log('🔍 Iniciando validação...');
-      console.log('📚 Unidades disponíveis:', loadedUnits.map(u => u.name));
-      console.log('🏫 Turmas disponíveis:', loadedClasses.map(c => `${c.name} (${c.units?.name})`));
 
       for (let i = 0; i < importData.length; i++) {
         const row = importData[i];
         const rowErrors: string[] = [];
-        const rowNumber = i + 2; // +2 porque a planilha começa na linha 1 e pula o cabeçalho
+        const rowNumber = i + 2;
 
-        console.log(`🔍 Validando linha ${rowNumber}:`, row);
-
-        // Validar campos obrigatórios
-        requiredFields.forEach(field => {
-          if (!row[field as keyof ImportData] || String(row[field as keyof ImportData]).trim() === '') {
-            errors.push({
-              row: rowNumber,
-              field,
-              message: `${field} é obrigatório`
-            });
-            rowErrors.push(`${field} é obrigatório`);
-          }
-        });
-
-        // Validação especial para tag (opcional)
-        if (row.tag && String(row.tag).trim() === '') {
-          // Se tag estiver presente mas vazia, definir como undefined
-          row.tag = undefined;
+        if (!row.student_name?.trim()) {
+          errors.push({ row: rowNumber, field: 'nome da instituição', message: 'nome da instituição é obrigatório' });
+          rowErrors.push('nome da instituição é obrigatório');
         }
 
-        // Validar email
+        if (!row.inep_code?.trim()) {
+          errors.push({ row: rowNumber, field: 'código da instituição', message: 'código da instituição é obrigatório' });
+          rowErrors.push('código da instituição é obrigatório');
+        }
+
         if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
-          errors.push({
-            row: rowNumber,
-            field: 'email',
-            message: 'Email inválido'
-          });
+          errors.push({ row: rowNumber, field: 'email', message: 'Email inválido' });
           rowErrors.push('Email inválido');
         }
 
-        // Validar status
-        if (row.status && !validStatuses.includes(row.status)) {
-          errors.push({
-            row: rowNumber,
-            field: 'status',
-            message: `Status inválido. Valores aceitos: ${validStatuses.join(', ')}`
-          });
-          rowErrors.push(`Status inválido: ${row.status}`);
-        }
-
-        // Remover validação de birth_date — escolas não têm data de nascimento
-
-        // Mapear unidade - usando dados carregados diretamente
-        console.log(`🔍 Buscando unidade: "${row.unidade}"`);
-        const unit = loadedUnits.find(u => {
-          const match = u.name.toLowerCase().trim() === String(row.unidade || '').toLowerCase().trim();
-          return match;
-        });
-        
-        if (row.unidade && !unit) {
-          console.log(`❌ Unidade "${row.unidade}" não encontrada`);
-          errors.push({
-            row: rowNumber,
-            field: 'unidade',
-            message: `Unidade "${row.unidade}" não encontrada. Unidades disponíveis: ${loadedUnits.map(u => u.name).join(', ')}`
-          });
-          rowErrors.push(`Unidade "${row.unidade}" não encontrada`);
-        } else if (unit) {
-          console.log(`✅ Unidade encontrada:`, unit);
-        }
-
-        mapped.push({
-          ...row,
-          unit_id: unit?.id,
-          errors: rowErrors
-        });
+        mapped.push({ ...row, unit_id: unitId, errors: rowErrors });
       }
 
       setMappedData(mapped);
@@ -359,36 +236,31 @@ export const StudentImport = () => {
     setImportProgress(0);
 
     try {
-      const validData = mappedData.filter(item => !item.errors || item.errors.length === 0);
+      const validData = mappedData.filter((item) => !item.errors || item.errors.length === 0);
       let successCount = 0;
       let errorCount = 0;
 
       for (let i = 0; i < validData.length; i++) {
         const item = validData[i];
-        
-         try {
-           const parseCount = (val: string | undefined) => {
-             const n = parseInt(String(val || ''), 10);
-             return isNaN(n) ? null : n;
-           };
-           const { error } = await supabase
-             .from('students')
-             .insert({
-               student_name: item.student_name,
-               inep_code: item.inep_code || null,
-               email: item.email || null,
-               phone: item.phone || null,
-               city: item.city || null,
-               status: item.status as any,
-               tag: item.tag || null,
-               ano_letivo: item.ano_letivo,
-               unit_id: item.unit_id,
-               infantil_count: parseCount(item.infantil_count),
-               ef1_count: parseCount(item.ef1_count),
-               ef2_count: parseCount(item.ef2_count),
-               medio_count: parseCount(item.medio_count),
-               total_students_count: parseCount(item.total_students_count),
-             });
+
+        try {
+          const { error } = await supabase.from('students').insert({
+            student_name: item.student_name,
+            inep_code: item.inep_code || null,
+            estado: item.estado || null,
+            city_code: item.city_code || null,
+            city: item.city || null,
+            email: item.email || null,
+            phone: item.phone || null,
+            infantil_count: parseCount(item.infantil_count),
+            ef1_count: parseCount(item.ef1_count),
+            ef2_count: parseCount(item.ef2_count),
+            medio_count: parseCount(item.medio_count),
+            total_students_count: parseCount(item.total_students_count),
+            status: 'nao_confirmado',
+            unit_id: item.unit_id!,
+            ano_letivo: String(new Date().getFullYear()),
+          });
 
           if (error) {
             console.error(`Erro ao inserir escola ${item.student_name}:`, error);
@@ -404,22 +276,10 @@ export const StudentImport = () => {
         setImportProgress(((i + 1) / validData.length) * 100);
       }
 
-      if (successCount > 0) {
-        toast.success(`${successCount} escola(s) importada(s) com sucesso!`);
-      }
-      if (errorCount > 0) {
-        toast.error(`${errorCount} escola(s) falharam na importação`);
-      }
+      if (successCount > 0) toast.success(`${successCount} escola(s) importada(s) com sucesso!`);
+      if (errorCount > 0) toast.error(`${errorCount} escola(s) falharam na importação`);
 
-      // Limpar dados após importação
-      setImportData([]);
-      setMappedData([]);
-      setValidationErrors([]);
-      setShowPreview(false);
-      setFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      resetImport();
     } catch (error) {
       console.error('Erro durante a importação:', error);
       toast.error('Erro durante a importação');
@@ -432,24 +292,22 @@ export const StudentImport = () => {
   const downloadTemplate = () => {
     const templateData = [
       {
-        student_name: 'Escola Municipal Exemplo',
-        inep_code: '12345678',
-        email: 'contato@escola.edu.br',
-        phone: '(11) 3333-4444',
-        city: 'São Paulo',
-        status: 'nao_confirmado',
-        tag: 'Prospecto 2025',
-        ano_letivo: '2025',
-        unidade: 'Central',
+        estado: 'SP',
+        'código da cidade': '3550308',
+        cidade: 'São Paulo',
+        'nome da instituição': 'Escola Municipal Exemplo',
+        'código da instituição': '12345678',
         infantil_count: 80,
         ef1_count: 200,
         ef2_count: 180,
         medio_count: 120,
         total_students_count: 580,
-      }
+        telefone: '(11) 3333-4444',
+        email: 'contato@escola.edu.br',
+      },
     ];
 
-    const ws = XLSX.utils.json_to_sheet(templateData);
+    const ws = XLSX.utils.json_to_sheet(templateData, { header: [...TEMPLATE_HEADERS] });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Escolas');
     XLSX.writeFile(wb, 'template_importacao_escolas.xlsx');
@@ -461,9 +319,7 @@ export const StudentImport = () => {
     setValidationErrors([]);
     setShowPreview(false);
     setFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -479,7 +335,6 @@ export const StudentImport = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Download do template */}
           <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50">
             <div>
               <h4 className="font-medium">Template de Importação</h4>
@@ -493,7 +348,6 @@ export const StudentImport = () => {
             </Button>
           </div>
 
-          {/* Upload do arquivo */}
           <div className="space-y-2">
             <Label htmlFor="file-upload">Arquivo Excel (.xlsx ou .xls)</Label>
             <div className="flex items-center space-x-4">
@@ -513,34 +367,23 @@ export const StudentImport = () => {
                 <Upload className="h-4 w-4 mr-2" />
                 Escolher Arquivo
               </Button>
-              {file && (
-                <span className="text-sm text-gray-600">
-                  {file.name}
-                </span>
-              )}
+              {file && <span className="text-sm text-gray-600">{file.name}</span>}
             </div>
           </div>
 
-          {/* Campos obrigatórios */}
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Campos obrigatórios:</strong> student_name (Nome da escola), status, ano_letivo, unidade.
+              <strong>Obrigatórios:</strong> nome da instituição, código da instituição.
               <br />
-              <strong>Campos opcionais:</strong> inep_code (Código INEP), email, phone (telefone), city (cidade), tag, infantil_count, ef1_count, ef2_count, medio_count, total_students_count.
+              <strong>Colunas:</strong> {TEMPLATE_HEADERS.join(', ')}.
               <br />
-              <strong>Atenção:</strong> O campo <em>unidade</em> deve corresponder exatamente ao nome da unidade cadastrada no sistema.
-              <br />
-              <p>Após fazer o upload do arquivo, clique em "Validar Dados" para verificar se os dados estão corretos.</p>
+              Escolas entram com status Lead Frio na unidade do usuário logado.
             </AlertDescription>
           </Alert>
 
-          {/* Ações */}
           <div className="flex gap-2">
-            <Button 
-              onClick={validateAndMapData} 
-              disabled={importData.length === 0 || isValidating}
-            >
+            <Button onClick={validateAndMapData} disabled={importData.length === 0 || isValidating}>
               {isValidating ? 'Validando...' : 'Validar Dados'}
             </Button>
             <Button onClick={resetImport} variant="outline">
@@ -548,7 +391,6 @@ export const StudentImport = () => {
             </Button>
           </div>
 
-          {/* Progresso da importação */}
           {isImporting && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
@@ -561,20 +403,17 @@ export const StudentImport = () => {
         </CardContent>
       </Card>
 
-      {/* Preview dos dados */}
       {showPreview && (
         <Card>
           <CardHeader>
             <CardTitle>Preview dos Dados</CardTitle>
             <CardDescription>
-              {validationErrors.length === 0 
+              {validationErrors.length === 0
                 ? 'Todos os dados estão válidos e prontos para importação'
-                : `${validationErrors.length} erro(s) encontrado(s)`
-              }
+                : `${validationErrors.length} erro(s) encontrado(s)`}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Resumo */}
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center p-3 bg-gray-50 rounded">
                 <div className="text-2xl font-bold">{mappedData.length}</div>
@@ -582,7 +421,7 @@ export const StudentImport = () => {
               </div>
               <div className="text-center p-3 bg-green-50 rounded">
                 <div className="text-2xl font-bold text-green-600">
-                  {mappedData.filter(item => !item.errors || item.errors.length === 0).length}
+                  {mappedData.filter((item) => !item.errors || item.errors.length === 0).length}
                 </div>
                 <div className="text-sm text-gray-600">Válidos</div>
               </div>
@@ -592,21 +431,19 @@ export const StudentImport = () => {
               </div>
             </div>
 
-            {/* Tabela de preview */}
             <div className="max-h-96 overflow-auto">
               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>Linha</TableHead>
-                     <TableHead>Nome da Escola</TableHead>
-                     <TableHead>INEP</TableHead>
-                     <TableHead>Cidade</TableHead>
-                     <TableHead>Unidade</TableHead>
-                     <TableHead>Status</TableHead>
-                     <TableHead>Total Alunos</TableHead>
-                     <TableHead>Validação</TableHead>
-                   </TableRow>
-                 </TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Linha</TableHead>
+                    <TableHead>Instituição</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Cidade</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Total Alunos</TableHead>
+                    <TableHead>Validação</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {mappedData.map((item, index) => (
                     <TableRow key={index}>
@@ -614,10 +451,7 @@ export const StudentImport = () => {
                       <TableCell>{item.student_name}</TableCell>
                       <TableCell>{item.inep_code || '—'}</TableCell>
                       <TableCell>{item.city || '—'}</TableCell>
-                      <TableCell>{item.unidade}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.status}</Badge>
-                      </TableCell>
+                      <TableCell>{item.estado || '—'}</TableCell>
                       <TableCell>{item.total_students_count || '—'}</TableCell>
                       <TableCell>
                         {item.errors && item.errors.length > 0 ? (
@@ -638,7 +472,6 @@ export const StudentImport = () => {
               </Table>
             </div>
 
-            {/* Erros detalhados */}
             {validationErrors.length > 0 && (
               <div className="mt-4">
                 <h4 className="font-medium mb-2">Erros Encontrados:</h4>
@@ -652,11 +485,10 @@ export const StudentImport = () => {
               </div>
             )}
 
-            {/* Botão de importação */}
             {validationErrors.length === 0 && (
               <div className="mt-4 flex justify-end">
-                <Button 
-                  onClick={executeImport} 
+                <Button
+                  onClick={executeImport}
                   disabled={isImporting}
                   className="bg-green-600 hover:bg-green-700"
                 >
