@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useUnitAccess } from '@/hooks/useUnitAccess';
 import { getSegmentLabel, sortSegments } from '@/utils/educationLevel';
-import { ENGAGEMENT_WEIGHTS, matchesScoreTierFilter } from '@/utils/engagementScore';
+import { ENGAGEMENT_WEIGHTS } from '@/utils/engagementScore';
 import {
   buildFilterChips,
   getCurrentAcademicYear,
@@ -91,13 +91,25 @@ export const StudentsTab = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(() =>
     cachedFilters ? hasAdvancedFiltersActive(cachedFilters) : false
   );
+  const [totalCount, setTotalCount] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
+  const [yearsReady, setYearsReady] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(cachedFilters?.currentPage ?? 1);
   const itemsPerPage = 50;
 
   useEffect(() => {
-    fetchStudents();
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchTerm]);
+
+  useEffect(() => {
     fetchUnits();
     fetchSeries();
     fetchExamDates();
@@ -106,15 +118,27 @@ export const StudentsTab = () => {
   }, [fullAccess, allowedUnitIds, profile?.unit_id]);
 
   useEffect(() => {
-    filterStudents();
-  }, [students, searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter, contactCounts, attendedByMap]);
+    if (!yearsReady) return;
+    void fetchStudentsPage();
+  }, [
+    yearsReady,
+    currentPage,
+    debouncedSearch,
+    statusFilter,
+    unitFilter,
+    academicYearFilter,
+    sortOrder,
+    emptyEmailFilter,
+    engagementTierFilter,
+    fullAccess,
+    allowedUnitIds,
+    profile?.unit_id,
+  ]);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [filteredStudents.length, currentPage, itemsPerPage]);
+    const pages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+    if (currentPage > pages) setCurrentPage(pages);
+  }, [totalCount, currentPage, itemsPerPage]);
 
   useEffect(() => {
     if (skipPageResetRef.current) {
@@ -122,7 +146,7 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter]);
+  }, [debouncedSearch, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
@@ -254,33 +278,50 @@ export const StudentsTab = () => {
     }
   };
 
-  const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select(`
-        *,
-        units(*),
-        classes(
-          *,
-          units(*),
-          series(*)
-        ),
-        student_phones(
-          phone_number
-        )
-      `)
-      .order('created_at', { ascending: false });
-  
-    if (error) {
-      console.error('Error fetching students:', error);
-      return;
-    }
-  
-    const list = (data as Student[]) || [];
-    setStudents(list);
-    const ids = list.map(s => s.id).filter(Boolean);
-    void fetchAttendedByMap(ids);
+  const fetchStudentsPage = async () => {
+    setListLoading(true);
+    const from = (currentPage - 1) * itemsPerPage;
+
     try {
+      const years = (academicYearFilter.length > 0
+        ? academicYearFilter
+        : defaultAcademicYear.length > 0
+          ? defaultAcademicYear
+          : [getCurrentAcademicYear()]
+      )
+        .map(Number)
+        .filter((n) => !Number.isNaN(n));
+
+      const { data, error } = await supabase.rpc('list_schools_page', {
+        p_limit: itemsPerPage,
+        p_offset: from,
+        p_ano_letivo: years.length > 0 ? years : null,
+        p_statuses: statusFilter.length > 0 ? statusFilter : null,
+        p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
+        p_unit_ids: unitFilter.length > 0 ? unitFilter : null,
+        p_search: debouncedSearch.trim() || null,
+        p_sort_asc: sortOrder === 'asc',
+        p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
+      });
+
+      if (error) {
+        console.error('Error fetching students:', error);
+        toast.error(`Erro ao carregar escolas: ${error.message}`);
+        setStudents([]);
+        setFilteredStudents([]);
+        setTotalCount(0);
+        return;
+      }
+
+      const payload = data as { items?: Student[]; total?: number } | null;
+      const list = (payload?.items || []) as Student[];
+      setStudents(list);
+      setFilteredStudents(list);
+      setTotalCount(Number(payload?.total ?? 0));
+
+      const ids = list.map((s) => s.id).filter(Boolean);
+      void fetchAttendedByMap(ids);
+
       if (ids.length === 0) {
         setContactCounts({});
       } else {
@@ -289,20 +330,20 @@ export const StudentsTab = () => {
           .select('student_id')
           .in('student_id', ids);
         if (attemptsError) {
-          console.error('Erro ao buscar tentativas de contato:', attemptsError);
           setContactCounts({});
         } else {
           const counts: Record<string, number> = {};
-          (attempts || []).forEach((a: any) => {
-            const id = a.student_id;
-            counts[id] = (counts[id] || 0) + 1;
+          (attempts || []).forEach((a: { student_id: string }) => {
+            counts[a.student_id] = (counts[a.student_id] || 0) + 1;
           });
           setContactCounts(counts);
         }
       }
     } catch (e) {
-      console.error('Erro ao calcular contagem de tentativas:', e);
-      setContactCounts({});
+      console.error('Erro ao carregar escolas:', e);
+      toast.error('Erro ao carregar escolas');
+    } finally {
+      setListLoading(false);
     }
   };
 
@@ -322,29 +363,34 @@ export const StudentsTab = () => {
   };
 
   const fetchAvailableAcademicYears = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('ano_letivo')
-      .not('ano_letivo', 'is', null)
-      .order('ano_letivo', { ascending: false });
+    try {
+      const current = Number(getCurrentAcademicYear());
+      // Não varre a tabela (timeout em ~38k linhas): usa janela de anos locais
+      const resolved = [current + 1, current, current - 1, current - 2]
+        .filter((y, i, arr) => arr.indexOf(y) === i && y > 2000)
+        .map(String);
 
-    if (error) {
-      console.error('Error fetching academic years:', error);
-      return;
-    }
+      setAvailableAcademicYears(resolved);
 
-    const years = Array.from(new Set(data.map(item => item.ano_letivo))).filter(Boolean) as string[];
-    setAvailableAcademicYears(years);
+      const defaultYear = getDefaultAcademicYearFilter(resolved);
+      setDefaultAcademicYear(defaultYear);
 
-    const defaultYear = getDefaultAcademicYearFilter(years);
-    setDefaultAcademicYear(defaultYear);
+      const cachedYears = cachedFiltersRef.current?.academicYearFilter ?? [];
+      const validCached = cachedYears.filter((y) => resolved.includes(y));
 
-    if (cachedFiltersRef.current?.academicYearFilter?.length) {
-      return;
-    }
-
-    if (defaultYear.length > 0) {
-      setAcademicYearFilter(defaultYear);
+      if (validCached.length > 0) {
+        setAcademicYearFilter(validCached);
+      } else if (defaultYear.length > 0) {
+        setAcademicYearFilter(defaultYear);
+      }
+    } catch (e) {
+      console.error('Error fetching academic years:', e);
+      const fallback = [getCurrentAcademicYear()];
+      setAvailableAcademicYears(fallback);
+      setDefaultAcademicYear(fallback);
+      setAcademicYearFilter(fallback);
+    } finally {
+      setYearsReady(true);
     }
   };
 
@@ -360,145 +406,72 @@ export const StudentsTab = () => {
     if (data) setExamDates(data as ExamDate[]);
   };
 
-  const filterStudents = () => {
-    let filtered = students;
+  const exportToExcel = async () => {
+    toast.info('Exportando escolas filtradas...');
+    const exportRows: Student[] = [];
+    const pageSize = 100;
+    const maxRows = 5000;
 
-    // Excluir "Cadastro Inválido" por padrão, a menos que esteja explicitamente selecionado
-    const includeInvalid = statusFilter.includes('cadastro_invalido');
-    if (!includeInvalid) {
-      filtered = filtered.filter(student => student.status !== 'cadastro_invalido');
-    }
+    const years = (academicYearFilter.length > 0
+      ? academicYearFilter
+      : defaultAcademicYear.length > 0
+        ? defaultAcademicYear
+        : [getCurrentAcademicYear()]
+    )
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
 
-    if (searchTerm) {
-      const termLower = searchTerm.toLowerCase();
-      const digits = searchTerm.replace(/\D/g, '');
-      const hasDigits = digits.length >= 3;
-
-      filtered = filtered.filter(student => {
-        const matchesText =
-          student.student_name.toLowerCase().includes(termLower) ||
-          (student.code?.toLowerCase().includes(termLower) || false);
-
-        const primaryPhoneDigits = (student.phone || '').replace(/\D/g, '');
-        const additionalPhonesDigits = (student.student_phones || []).map(p => (p.phone_number || '').replace(/\D/g, ''));
-        const matchesPhone = hasDigits && (
-          (primaryPhoneDigits.includes(digits)) ||
-          additionalPhonesDigits.some(p => p.includes(digits))
-        );
-
-        return matchesText || matchesPhone;
-      });
-    }
-
-    if (statusFilter.length > 0) {
-      filtered = filtered.filter(student => statusFilter.includes(student.status!));
-    }
-
-    if (unitFilter.length > 0) {
-      filtered = filtered.filter(student =>
-        unitFilter.includes(student.unit_id!) || unitFilter.includes(student.classes?.unit_id!)
-      );
-    }
-
-    if (seriesFilter.length > 0) {
-      filtered = filtered.filter(student => seriesFilter.includes(student.classes?.series_id!));
-    } else if (segmentFilter.length > 0) {
-      filtered = filtered.filter(student =>
-        segmentFilter.includes(student.classes?.series?.level ?? '')
-      );
-    }
-
-    if (examDateFilter.length > 0) {
-      const today = getCurrentDate();
-      filtered = filtered.filter(student => {
-        return examDateFilter.some(filter => {
-          switch (filter) {
-            case 'sem_data':
-              return !student.exam_date;
-            case 'hoje':
-              return student.exam_date === today;
-            case 'futuras':
-              return student.exam_date && student.exam_date > today;
-            case 'passadas':
-              return student.exam_date && student.exam_date < today;
-            default:
-              if (filter.startsWith('date_')) {
-                const targetDate = filter.replace('date_', '');
-                return student.exam_date === targetDate;
-              }
-              return false;
-          }
+    try {
+      for (let offset = 0; offset < maxRows; offset += pageSize) {
+        const { data, error } = await supabase.rpc('list_schools_page', {
+          p_limit: pageSize,
+          p_offset: offset,
+          p_ano_letivo: years.length > 0 ? years : null,
+          p_statuses: statusFilter.length > 0 ? statusFilter : null,
+          p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
+          p_unit_ids: unitFilter.length > 0 ? unitFilter : null,
+          p_search: debouncedSearch.trim() || null,
+          p_sort_asc: sortOrder === 'asc',
+          p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
         });
-      });
-    }
-
-    // Filtro por ano letivo (filtro supremo)
-    if (academicYearFilter.length > 0) {
-      filtered = filtered.filter(student => academicYearFilter.includes(student.ano_letivo!));
-    }
-
-    // Filtro por número de tentativas de contato
-    if (contactAttemptsFilter !== 'all') {
-      if (contactAttemptsFilter === 'ge_5') {
-        filtered = filtered.filter(student => (contactCounts[student.id] || 0) >= 5);
-      } else {
-        const target = parseInt(contactAttemptsFilter, 10);
-        filtered = filtered.filter(student => (contactCounts[student.id] || 0) === target);
+        if (error) throw error;
+        const payload = data as { items?: Student[]; total?: number } | null;
+        const chunk = (payload?.items || []) as Student[];
+        exportRows.push(...chunk);
+        if (chunk.length < pageSize) break;
       }
+
+      const exportData = exportRows.map((student) => ({
+        Código: student.code,
+        'Código INEP': student.inep_code || '',
+        'Nome da Escola': student.student_name,
+        'Contato Principal': student.responsible_name || '',
+        Telefone: student.phone,
+        Email: student.email || '',
+        Cidade: student.city || '',
+        Estado: student.estado || '',
+        'Qtd Infantil': student.infantil_count || 0,
+        'Qtd EF1': student.ef1_count || 0,
+        'Qtd EF2': student.ef2_count || 0,
+        'Qtd Ensino Médio': student.medio_count || 0,
+        'Total de Alunos': student.total_students_count || 0,
+        Status: STATUS_LABELS[student.status] || student.status,
+        'Data de Cadastro': student.created_at
+          ? new Date(student.created_at).toLocaleDateString('pt-BR')
+          : '',
+        'Ano Letivo': student.ano_letivo || '',
+        Tag: student.tag || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Escolas');
+      XLSX.writeFile(wb, `escolas_${getCurrentDate()}.xlsx`);
+      toast.success(`${exportRows.length} escola(s) exportada(s)`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao exportar escolas');
     }
-
-    if (engagementTierFilter.length > 0) {
-      filtered = filtered.filter((student) =>
-        matchesScoreTierFilter(student.engagement_score, engagementTierFilter)
-      );
-    }
-
-    if (emptyEmailFilter === 'sem_email') {
-      filtered = filtered.filter((student) => !student.email?.trim());
-    } else if (emptyEmailFilter === 'com_email') {
-      filtered = filtered.filter((student) => !!student.email?.trim());
-    }
-
-    if (attendedByFilter.length > 0) {
-      filtered = filtered.filter((student) => {
-        const attendantsForStudent = attendedByMap[student.id] || [];
-        return attendedByFilter.some((userId) => attendantsForStudent.includes(userId));
-      });
-    }
-
-    filtered = filtered.slice().sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return sortOrder === 'desc' ? bTime - aTime : aTime - bTime;
-    });
-
-    setFilteredStudents(filtered);
-  };
-
-  const exportToExcel = () => {
-    const exportData = filteredStudents.map(student => ({
-      'Código': student.code,
-      'Código INEP': student.inep_code || '',
-      'Nome da Escola': student.student_name,
-      'Contato Principal': student.responsible_name || '',
-      'Telefone': student.phone,
-      'Email': student.email || '',
-      'Cidade': student.city || '',
-      'Qtd Infantil': student.infantil_count || 0,
-      'Qtd EF1': student.ef1_count || 0,
-      'Qtd EF2': student.ef2_count || 0,
-      'Qtd Ensino Médio': student.medio_count || 0,
-      'Total de Alunos': student.total_students_count || 0,
-      'Status': STATUS_LABELS[student.status] || student.status,
-      'Data de Cadastro': student.created_at ? new Date(student.created_at).toLocaleDateString('pt-BR') : '',
-      'Ano Letivo': student.ano_letivo || '',
-      'Tag': student.tag || ''
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Escolas');
-    XLSX.writeFile(wb, `escolas_${getCurrentDate()}.xlsx`);
   };
 
   const getStatusBadge = (status: string, className?: string) => {
@@ -566,14 +539,14 @@ export const StudentsTab = () => {
   };
 
   const handleUpdateStudent = () => {
-    fetchStudents();
+    void fetchStudentsPage();
   };
 
-  // Funções de paginação
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentStudents = filteredStudents.slice(startIndex, endIndex);
+  // Paginação server-side: `students` já é a página atual
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
+  const currentStudents = students;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -949,11 +922,12 @@ export const StudentsTab = () => {
       <Card className="border-0 shadow-sm ring-1 ring-gray-100">
         <CardHeader className="border-b border-gray-100 pb-3">
           <CardTitle className="text-base">
-            Resultados ({filteredStudents.length})
-            {totalPages > 1 && (
+            Resultados ({totalCount.toLocaleString('pt-BR')})
+            {listLoading && <span className="ml-2 text-sm font-normal text-muted-foreground">Carregando…</span>}
+            {totalPages > 1 && !listLoading && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 — Página {currentPage} de {totalPages} ({startIndex + 1}-
-                {Math.min(endIndex, filteredStudents.length)} de {filteredStudents.length})
+                {endIndex} de {totalCount.toLocaleString('pt-BR')})
               </span>
             )}
           </CardTitle>

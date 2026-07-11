@@ -1509,6 +1509,20 @@ export type Database = {
         }
         Returns: Json
       },
+      list_schools_page: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_ano_letivo?: number[] | null
+          p_statuses?: string[] | null
+          p_exclude_status?: string | null
+          p_unit_ids?: string[] | null
+          p_search?: string | null
+          p_sort_asc?: boolean
+          p_email_filter?: string | null
+        }
+        Returns: Json
+      },
       generate_student_code: {
         Args: Record<PropertyKey, never>
         Returns: string
