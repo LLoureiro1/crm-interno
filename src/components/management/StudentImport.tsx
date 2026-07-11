@@ -11,6 +11,7 @@ import { Upload, Download, AlertCircle, CheckCircle, X, FileSpreadsheet } from '
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 /** Cabeçalhos exatos da planilha modelo */
 const TEMPLATE_HEADERS = [
@@ -237,47 +238,99 @@ export const StudentImport = () => {
 
     try {
       const validData = mappedData.filter((item) => !item.errors || item.errors.length === 0);
+      const unitId = validData[0]?.unit_id;
+      if (!unitId) {
+        toast.error('Unidade não definida para importação');
+        return;
+      }
+
+      const anoLetivo = new Date().getFullYear();
+      const BATCH = 250;
       let successCount = 0;
       let errorCount = 0;
+      let lastError = '';
 
-      for (let i = 0; i < validData.length; i++) {
-        const item = validData[i];
+      for (let offset = 0; offset < validData.length; offset += BATCH) {
+        const chunk = validData.slice(offset, offset + BATCH).map((item) => ({
+          student_name: item.student_name,
+          inep_code: item.inep_code || '',
+          estado: item.estado || '',
+          city_code: item.city_code || '',
+          city: item.city || '',
+          email: item.email || '',
+          phone: item.phone || '',
+          infantil_count: item.infantil_count || '',
+          ef1_count: item.ef1_count || '',
+          ef2_count: item.ef2_count || '',
+          medio_count: item.medio_count || '',
+          total_students_count: item.total_students_count || '',
+        }));
 
-        try {
-          const { error } = await supabase.from('students').insert({
-            student_name: item.student_name,
-            inep_code: item.inep_code || null,
-            estado: item.estado || null,
-            city_code: item.city_code || null,
-            city: item.city || null,
-            email: item.email || null,
-            phone: item.phone || null,
-            infantil_count: parseCount(item.infantil_count),
-            ef1_count: parseCount(item.ef1_count),
-            ef2_count: parseCount(item.ef2_count),
-            medio_count: parseCount(item.medio_count),
-            total_students_count: parseCount(item.total_students_count),
-            status: 'nao_confirmado',
-            unit_id: item.unit_id!,
-            ano_letivo: String(new Date().getFullYear()),
-          });
+        const { data, error } = await supabase.rpc('import_schools_bulk', {
+          p_unit_id: unitId,
+          p_rows: chunk,
+          p_ano_letivo: String(anoLetivo),
+        });
 
-          if (error) {
-            console.error(`Erro ao inserir escola ${item.student_name}:`, error);
-            errorCount++;
+        if (error) {
+          console.error('Erro no lote de importação:', error.message, error);
+          lastError = error.message;
+          const missingRpc =
+            error.message?.includes('Could not find the function') ||
+            error.message?.includes('schema cache') ||
+            error.code === 'PGRST202';
+
+          if (!missingRpc) {
+            errorCount += chunk.length;
           } else {
-            successCount++;
+            // Fallback em sublotes menores (triggers de e-mail ainda ativos)
+            let fallbackOk = true;
+            for (let j = 0; j < chunk.length; j += 50) {
+              const sub = chunk.slice(j, j + 50);
+              const { error: fallbackError } = await supabase.from('students').insert(
+                sub.map((item): TablesInsert<'students'> => ({
+                  student_name: item.student_name,
+                  inep_code: item.inep_code || null,
+                  city: item.city || null,
+                  email: item.email || null,
+                  phone: item.phone || '',
+                  neighborhood: item.estado || null,
+                  origin_school: item.city_code || null,
+                  infantil_count: parseCount(item.infantil_count),
+                  ef1_count: parseCount(item.ef1_count),
+                  ef2_count: parseCount(item.ef2_count),
+                  medio_count: parseCount(item.medio_count),
+                  total_students_count: parseCount(item.total_students_count),
+                  status: 'nao_confirmado',
+                  unit_id: unitId,
+                  ano_letivo: anoLetivo,
+                })),
+              );
+              if (fallbackError) {
+                console.error('Fallback também falhou:', fallbackError.message, fallbackError);
+                lastError = fallbackError.message;
+                errorCount += sub.length;
+                fallbackOk = false;
+              } else {
+                successCount += sub.length;
+              }
+            }
+            if (!fallbackOk && !lastError) lastError = 'falha no fallback';
           }
-        } catch (error) {
-          console.error(`Erro ao inserir escola ${item.student_name}:`, error);
-          errorCount++;
+        } else {
+          const inserted = Number((data as { inserted?: number } | null)?.inserted ?? chunk.length);
+          successCount += inserted;
         }
 
-        setImportProgress(((i + 1) / validData.length) * 100);
+        setImportProgress(Math.min(100, ((offset + chunk.length) / validData.length) * 100));
       }
 
       if (successCount > 0) toast.success(`${successCount} escola(s) importada(s) com sucesso!`);
-      if (errorCount > 0) toast.error(`${errorCount} escola(s) falharam na importação`);
+      if (errorCount > 0) {
+        toast.error(
+          `${errorCount} escola(s) falharam${lastError ? `: ${lastError}` : ''}. Aplique a migration 20260710220000 no Supabase.`,
+        );
+      }
 
       resetImport();
     } catch (error) {

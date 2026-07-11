@@ -1,9 +1,4 @@
--- Colunas de importação + RPC para carga em massa (sem webhook de e-mail por linha)
-
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS estado text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS city_code text;
-ALTER TABLE public.students ALTER COLUMN phone DROP NOT NULL;
-ALTER TABLE public.students ALTER COLUMN phone SET DEFAULT '';
+-- Corrige cast de ano_letivo (integer) em import_schools_bulk
 
 CREATE OR REPLACE FUNCTION public.import_schools_bulk(
   p_unit_id uuid,
@@ -16,7 +11,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_ano text := COALESCE(NULLIF(trim(p_ano_letivo), ''), to_char(CURRENT_DATE, 'YYYY'));
+  v_ano int := COALESCE(
+    NULLIF(regexp_replace(COALESCE(p_ano_letivo, ''), '[^0-9]', '', 'g'), '')::int,
+    EXTRACT(YEAR FROM CURRENT_DATE)::int
+  );
   v_inserted int := 0;
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -38,7 +36,6 @@ BEGIN
     RETURN jsonb_build_object('inserted', 0);
   END IF;
 
-  -- Evita 1 HTTP call de e-mail / sync por escola durante a carga
   ALTER TABLE public.students DISABLE TRIGGER USER;
 
   BEGIN
@@ -90,9 +87,3 @@ BEGIN
   RETURN jsonb_build_object('inserted', v_inserted);
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.import_schools_bulk(uuid, jsonb, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.import_schools_bulk(uuid, jsonb, text) TO authenticated, service_role;
-
-COMMENT ON FUNCTION public.import_schools_bulk(uuid, jsonb, text) IS
-  'Importa escolas em lote; desativa triggers USER durante o INSERT para evitar webhooks.';

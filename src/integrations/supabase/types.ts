@@ -1089,7 +1089,7 @@ export type Database = {
           tracking_code: string | null
           registration_token: string
           missed_reschedule_used_at: string | null
-          ano_letivo: string | null
+          ano_letivo: number | null
           unit_id: string
           updated_at: string
           inep_code: string | null
@@ -1137,7 +1137,7 @@ export type Database = {
           tracking_code?: string | null
           registration_token?: string
           missed_reschedule_used_at?: string | null
-          ano_letivo?: string | null
+          ano_letivo?: number | null
           unit_id: string
           updated_at?: string
           inep_code?: string | null
@@ -1185,7 +1185,7 @@ export type Database = {
           tracking_code?: string | null
           registration_token?: string
           missed_reschedule_used_at?: string | null
-          ano_letivo?: string | null
+          ano_letivo?: number | null
           unit_id?: string
           updated_at?: string
           inep_code?: string | null
@@ -1500,6 +1500,14 @@ export type Database = {
           p_unit_ids: string[]
         }
         Returns: undefined
+      },
+      import_schools_bulk: {
+        Args: {
+          p_unit_id: string
+          p_rows: Json
+          p_ano_letivo?: string | null
+        }
+        Returns: Json
       },
       generate_student_code: {
         Args: Record<PropertyKey, never>

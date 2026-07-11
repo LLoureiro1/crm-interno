@@ -1,9 +1,4 @@
--- Colunas de importação + RPC para carga em massa (sem webhook de e-mail por linha)
-
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS estado text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS city_code text;
-ALTER TABLE public.students ALTER COLUMN phone DROP NOT NULL;
-ALTER TABLE public.students ALTER COLUMN phone SET DEFAULT '';
+-- RPC de importação em massa (colunas estado/city_code/phone já existem via 20260710220000)
 
 CREATE OR REPLACE FUNCTION public.import_schools_bulk(
   p_unit_id uuid,
@@ -38,7 +33,6 @@ BEGIN
     RETURN jsonb_build_object('inserted', 0);
   END IF;
 
-  -- Evita 1 HTTP call de e-mail / sync por escola durante a carga
   ALTER TABLE public.students DISABLE TRIGGER USER;
 
   BEGIN
