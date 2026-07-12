@@ -184,8 +184,8 @@ export function AppSidebar() {
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm ring-1 ring-white/20 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8">
               <img
-                src="/logo_apogeu_nobg.png"
-                alt="Apogeu"
+                src="/logotipo_escola.png"
+                alt="Escola"
                 className="h-full w-full object-contain"
               />
             </div>
