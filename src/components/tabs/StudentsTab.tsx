@@ -282,25 +282,55 @@ export const StudentsTab = () => {
   };
 
   const fetchAvailableCities = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('city, estado')
-      .not('city', 'is', null)
-      .neq('city', '');
-    if (data) {
-      const seen = new Set<string>();
-      const cities: string[] = [];
+    const seen = new Set<string>();
+    const cities: string[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    // Pagina até buscar todas as cidades (Supabase limita 1000/req)
+    for (;;) {
+      const { data, error } = await supabase
+        .from('students')
+        .select('city, estado')
+        .not('city', 'is', null)
+        .neq('city', '')
+        .range(offset, offset + pageSize - 1);
+      if (error || !data || data.length === 0) break;
       data.forEach((row) => {
-        const label = row.estado ? `${row.city} - ${row.estado}` : row.city!;
-        if (!seen.has(label)) { seen.add(label); cities.push(label); }
+        const label = [row.city?.trim(), row.estado?.trim()].filter(Boolean).join(' - ');
+        if (label && !seen.has(label)) { seen.add(label); cities.push(label); }
       });
-      setAvailableCities(cities.sort((a, b) => a.localeCompare(b, 'pt-BR')));
+      if (data.length < pageSize) break;
+      offset += pageSize;
     }
+    setAvailableCities(cities.sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  };
+
+  const hasClientFilters = cityFilter.length > 0 || studentCountFilter !== null;
+
+  const applyClientFilters = (list: Student[]): Student[] => {
+    let result = list;
+    if (cityFilter.length > 0) {
+      result = result.filter((s) => {
+        const label = [s.city?.trim(), s.estado?.trim()].filter(Boolean).join(' - ');
+        return cityFilter.includes(label);
+      });
+    }
+    if (studentCountFilter !== null) {
+      result = result.filter((s) => {
+        const total = s.total_students_count ?? 0;
+        if (studentCountFilter.op === 'between') return total >= studentCountFilter.value && total <= studentCountFilter.valueTo;
+        if (studentCountFilter.op === 'gt') return total > studentCountFilter.value;
+        if (studentCountFilter.op === 'lt') return total < studentCountFilter.value;
+        if (studentCountFilter.op === 'gte') return total >= studentCountFilter.value;
+        if (studentCountFilter.op === 'lte') return total <= studentCountFilter.value;
+        return true;
+      });
+    }
+    return result;
   };
 
   const fetchStudentsPage = async () => {
     setListLoading(true);
-    const from = (currentPage - 1) * itemsPerPage;
 
     try {
       const years = (academicYearFilter.length > 0
@@ -312,9 +342,7 @@ export const StudentsTab = () => {
         .map(Number)
         .filter((n) => !Number.isNaN(n));
 
-      const { data, error } = await supabase.rpc('list_schools_page', {
-        p_limit: itemsPerPage,
-        p_offset: from,
+      const baseParams = {
         p_ano_letivo: years.length > 0 ? years : null,
         p_statuses: statusFilter.length > 0 ? statusFilter : null,
         p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
@@ -322,63 +350,68 @@ export const StudentsTab = () => {
         p_search: debouncedSearch.trim() || null,
         p_sort_asc: sortOrder === 'asc',
         p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
-      });
+      };
 
-      if (error) {
-        console.error('Error fetching students:', error);
-        toast.error(`Erro ao carregar escolas: ${error.message}`);
-        setStudents([]);
-        setFilteredStudents([]);
-        setTotalCount(0);
-        return;
-      }
-
-      const payload = data as { items?: Student[]; total?: number } | null;
-      let list = (payload?.items || []) as Student[];
-
-      // Filtro client-side: Cidade
-      if (cityFilter.length > 0) {
-        list = list.filter((s) => {
-          const label = s.estado ? `${s.city} - ${s.estado}` : s.city || '';
-          return cityFilter.includes(label);
-        });
-      }
-
-      // Filtro client-side: Número de alunos
-      if (studentCountFilter !== null) {
-        list = list.filter((s) => {
-          const total = s.total_students_count ?? 0;
-          if (studentCountFilter.op === 'between') return total >= studentCountFilter.value && total <= studentCountFilter.valueTo;
-          if (studentCountFilter.op === 'gt') return total > studentCountFilter.value;
-          if (studentCountFilter.op === 'lt') return total < studentCountFilter.value;
-          if (studentCountFilter.op === 'gte') return total >= studentCountFilter.value;
-          if (studentCountFilter.op === 'lte') return total <= studentCountFilter.value;
-          return true;
-        });
-      }
-
-      setStudents(list);
-      setFilteredStudents(list);
-      setTotalCount(Number(payload?.total ?? 0));
-
-      const ids = list.map((s) => s.id).filter(Boolean);
-      void fetchAttendedByMap(ids);
-
-      if (ids.length === 0) {
-        setContactCounts({});
-      } else {
-        const { data: attempts, error: attemptsError } = await supabase
-          .from('contact_attempts')
-          .select('student_id')
-          .in('student_id', ids);
-        if (attemptsError) {
-          setContactCounts({});
-        } else {
-          const counts: Record<string, number> = {};
-          (attempts || []).forEach((a: { student_id: string }) => {
-            counts[a.student_id] = (counts[a.student_id] || 0) + 1;
+      if (hasClientFilters) {
+        // Busca todos os itens em batches para poder aplicar filtro client-side com paginação correta
+        const batchSize = 1000;
+        const maxRows = 50000;
+        const allItems: Student[] = [];
+        for (let offset = 0; offset < maxRows; offset += batchSize) {
+          const { data, error } = await supabase.rpc('list_schools_page', {
+            ...baseParams,
+            p_limit: batchSize,
+            p_offset: offset,
           });
+          if (error) throw error;
+          const payload = data as { items?: Student[]; total?: number } | null;
+          const chunk = (payload?.items || []) as Student[];
+          allItems.push(...chunk);
+          if (chunk.length < batchSize) break;
+        }
+        const filtered = applyClientFilters(allItems);
+        const from = (currentPage - 1) * itemsPerPage;
+        const page = filtered.slice(from, from + itemsPerPage);
+        setStudents(page);
+        setFilteredStudents(page);
+        setTotalCount(filtered.length);
+        const ids = page.map((s) => s.id).filter(Boolean);
+        void fetchAttendedByMap(ids);
+        if (ids.length === 0) { setContactCounts({}); }
+        else {
+          const { data: attempts } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
+          const counts: Record<string, number> = {};
+          (attempts || []).forEach((a: { student_id: string }) => { counts[a.student_id] = (counts[a.student_id] || 0) + 1; });
           setContactCounts(counts);
+        }
+      } else {
+        const from = (currentPage - 1) * itemsPerPage;
+        const { data, error } = await supabase.rpc('list_schools_page', {
+          ...baseParams,
+          p_limit: itemsPerPage,
+          p_offset: from,
+        });
+        if (error) {
+          console.error('Error fetching students:', error);
+          toast.error(`Erro ao carregar escolas: ${error.message}`);
+          setStudents([]); setFilteredStudents([]); setTotalCount(0);
+          return;
+        }
+        const payload = data as { items?: Student[]; total?: number } | null;
+        const list = (payload?.items || []) as Student[];
+        setStudents(list); setFilteredStudents(list);
+        setTotalCount(Number(payload?.total ?? 0));
+        const ids = list.map((s) => s.id).filter(Boolean);
+        void fetchAttendedByMap(ids);
+        if (ids.length === 0) { setContactCounts({}); }
+        else {
+          const { data: attempts, error: attemptsError } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
+          if (attemptsError) { setContactCounts({}); }
+          else {
+            const counts: Record<string, number> = {};
+            (attempts || []).forEach((a: { student_id: string }) => { counts[a.student_id] = (counts[a.student_id] || 0) + 1; });
+            setContactCounts(counts);
+          }
         }
       }
     } catch (e) {
@@ -994,18 +1027,16 @@ export const StudentsTab = () => {
           <div className="hidden min-w-0 lg:block [&>div]:overflow-x-hidden">
             <Table className="table-fixed w-full">
               <colgroup>
-                <col className="w-[20%]" />
+                <col className="w-[25%]" />
+                <col className="w-[15%]" />
+                <col className="w-[24%]" />
                 <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[22%]" />
-                <col className="w-[10%]" />
                 <col className="w-[12%]" />
                 <col className="w-[12%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Escola</TableHead>
-                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Unidade</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Cidade</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Segmentos</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Total Alunos</TableHead>
@@ -1029,10 +1060,7 @@ export const StudentsTab = () => {
                         )}
                       </TableCell>
                       <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top text-sm text-gray-600">
-                        {unitName}
-                      </TableCell>
-                      <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top text-sm text-gray-600">
-                        {student.city || '-'}
+                        {[student.city?.trim(), student.estado?.trim()].filter(Boolean).join(' - ') || '-'}
                       </TableCell>
                       <TableCell className="min-w-0 overflow-hidden px-2 py-3 align-top">
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs text-gray-600">
