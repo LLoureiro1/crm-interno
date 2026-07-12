@@ -171,7 +171,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="border-r border-[#132856] [&_[data-sidebar=sidebar]]:bg-[#1b3472]"
+      className="border-r border-[#2343a4] [&_[data-sidebar=sidebar]]:bg-[#2878fa]"
     >
       <SidebarHeader className="p-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:pb-1.5 group-data-[collapsible=icon]:pt-2">
         <div
