@@ -6,14 +6,13 @@ import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, Calendar, ExternalLink, X } from 'lucide-react';
+import { Search, Download, Eye, ExternalLink, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Tables } from '@/integrations/supabase/types';
-import { formatDateForDisplay, formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
-import { formatCpf } from '@/utils/cpf';
+import { formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,7 +28,10 @@ import {
   loadStudentsListFilters,
   saveStudentsListFilters,
   STATUS_LABELS,
+  STUDENT_COUNT_OP_LABELS,
   type FilterChip,
+  type StudentCountFilter,
+  type StudentCountOperator,
 } from '@/utils/studentsListFilters';
 
 type Student = Tables<'students'> & {
@@ -41,36 +43,25 @@ type Student = Tables<'students'> & {
   student_phones?: { phone_number: string }[];
 };
 
-type ExamDate = Tables<'exam_dates'> & {
-  units: Tables<'units'>;
-};
-
 export const StudentsTab = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { getVisibleUnits, fullAccess, allowedUnitIds } = useUnitAccess();
+  const { fullAccess, allowedUnitIds } = useUnitAccess();
   const cachedFiltersRef = useRef(loadStudentsListFilters());
   const cachedFilters = cachedFiltersRef.current;
   const skipPageResetRef = useRef(!!cachedFilters);
 
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
-  const [examDates, setExamDates] = useState<ExamDate[]>([]);
   const [searchTerm, setSearchTerm] = useState(cachedFilters?.searchTerm ?? '');
   const [statusFilter, setStatusFilter] = useState<string[]>(cachedFilters?.statusFilter ?? []);
-  const [unitFilter, setUnitFilter] = useState<string[]>(cachedFilters?.unitFilter ?? []);
   const [segmentFilter, setSegmentFilter] = useState<string[]>(cachedFilters?.segmentFilter ?? []);
-  const [seriesFilter, setSeriesFilter] = useState<string[]>(cachedFilters?.seriesFilter ?? []);
-  const [examDateFilter, setExamDateFilter] = useState<string[]>(cachedFilters?.examDateFilter ?? []);
   const [academicYearFilter, setAcademicYearFilter] = useState<string[]>(cachedFilters?.academicYearFilter ?? []);
-  const [units, setUnits] = useState<Tables<'units'>[]>([]);
   const [series, setSeries] = useState<Tables<'series'>[]>([]);
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
-  const [sortField, setSortField] = useState<'created_at'>(
-    (cachedFilters?.sortField as 'created_at') || 'created_at'
-  );
+  const sortField = 'created_at' as const;
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>(cachedFilters?.sortOrder ?? 'desc');
   const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>(
     cachedFilters?.contactAttemptsFilter ?? 'all'
@@ -84,6 +75,15 @@ export const StudentsTab = () => {
   const [attendedByFilter, setAttendedByFilter] = useState<string[]>(
     cachedFilters?.attendedByFilter ?? []
   );
+  const [cityFilter, setCityFilter] = useState<string[]>(cachedFilters?.cityFilter ?? []);
+  const [studentCountFilter, setStudentCountFilter] = useState<StudentCountFilter>(
+    cachedFilters?.studentCountFilter ?? null
+  );
+  // UI state para construção do filtro de alunos
+  const [countOp, setCountOp] = useState<StudentCountOperator>('gt');
+  const [countValue, setCountValue] = useState('');
+  const [countValueTo, setCountValueTo] = useState('');
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [attendants, setAttendants] = useState<Tables<'staff_directory'>[]>([]);
   const [attendedByMap, setAttendedByMap] = useState<Record<string, string[]>>({});
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
@@ -110,11 +110,10 @@ export const StudentsTab = () => {
   }, [searchTerm]);
 
   useEffect(() => {
-    fetchUnits();
     fetchSeries();
-    fetchExamDates();
     fetchAvailableAcademicYears();
     fetchAttendants();
+    fetchAvailableCities();
   }, [fullAccess, allowedUnitIds, profile?.unit_id]);
 
   useEffect(() => {
@@ -125,11 +124,12 @@ export const StudentsTab = () => {
     currentPage,
     debouncedSearch,
     statusFilter,
-    unitFilter,
     academicYearFilter,
     sortOrder,
     emptyEmailFilter,
     engagementTierFilter,
+    cityFilter,
+    studentCountFilter,
     fullAccess,
     allowedUnitIds,
     profile?.unit_id,
@@ -146,16 +146,13 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, unitFilter, segmentFilter, seriesFilter, examDateFilter, academicYearFilter, sortField, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter]);
+  }, [debouncedSearch, statusFilter, segmentFilter, academicYearFilter, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter, cityFilter, studentCountFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
       searchTerm,
       statusFilter,
-      unitFilter,
       segmentFilter,
-      seriesFilter,
-      examDateFilter,
       academicYearFilter,
       sortField,
       sortOrder,
@@ -163,22 +160,22 @@ export const StudentsTab = () => {
       engagementTierFilter,
       emptyEmailFilter,
       attendedByFilter,
+      cityFilter,
+      studentCountFilter,
       currentPage,
     });
   }, [
     searchTerm,
     statusFilter,
-    unitFilter,
     segmentFilter,
-    seriesFilter,
-    examDateFilter,
     academicYearFilter,
-    sortField,
     sortOrder,
     contactAttemptsFilter,
     engagementTierFilter,
     emptyEmailFilter,
     attendedByFilter,
+    cityFilter,
+    studentCountFilter,
     currentPage,
   ]);
 
@@ -199,11 +196,17 @@ export const StudentsTab = () => {
 
   const handleSegmentFilterChange = (newSegments: string[]) => {
     setSegmentFilter(newSegments);
-    if (newSegments.length > 0 && seriesFilter.length > 0) {
-      const allowedIds = new Set(
-        series.filter((s) => newSegments.includes(s.level)).map((s) => s.id)
-      );
-      setSeriesFilter((prev) => prev.filter((id) => allowedIds.has(id)));
+  };
+
+  const applyStudentCountFilter = () => {
+    const v = Number(countValue);
+    if (Number.isNaN(v) || countValue.trim() === '') return;
+    if (countOp === 'between') {
+      const vTo = Number(countValueTo);
+      if (Number.isNaN(vTo) || countValueTo.trim() === '') return;
+      setStudentCountFilter({ op: 'between', value: v, valueTo: vTo });
+    } else {
+      setStudentCountFilter({ op: countOp, value: v });
     }
   };
 
@@ -278,6 +281,23 @@ export const StudentsTab = () => {
     }
   };
 
+  const fetchAvailableCities = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('city, estado')
+      .not('city', 'is', null)
+      .neq('city', '');
+    if (data) {
+      const seen = new Set<string>();
+      const cities: string[] = [];
+      data.forEach((row) => {
+        const label = row.estado ? `${row.city} - ${row.estado}` : row.city!;
+        if (!seen.has(label)) { seen.add(label); cities.push(label); }
+      });
+      setAvailableCities(cities.sort((a, b) => a.localeCompare(b, 'pt-BR')));
+    }
+  };
+
   const fetchStudentsPage = async () => {
     setListLoading(true);
     const from = (currentPage - 1) * itemsPerPage;
@@ -298,7 +318,7 @@ export const StudentsTab = () => {
         p_ano_letivo: years.length > 0 ? years : null,
         p_statuses: statusFilter.length > 0 ? statusFilter : null,
         p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
-        p_unit_ids: unitFilter.length > 0 ? unitFilter : null,
+        p_unit_ids: null,
         p_search: debouncedSearch.trim() || null,
         p_sort_asc: sortOrder === 'asc',
         p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
@@ -314,7 +334,29 @@ export const StudentsTab = () => {
       }
 
       const payload = data as { items?: Student[]; total?: number } | null;
-      const list = (payload?.items || []) as Student[];
+      let list = (payload?.items || []) as Student[];
+
+      // Filtro client-side: Cidade
+      if (cityFilter.length > 0) {
+        list = list.filter((s) => {
+          const label = s.estado ? `${s.city} - ${s.estado}` : s.city || '';
+          return cityFilter.includes(label);
+        });
+      }
+
+      // Filtro client-side: Número de alunos
+      if (studentCountFilter !== null) {
+        list = list.filter((s) => {
+          const total = s.total_students_count ?? 0;
+          if (studentCountFilter.op === 'between') return total >= studentCountFilter.value && total <= studentCountFilter.valueTo;
+          if (studentCountFilter.op === 'gt') return total > studentCountFilter.value;
+          if (studentCountFilter.op === 'lt') return total < studentCountFilter.value;
+          if (studentCountFilter.op === 'gte') return total >= studentCountFilter.value;
+          if (studentCountFilter.op === 'lte') return total <= studentCountFilter.value;
+          return true;
+        });
+      }
+
       setStudents(list);
       setFilteredStudents(list);
       setTotalCount(Number(payload?.total ?? 0));
@@ -347,12 +389,7 @@ export const StudentsTab = () => {
     }
   };
 
-  const fetchUnits = async () => {
-    const { data } = await supabase.from('units').select('*').order('name');
-    if (data) setUnits(data);
-  };
 
-  const visibleUnits = getVisibleUnits(units);
 
   const fetchSeries = async () => {
     const { data } = await supabase
@@ -394,17 +431,7 @@ export const StudentsTab = () => {
     }
   };
 
-  const fetchExamDates = async () => {
-    const { data } = await supabase
-      .from('exam_dates')
-      .select(`
-        *,
-        units(*)
-      `)
-      .order('exam_date', { ascending: true });
-    
-    if (data) setExamDates(data as ExamDate[]);
-  };
+
 
   const exportToExcel = async () => {
     toast.info('Exportando escolas filtradas...');
@@ -429,7 +456,7 @@ export const StudentsTab = () => {
           p_ano_letivo: years.length > 0 ? years : null,
           p_statuses: statusFilter.length > 0 ? statusFilter : null,
           p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
-          p_unit_ids: unitFilter.length > 0 ? unitFilter : null,
+          p_unit_ids: null,
           p_search: debouncedSearch.trim() || null,
           p_sort_asc: sortOrder === 'asc',
           p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
@@ -507,10 +534,7 @@ export const StudentsTab = () => {
     saveStudentsListFilters({
       searchTerm,
       statusFilter,
-      unitFilter,
       segmentFilter,
-      seriesFilter,
-      examDateFilter,
       academicYearFilter,
       sortField,
       sortOrder,
@@ -518,6 +542,8 @@ export const StudentsTab = () => {
       engagementTierFilter,
       emptyEmailFilter,
       attendedByFilter,
+      cityFilter,
+      studentCountFilter,
       currentPage,
     });
     navigate(`/school/${studentId}`);
@@ -572,27 +598,11 @@ export const StudentsTab = () => {
     return pages;
   };
 
-  // Agrupar datas de prova únicas
-  const uniqueExamDates = Array.from(
-    new Map(examDates.map(ed => [ed.exam_date, ed])).values()
-  );
-
-  const examDateLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    uniqueExamDates.forEach((date) => {
-      labels[`date_${date.exam_date}`] = formatDateForDisplay(date.exam_date);
-    });
-    return labels;
-  }, [uniqueExamDates]);
-
   const currentFiltersState = useMemo(
     () => ({
       searchTerm,
       statusFilter,
-      unitFilter,
       segmentFilter,
-      seriesFilter,
-      examDateFilter,
       academicYearFilter,
       sortField,
       sortOrder,
@@ -600,22 +610,22 @@ export const StudentsTab = () => {
       engagementTierFilter,
       emptyEmailFilter,
       attendedByFilter,
+      cityFilter,
+      studentCountFilter,
       currentPage,
     }),
     [
       searchTerm,
       statusFilter,
-      unitFilter,
       segmentFilter,
-      seriesFilter,
-      examDateFilter,
       academicYearFilter,
-      sortField,
       sortOrder,
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
       attendedByFilter,
+      cityFilter,
+      studentCountFilter,
       currentPage,
     ]
   );
@@ -624,23 +634,12 @@ export const StudentsTab = () => {
     () =>
       buildFilterChips(currentFiltersState, {
         defaultAcademicYear,
-        unitNames: Object.fromEntries(visibleUnits.map((u) => [u.id, u.name || 'Sem nome'])),
-        seriesNames: Object.fromEntries(series.map((s) => [s.id, s.name || 'Sem nome'])),
         segmentNames: Object.fromEntries(
           availableSegments.map((level) => [level, getSegmentLabel(level)])
         ),
         attendantNames: Object.fromEntries(attendants.map((a) => [a.id, a.name || 'Sem nome'])),
-        examDateLabels,
       }),
-    [
-      currentFiltersState,
-      defaultAcademicYear,
-      visibleUnits,
-      series,
-      availableSegments,
-      attendants,
-      examDateLabels,
-    ]
+    [currentFiltersState, defaultAcademicYear, availableSegments, attendants]
   );
 
   const showClearFilters = hasNonDefaultFilters(currentFiltersState, defaultAcademicYear);
@@ -648,17 +647,18 @@ export const StudentsTab = () => {
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter([]);
-    setUnitFilter([]);
     setSegmentFilter([]);
-    setSeriesFilter([]);
-    setExamDateFilter([]);
     setAcademicYearFilter(defaultAcademicYear);
-    setSortField('created_at');
     setSortOrder('desc');
     setContactAttemptsFilter('all');
     setEngagementTierFilter([]);
     setEmptyEmailFilter('all');
     setAttendedByFilter([]);
+    setCityFilter([]);
+    setStudentCountFilter(null);
+    setCountValue('');
+    setCountValueTo('');
+    setCountOp('gt');
   };
 
   const handleRemoveFilterChip = (chip: FilterChip) => {
@@ -672,17 +672,8 @@ export const StudentsTab = () => {
       case 'status':
         setStatusFilter((prev) => prev.filter((s) => s !== chip.value));
         break;
-      case 'unit':
-        setUnitFilter((prev) => prev.filter((u) => u !== chip.value));
-        break;
       case 'segment':
         setSegmentFilter((prev) => prev.filter((s) => s !== chip.value));
-        break;
-      case 'series':
-        setSeriesFilter((prev) => prev.filter((s) => s !== chip.value));
-        break;
-      case 'examDate':
-        setExamDateFilter((prev) => prev.filter((e) => e !== chip.value));
         break;
       case 'contactAttempts':
         setContactAttemptsFilter('all');
@@ -696,9 +687,13 @@ export const StudentsTab = () => {
       case 'attendedBy':
         setAttendedByFilter((prev) => prev.filter((a) => a !== chip.value));
         break;
-      case 'sort':
-        setSortField('created_at');
-        setSortOrder('desc');
+      case 'city':
+        setCityFilter((prev) => prev.filter((c) => c !== chip.value));
+        break;
+      case 'studentCount':
+        setStudentCountFilter(null);
+        setCountValue('');
+        setCountValueTo('');
         break;
     }
   };
@@ -760,12 +755,12 @@ export const StudentsTab = () => {
                 />
               </div>
 
-              <div className="lg:w-44">
+              <div className="lg:w-52">
                 <MultiSelect
-                  options={visibleUnits.filter(Boolean).map(unit => ({ value: unit.id, label: unit.name || 'Sem nome' }))}
-                  selected={unitFilter}
-                  onChange={setUnitFilter}
-                  placeholder="Unidade"
+                  options={availableCities.map((c) => ({ value: c, label: c }))}
+                  selected={cityFilter}
+                  onChange={setCityFilter}
+                  placeholder="Cidade"
                   className="w-full"
                 />
               </div>
@@ -814,57 +809,52 @@ export const StudentsTab = () => {
           {filtersExpanded && (
             <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2 lg:grid-cols-4">
               <MultiSelect
-                options={availableSegments.map((level) => ({
-                  value: level,
-                  label: getSegmentLabel(level),
-                }))}
+                options={availableSegments.map((level) => ({ value: level, label: getSegmentLabel(level) }))}
                 selected={segmentFilter}
                 onChange={handleSegmentFilterChange}
                 placeholder="Segmento"
                 className="w-full"
               />
 
-              <MultiSelect
-                options={filteredSeriesOptions}
-                selected={seriesFilter}
-                onChange={setSeriesFilter}
-                placeholder="Série"
-                className="w-full"
-              />
-
-              <MultiSelect
-                options={[
-                  { value: 'sem_data', label: 'Sem Data' },
-                  { value: 'hoje', label: 'Hoje' },
-                  { value: 'futuras', label: 'Futuras' },
-                  { value: 'passadas', label: 'Passadas' },
-                  ...uniqueExamDates.map(date => ({
-                    value: `date_${date.exam_date}`,
-                    label: formatDateForDisplay(date.exam_date),
-                  })),
-                ]}
-                selected={examDateFilter}
-                onChange={setExamDateFilter}
-                placeholder="Data da Prova"
-                className="w-full"
-              />
-
-              <Select
-                value={`${sortField}:${sortOrder}`}
-                onValueChange={(v) => {
-                  const [field, order] = v.split(':') as ['created_at', 'desc' | 'asc'];
-                  setSortField(field);
-                  setSortOrder(order);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Inscrições" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="created_at:desc">Inscrições mais recentes</SelectItem>
-                  <SelectItem value="created_at:asc">Inscrições mais antigas</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Número de alunos */}
+              <div className="col-span-1 sm:col-span-2 lg:col-span-2 flex flex-wrap gap-2 items-end">
+                <Select value={countOp} onValueChange={(v) => setCountOp(v as StudentCountOperator)}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Operador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(STUDENT_COUNT_OP_LABELS) as StudentCountOperator[]).map((op) => (
+                      <SelectItem key={op} value={op}>{STUDENT_COUNT_OP_LABELS[op]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Qtd"
+                  value={countValue}
+                  onChange={(e) => setCountValue(e.target.value)}
+                  className="w-24"
+                />
+                {countOp === 'between' && (
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Até"
+                    value={countValueTo}
+                    onChange={(e) => setCountValueTo(e.target.value)}
+                    className="w-24"
+                  />
+                )}
+                <Button type="button" size="sm" onClick={applyStudentCountFilter} className="h-10">
+                  Aplicar
+                </Button>
+                {studentCountFilter !== null && (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setStudentCountFilter(null); setCountValue(''); setCountValueTo(''); }} className="h-10 text-muted-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
 
               <Select value={contactAttemptsFilter} onValueChange={(v) => setContactAttemptsFilter(v as 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5')}>
                 <SelectTrigger className="w-full">

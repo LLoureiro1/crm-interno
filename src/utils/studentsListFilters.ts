@@ -1,12 +1,16 @@
 import { ENGAGEMENT_WEIGHTS } from '@/utils/engagementScore';
 
+export type StudentCountOperator = 'gt' | 'lt' | 'gte' | 'lte' | 'between';
+
+export type StudentCountFilter =
+  | { op: 'gt' | 'lt' | 'gte' | 'lte'; value: number }
+  | { op: 'between'; value: number; valueTo: number }
+  | null;
+
 export type StudentsListFiltersState = {
   searchTerm: string;
   statusFilter: string[];
-  unitFilter: string[];
   segmentFilter: string[];
-  seriesFilter: string[];
-  examDateFilter: string[];
   academicYearFilter: string[];
   sortField: 'created_at';
   sortOrder: 'desc' | 'asc';
@@ -14,10 +18,13 @@ export type StudentsListFiltersState = {
   engagementTierFilter: string[];
   emptyEmailFilter: 'all' | 'com_email' | 'sem_email';
   attendedByFilter: string[];
+  cityFilter: string[];
+  studentCountFilter: StudentCountFilter;
   currentPage: number;
 };
 
 const STORAGE_KEY = 'students_list_filters';
+const CACHE_VERSION = 2; // incrementar quando o shape mudar
 
 export const STATUS_LABELS: Record<string, string> = {
   nao_confirmado: 'Lead Frio',
@@ -31,13 +38,6 @@ export const STATUS_LABELS: Record<string, string> = {
   atendimento_recentemente: 'Proposta Apresentada',
   atendimento_ha_mais_de_uma_semana: 'Aguardando Retorno',
   ausente: 'Sem Resposta',
-};
-
-export const EXAM_DATE_LABELS: Record<string, string> = {
-  sem_data: 'Sem Data',
-  hoje: 'Hoje',
-  futuras: 'Futuras',
-  passadas: 'Passadas',
 };
 
 export const CONTACT_ATTEMPTS_LABELS: Record<string, string> = {
@@ -59,6 +59,20 @@ export const EMAIL_FILTER_LABELS: Record<string, string> = {
   com_email: 'Com e-mail',
   sem_email: 'Sem e-mail',
 };
+
+export const STUDENT_COUNT_OP_LABELS: Record<StudentCountOperator, string> = {
+  gt: 'Mais que',
+  lt: 'Menos que',
+  gte: 'Maior ou igual a',
+  lte: 'Menor ou igual a',
+  between: 'Entre',
+};
+
+export function formatStudentCountFilterLabel(f: StudentCountFilter): string {
+  if (!f) return '';
+  if (f.op === 'between') return `Alunos entre ${f.value} e ${f.valueTo}`;
+  return `Alunos ${STUDENT_COUNT_OP_LABELS[f.op].toLowerCase()} ${f.value}`;
+}
 
 export function getCurrentAcademicYear(): string {
   const now = new Date();
@@ -85,10 +99,7 @@ export function hasNonDefaultFilters(
 ): boolean {
   if (state.searchTerm.trim()) return true;
   if (state.statusFilter.length > 0) return true;
-  if (state.unitFilter.length > 0) return true;
   if (state.segmentFilter.length > 0) return true;
-  if (state.seriesFilter.length > 0) return true;
-  if (state.examDateFilter.length > 0) return true;
   if (
     JSON.stringify([...state.academicYearFilter].sort()) !==
     JSON.stringify([...defaultAcademicYear].sort())
@@ -98,20 +109,22 @@ export function hasNonDefaultFilters(
   if (state.contactAttemptsFilter !== 'all') return true;
   if (state.engagementTierFilter.length > 0) return true;
   if (state.emptyEmailFilter !== 'all') return true;
-  if (state.attendedByFilter.length > 0) return true;
+  if ((state.attendedByFilter?.length ?? 0) > 0) return true;
+  if ((state.cityFilter?.length ?? 0) > 0) return true;
+  if (state.studentCountFilter !== null) return true;
   if (!isDefaultSort(state.sortField, state.sortOrder)) return true;
   return false;
 }
 
 export function hasAdvancedFiltersActive(state: StudentsListFiltersState): boolean {
   return (
-    state.segmentFilter.length > 0 ||
-    state.seriesFilter.length > 0 ||
-    state.examDateFilter.length > 0 ||
+    (state.segmentFilter?.length ?? 0) > 0 ||
     state.contactAttemptsFilter !== 'all' ||
-    state.engagementTierFilter.length > 0 ||
+    (state.engagementTierFilter?.length ?? 0) > 0 ||
     state.emptyEmailFilter !== 'all' ||
-    state.attendedByFilter.length > 0 ||
+    (state.attendedByFilter?.length ?? 0) > 0 ||
+    (state.cityFilter?.length ?? 0) > 0 ||
+    state.studentCountFilter !== null ||
     !isDefaultSort(state.sortField, state.sortOrder)
   );
 }
@@ -122,15 +135,14 @@ export type FilterChip = {
   type:
     | 'search'
     | 'status'
-    | 'unit'
     | 'segment'
-    | 'series'
-    | 'examDate'
     | 'academicYear'
     | 'contactAttempts'
     | 'engagement'
     | 'email'
     | 'attendedBy'
+    | 'city'
+    | 'studentCount'
     | 'sort';
   value?: string;
 };
@@ -139,80 +151,43 @@ export function buildFilterChips(
   state: StudentsListFiltersState,
   ctx: {
     defaultAcademicYear: string[];
-    unitNames: Record<string, string>;
-    seriesNames: Record<string, string>;
     segmentNames: Record<string, string>;
     attendantNames: Record<string, string>;
-    examDateLabels: Record<string, string>;
   }
 ): FilterChip[] {
   const chips: FilterChip[] = [];
 
   if (state.searchTerm.trim()) {
-    chips.push({
-      id: 'search',
-      type: 'search',
-      label: `Busca: ${state.searchTerm.trim()}`,
-    });
+    chips.push({ id: 'search', type: 'search', label: `Busca: ${state.searchTerm.trim()}` });
   }
 
   const defaultYears = [...ctx.defaultAcademicYear].sort().join(',');
   const selectedYears = [...state.academicYearFilter].sort().join(',');
   if (selectedYears && selectedYears !== defaultYears) {
     state.academicYearFilter.forEach((year) => {
-      chips.push({
-        id: `academicYear:${year}`,
-        type: 'academicYear',
-        value: year,
-        label: `Ano: ${year}`,
-      });
+      chips.push({ id: `academicYear:${year}`, type: 'academicYear', value: year, label: `Ano: ${year}` });
     });
   }
 
   state.statusFilter.forEach((status) => {
-    chips.push({
-      id: `status:${status}`,
-      type: 'status',
-      value: status,
-      label: `Status: ${STATUS_LABELS[status] || status}`,
-    });
-  });
-
-  state.unitFilter.forEach((unitId) => {
-    chips.push({
-      id: `unit:${unitId}`,
-      type: 'unit',
-      value: unitId,
-      label: `Unidade: ${ctx.unitNames[unitId] || unitId}`,
-    });
+    chips.push({ id: `status:${status}`, type: 'status', value: status, label: `Status: ${STATUS_LABELS[status] || status}` });
   });
 
   state.segmentFilter.forEach((segment) => {
-    chips.push({
-      id: `segment:${segment}`,
-      type: 'segment',
-      value: segment,
-      label: `Segmento: ${ctx.segmentNames[segment] || segment}`,
-    });
+    chips.push({ id: `segment:${segment}`, type: 'segment', value: segment, label: `Segmento: ${ctx.segmentNames[segment] || segment}` });
   });
 
-  state.seriesFilter.forEach((seriesId) => {
-    chips.push({
-      id: `series:${seriesId}`,
-      type: 'series',
-      value: seriesId,
-      label: `Série: ${ctx.seriesNames[seriesId] || seriesId}`,
-    });
+  state.cityFilter.forEach((city) => {
+    chips.push({ id: `city:${city}`, type: 'city', value: city, label: `Cidade: ${city}` });
   });
 
-  state.examDateFilter.forEach((examKey) => {
+  if (state.studentCountFilter !== null) {
     chips.push({
-      id: `examDate:${examKey}`,
-      type: 'examDate',
-      value: examKey,
-      label: `Prova: ${ctx.examDateLabels[examKey] || EXAM_DATE_LABELS[examKey] || examKey}`,
+      id: 'studentCount',
+      type: 'studentCount',
+      label: formatStudentCountFilterLabel(state.studentCountFilter),
     });
-  });
+  }
 
   if (state.contactAttemptsFilter !== 'all') {
     chips.push({
@@ -224,40 +199,16 @@ export function buildFilterChips(
   }
 
   state.engagementTierFilter.forEach((tier) => {
-    chips.push({
-      id: `engagement:${tier}`,
-      type: 'engagement',
-      value: tier,
-      label: `Nota: ${ENGAGEMENT_TIER_LABELS[tier] || tier}`,
-    });
+    chips.push({ id: `engagement:${tier}`, type: 'engagement', value: tier, label: `Nota: ${ENGAGEMENT_TIER_LABELS[tier] || tier}` });
   });
 
   if (state.emptyEmailFilter !== 'all') {
-    chips.push({
-      id: `email:${state.emptyEmailFilter}`,
-      type: 'email',
-      value: state.emptyEmailFilter,
-      label: EMAIL_FILTER_LABELS[state.emptyEmailFilter],
-    });
+    chips.push({ id: `email:${state.emptyEmailFilter}`, type: 'email', value: state.emptyEmailFilter, label: EMAIL_FILTER_LABELS[state.emptyEmailFilter] });
   }
 
   state.attendedByFilter.forEach((attendantId) => {
-    chips.push({
-      id: `attendedBy:${attendantId}`,
-      type: 'attendedBy',
-      value: attendantId,
-      label: `Atendido por: ${ctx.attendantNames[attendantId] || attendantId}`,
-    });
+    chips.push({ id: `attendedBy:${attendantId}`, type: 'attendedBy', value: attendantId, label: `Atendido por: ${ctx.attendantNames[attendantId] || attendantId}` });
   });
-
-  if (!isDefaultSort(state.sortField, state.sortOrder)) {
-    chips.push({
-      id: 'sort',
-      type: 'sort',
-      label:
-        state.sortOrder === 'asc' ? 'Inscrições mais antigas' : 'Inscrições mais recentes',
-    });
-  }
 
   return chips;
 }
@@ -266,7 +217,13 @@ export function loadStudentsListFilters(): StudentsListFiltersState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as StudentsListFiltersState;
+    const parsed = JSON.parse(raw) as StudentsListFiltersState & { _v?: number };
+    // Invalida cache de versões anteriores (schema incompatível)
+    if (!parsed._v || parsed._v < CACHE_VERSION) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -274,7 +231,7 @@ export function loadStudentsListFilters(): StudentsListFiltersState | null {
 
 export function saveStudentsListFilters(state: StudentsListFiltersState): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, _v: CACHE_VERSION }));
   } catch {
     // sessionStorage indisponível ou quota excedida
   }
