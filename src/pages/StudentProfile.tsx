@@ -104,7 +104,7 @@ type Student = Tables<'students'> & {
   }) | null;
 };
 
-  type Profile = Tables<'profiles'>;
+type Profile = Tables<'profiles'>;
 
 type ClassWithRelations = Tables<'classes'> & {
   units: Tables<'units'>;
@@ -115,7 +115,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   profiles: { name: string };
 };
 
-  const StudentProfile = () => {
+const StudentProfile = () => {
   const { id } = useParams<{ id: string }>();
   const { user, profile, loading: authLoading } = useAuth();
   const { fullAccess, allowedUnitIds } = useUnitAccess();
@@ -456,7 +456,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       fetchAvailableSeries(); // ADICIONAR
       fetchCurrentAppointment(); // Buscar appointment atual
       fetchContactAttempts(); // Buscar tentativas de contato
-      
+
       // Definir valores atuais como selecionados
       setSelectedUnitId(student.classes?.unit_id || student.unit_id || '');
       setSelectedSeriesId(student.classes?.series_id || '');
@@ -562,7 +562,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
     if (data) {
       setInteractions(data);
-      
+
       // Verificar se o aluno teve entrevista baseado nas interações
       const hasAttendimentoInteraction = data.some(
         interaction => interaction.interaction_type === 'atendimento'
@@ -743,7 +743,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       }
 
       // Atualiza a turma e também a unidade do aluno conforme a turma selecionada
-      const updateData: any = { 
+      const updateData: any = {
         class_id: selectedClassId,
         unit_id: selectedClass.unit_id,
       };
@@ -762,10 +762,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
           student_id: student.id,
           user_id: profile?.id,
           interaction_type: 'mudanca_turma',
-          comments: `Turma alterada para ${selectedClass.name}` + 
-            (selectedClass && 'series' in selectedClass && (selectedClass as any).series 
-              ? ` - ${(selectedClass as any).series.name}` : '') + 
-            (selectedClass && 'units' in selectedClass && (selectedClass as any).units 
+          comments: `Turma alterada para ${selectedClass.name}` +
+            (selectedClass && 'series' in selectedClass && (selectedClass as any).series
+              ? ` - ${(selectedClass as any).series.name}` : '') +
+            (selectedClass && 'units' in selectedClass && (selectedClass as any).units
               ? ` (${(selectedClass as any).units.name})` : '')
         });
 
@@ -813,7 +813,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
       const { error } = await supabase
         .from('students')
-        .update({ 
+        .update({
           interview_date: interviewDate,
           status: 'atendimento_agendado'
         })
@@ -897,7 +897,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       // Atualizar o status do aluno para 'nenhum_agendamento' e limpar a data da entrevista
       const { error: studentUpdateError } = await supabase
         .from('students')
-        .update({ 
+        .update({
           status: 'nenhum_agendamento',
           interview_date: null
         })
@@ -971,8 +971,8 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       return;
     }
 
-    const materialDiscountSelected = materialPaymentType === 'a_vista' ? 10 : 
-                                    materialPaymentType === 'parcelado_cartao' ? 5 : 0;
+    const materialDiscountSelected = materialPaymentType === 'a_vista' ? 10 :
+      materialPaymentType === 'parcelado_cartao' ? 5 : 0;
     const materialAnual = student?.classes.material_didatico_anual || 0;
     const effectiveDiscount = materialPaymentType ? materialDiscountSelected : 0;
     const materialComDesconto = materialAnual * (1 - (effectiveDiscount / 100));
@@ -1025,10 +1025,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       if (studentError) throw studentError;
 
       // 3. Add interaction
-      const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' : 
-                              materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` : 
-                              materialPaymentType === 'parcelado_boleto' ? `Boleto ${materialInstallments}x` : 
-                              'Sem forma de pagamento definida';
+      const paymentTypeText = materialPaymentType === 'a_vista' ? 'À Vista' :
+        materialPaymentType === 'parcelado_cartao' ? `Cartão ${materialInstallments}x` :
+          materialPaymentType === 'parcelado_boleto' ? `Boleto ${materialInstallments}x` :
+            'Sem forma de pagamento definida';
 
       const annuityOriginal = student?.classes?.annuity ?? (
         (student?.classes?.monthly_fee || 0) * (student?.classes?.parcelas || 12)
@@ -1036,7 +1036,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       const finalMonthlyFee = (
         annuityOriginal * (1 - (discount / 100))
       ) / Math.max(1, tuitionInstallments);
-      
+
       const { error: interactionError } = await supabase
         .from('student_interactions')
         .insert({
@@ -1063,7 +1063,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
   const handleUpdateStatus = async () => {
     if (!newStatus) return;
-    
+
     if (newStatus === 'desistente' && !dropoutReason) {
       toast.error('Selecione o motivo da desistência');
       return;
@@ -1148,13 +1148,13 @@ type ContactAttempt = Tables<'contact_attempts'> & {
       const selectedExamDate = availableExamDates.find(ed => ed.id === selectedExamDateId);
       const newExamDate = selectedExamDate?.exam_date;
       const currentExamDate = student.exam_date;
-      
+
       // Verificar se a nova data é posterior à data atual
       const isNewDateLater = newExamDate && currentExamDate && new Date(newExamDate) > new Date(currentExamDate);
-      
+
       // Preparar dados para atualização
       const updateData: any = { exam_date_id: selectedExamDateId };
-      
+
       // Se o aluno está ausente e a nova data é posterior, alterar status para não confirmado
       if (student.status === 'ausente' && isNewDateLater) {
         updateData.status = 'nao_confirmado';
@@ -1169,7 +1169,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
       // Adicionar interação
       let interactionComment = `Data da prova alterada para ${formatDateForDisplay(selectedExamDate?.exam_date || '')} às ${selectedExamDate?.exam_time.substring(0, 5) || ''}`;
-      
+
       // Adicionar informação sobre mudança de status se aplicável
       if (student.status === 'ausente' && isNewDateLater) {
         interactionComment += '. Status automaticamente alterado de "Ausente" para "Não Confirmado" devido à nova data ser posterior.';
@@ -1184,10 +1184,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
           comments: interactionComment
         });
 
-      const successMessage = student.status === 'ausente' && isNewDateLater 
+      const successMessage = student.status === 'ausente' && isNewDateLater
         ? 'Data da prova alterada com sucesso! Status automaticamente alterado para "Não Confirmado".'
         : 'Data da prova alterada com sucesso!';
-        
+
       toast.success(successMessage);
       setShowExamDateEditor(false);
       fetchStudent();
@@ -1293,48 +1293,48 @@ type ContactAttempt = Tables<'contact_attempts'> & {
   };
 
   const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
-      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-        'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
-        'confirmado': { label: 'Confirmado', variant: 'secondary' },
-        'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
-        'matriculado': { label: 'Matriculado', variant: 'success' },
-        'desistente': { label: 'Desistente', variant: 'destructive' },
-        'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
-        'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-        'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-        'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
-        'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
-        'ausente': { label: 'Ausente', variant: 'ausente' },
-        'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
-      };
-
-      const config = statusMap[status] || { label: status, variant: 'outline' as const };
-
-      if (placement === 'header') {
-        const headerTone: Record<string, string> = {
-          destructive: 'border-destructive/20 bg-destructive/10 text-destructive',
-          success: 'border-green-200 bg-green-50 text-green-700',
-          warning: 'border-orange-200 bg-orange-50 text-orange-700',
-          default: 'border-primary/20 bg-primary/10 text-primary',
-          secondary: 'border-blue-200 bg-blue-50 text-blue-700',
-          outline: 'border-border bg-muted text-muted-foreground',
-        };
-        return (
-          <Badge
-            variant="outline"
-            className={cn(
-              'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
-              headerTone[config.variant] ?? headerTone.outline
-            )}
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-            {config.label}
-          </Badge>
-        );
-      }
-
-      return <Badge variant={config.variant}>{config.label}</Badge>;
+    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
+      'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
+      'confirmado': { label: 'Confirmado', variant: 'secondary' },
+      'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
+      'matriculado': { label: 'Matriculado', variant: 'success' },
+      'desistente': { label: 'Desistente', variant: 'destructive' },
+      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
+      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
+      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
+      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
+      'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
+      'ausente': { label: 'Ausente', variant: 'ausente' },
+      'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
     };
+
+    const config = statusMap[status] || { label: status, variant: 'outline' as const };
+
+    if (placement === 'header') {
+      const headerTone: Record<string, string> = {
+        destructive: 'border-destructive/20 bg-destructive/10 text-destructive',
+        success: 'border-green-200 bg-green-50 text-green-700',
+        warning: 'border-orange-200 bg-orange-50 text-orange-700',
+        default: 'border-primary/20 bg-primary/10 text-primary',
+        secondary: 'border-blue-200 bg-blue-50 text-blue-700',
+        outline: 'border-border bg-muted text-muted-foreground',
+      };
+      return (
+        <Badge
+          variant="outline"
+          className={cn(
+            'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
+            headerTone[config.variant] ?? headerTone.outline
+          )}
+        >
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+          {config.label}
+        </Badge>
+      );
+    }
+
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
 
   if (authLoading) {
     return (
@@ -1486,75 +1486,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="birth_date">Data de Nascimento</Label>
-                        <Input
-                          id="birth_date"
-                          type="text"
-                          placeholder="dd/mm/aaaa"
-                          inputMode="numeric"
-                          maxLength={10}
-                          pattern="^\\d{2}/\\d{2}/\\d{4}$"
-                          title="Digite no formato dd/mm/aaaa"
-                          value={birthDateDisplay}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const digits = raw.replace(/\D/g, '').slice(0, 8);
-                            let formatted = '';
-                            if (digits.length >= 2) {
-                              formatted = digits.slice(0, 2);
-                            } else {
-                              formatted = digits;
-                            }
-                            if (digits.length > 2) {
-                              formatted += '/' + digits.slice(2, 4);
-                            }
-                            if (digits.length > 4) {
-                              formatted += '/' + digits.slice(4, 8);
-                            }
-                            setBirthDateDisplay(formatted);
-
-                            // Atualiza birth_date ISO quando completo e válido
-                            const m = formatted.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-                            if (m) {
-                              const dd = m[1];
-                              const mm = m[2];
-                              const yyyy = m[3];
-                              const iso = `${yyyy}-${mm}-${dd}`;
-                              const d = new Date(iso + 'T00:00:00');
-                              if (!isNaN(d.getTime())) {
-                                setEditingPersonalData(prev => ({ ...prev, birth_date: iso }));
-                                e.target.setCustomValidity('');
-                              } else {
-                                e.target.setCustomValidity('Data inválida. Use dd/mm/aaaa');
-                              }
-                            } else {
-                              // Parcial: limpa ISO para evitar envio inválido
-                              setEditingPersonalData(prev => ({ ...prev, birth_date: '' }));
-                            }
-                          }}
-                          onInput={(e) => {
-                            (e.target as HTMLInputElement).setCustomValidity('');
-                          }}
-                          onInvalid={(e) => {
-                            (e.target as HTMLInputElement).setCustomValidity('Por favor, digite a data no formato dd/mm/aaaa');
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="responsible_cpf">CPF do Responsável</Label>
-                        <Input
-                          id="responsible_cpf"
-                          value={editingPersonalData.responsible_cpf}
-                          placeholder="000.000.000-00"
-                          inputMode="numeric"
-                          maxLength={14}
-                          onChange={(e) => setEditingPersonalData(prev => ({
-                            ...prev,
-                            responsible_cpf: formatCpf(e.target.value)
-                          }))}
-                        />
-                      </div>
-                      <div>
                         <Label htmlFor="phone">Telefone</Label>
                         <Input
                           id="phone"
@@ -1599,17 +1530,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           }))}
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="origin_school">Escola de Origem</Label>
-                        <Input
-                          id="origin_school"
-                          value={editingPersonalData.origin_school}
-                          onChange={(e) => setEditingPersonalData(prev => ({
-                            ...prev,
-                            origin_school: e.target.value
-                          }))}
-                        />
-                      </div>
                     </div>
                     <div className="flex space-x-2">
                       <Button
@@ -1637,14 +1557,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <p className="text-xs text-muted-foreground">Responsável</p>
                       <p className="text-sm font-medium text-foreground">{student.responsible_name || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Data de Nascimento</p>
-                      <p className="text-sm font-medium text-foreground">{formatDateForDisplay(student.birth_date) || <span className="italic text-muted-foreground">Não informado</span>}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">CPF do Responsável</p>
-                      <p className="text-sm font-medium text-foreground">{student.responsible_cpf ? formatCpf(student.responsible_cpf) : <span className="italic text-muted-foreground">Não informado</span>}</p>
-                    </div>
                     <div className="sm:col-span-2">
                       <StudentPhoneManager
                         studentId={student.id}
@@ -1669,26 +1581,6 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       <p className="text-xs text-muted-foreground">Bairro</p>
                       <p className="text-sm font-medium text-foreground">{student.neighborhood || <span className="italic text-muted-foreground">Não informado</span>}</p>
                     </div>
-                    <div className="sm:col-span-2">
-                      <p className="text-xs text-muted-foreground">Escola de Origem</p>
-                      <p className="text-sm font-medium text-foreground">{student.origin_school || <span className="italic text-muted-foreground">Não informado</span>}</p>
-                    </div>
-                  </div>
-                )}
-                {relatedByResponsibleCpf.length > 0 && (
-                  <div className="mt-3 p-2 bg-gray-50 rounded border border-gray-200 text-xs">
-                    <p className="text-gray-600">Este cadastro possui o mesmo CPF do responsável em comum com:</p>
-                    <div className="mt-1 space-y-1">
-                      {relatedByResponsibleCpf.map((s) => (
-                        <a
-                          key={s.id}
-                          href={`/student/${s.id}`}
-                          className="block text-blue-600 hover:underline"
-                        >
-                          {s.student_name}
-                        </a>
-                      ))}
-                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1703,113 +1595,40 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     <GraduationCap className="h-4 w-4" />
                     <span>Dados Acadêmicos</span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      fetchAvailableUnits();
-                      fetchAvailableSeries();
-                      setShowSeriesUnitEditor(!showSeriesUnitEditor);
-                    }}
-                    className="border-primary/30 text-primary hover:bg-primary/5"
-                  >
-                    {showSeriesUnitEditor ? 'Cancelar' : 'Alterar'}
-                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Série</p>
+                    <p className="text-xs text-muted-foreground">Infantil</p>
                     <p className="text-sm font-medium text-foreground">
-                      {student.classes?.series?.name || '—'}
+                      {student.infantil_count ?? 0}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Unidade</p>
+                    <p className="text-xs text-muted-foreground">Fundamental 1</p>
                     <p className="text-sm font-medium text-foreground">
-                      {student.classes?.units?.name || student.units?.name || '—'}
+                      {student.ef1_count ?? 0}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Turma</p>
+                    <p className="text-xs text-muted-foreground">Fundamental 2</p>
                     <p className="text-sm font-medium text-foreground">
-                      {student.classes?.name || '—'}
+                      {student.ef2_count ?? 0}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Data da Inscrição</p>
-                    <p className="text-sm font-medium text-foreground">{formatDateForDisplay(dateToLocalString(new Date(student.created_at)))}</p>
+                    <p className="text-xs text-muted-foreground">Ensino Médio</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.medio_count ?? 0}
+                    </p>
                   </div>
-                  
-                  {/* Editor de série e unidade */}
-                  {showSeriesUnitEditor && (
-                    <div className="col-span-2 mt-3 p-3 bg-gray-50 rounded-lg">
-                      <Label>Alterar Série e Unidade</Label>
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        <div>
-                          <Label htmlFor="unit-select" className="text-xs">Unidade</Label>
-                          <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent side="bottom">
-                              {availableUnits.map(unit => (
-                                <SelectItem key={unit.id} value={unit.id}>
-                                  {unit.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="series-select" className="text-xs">Série</Label>
-                          <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent side="bottom">
-                              {availableSeries.map(series => (
-                                <SelectItem key={series.id} value={series.id}>
-                                  {series.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="class-select" className="text-xs">Turma</Label>
-                          <Select 
-                            value={selectedClassId} 
-                            onValueChange={setSelectedClassId}
-                            disabled={!selectedUnitId || !selectedSeriesId}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione turma" />
-                            </SelectTrigger>
-                            <SelectContent side="bottom">
-                              {availableClasses.map(cls => (
-                                <SelectItem key={cls.id} value={cls.id}>
-                                  {cls.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        onClick={handleChangeSeriesUnit}
-                        disabled={!selectedClassId || selectedClassId === student.class_id}
-                        size="sm"
-                        className="mt-3 bg-blue-500 hover:bg-blue-600"
-                      >
-                        Confirmar Alteração
-                      </Button>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total de Alunos</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {student.total_students_count ?? 0}
+                    </p>
+                  </div>
                   {student.classes?.has_exam && (
                     <div className="col-span-2">
                       <GradeEditor student={student} onUpdate={fetchStudent} variant="inline" />
@@ -1837,14 +1656,14 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           {showExamDateEditor ? 'Cancelar' : 'Alterar'}
                         </Button>
                       </div>
-                      
+
                       {/* Editor de data da prova */}
                       {showExamDateEditor && availableExamDates.length > 0 && (
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                           <Label htmlFor="exam-date-select">Nova Data da Prova</Label>
                           <div className="flex items-center space-x-2 mt-2">
-                            <Select 
-                              value={selectedExamDateId} 
+                            <Select
+                              value={selectedExamDateId}
                               onValueChange={setSelectedExamDateId}
                             >
                               <SelectTrigger className="flex-1">
@@ -1924,11 +1743,11 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </div>
                   ) : (
                     <div className="col-span-2">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3" />
-                          <span className="font-medium">Data da Entrevista:</span>
-                          <span className="text-gray-500 ml-1">Não agendada</span>
-                        </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-medium">Data da Entrevista:</span>
+                        <span className="text-gray-500 ml-1">Não agendada</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2071,44 +1890,44 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 )}
                 {/* Monthly Fee Section */}
                 {student.classes && (
-                <div>
-                  <div className="flex items-center space-x-2 mb-3">
-                    <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-900">Mensalidade</span>
+                  <div>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <CreditCard className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium text-blue-900">Mensalidade</span>
+                    </div>
+                    <MonthlyFeeCalculator
+                      originalFee={student.classes.monthly_fee}
+                      discountPercentage={(() => {
+                        const d = parseFloat(discountEdit);
+                        return showDiscountEditor && !isNaN(d) ? d : student.discount_percentage;
+                      })()}
+                      showAnnualSavings={true}
+                      showClassName={true}
+                      className={student.classes.name}
+                      hasHadInterview={hasHadInterview}
+                      annuity={student.classes.annuity ?? ((student.classes.monthly_fee || 0) * (student.classes.parcelas || 12))}
+                      parcelas={student.classes.parcelas || 12}
+                    />
                   </div>
-                  <MonthlyFeeCalculator
-                    originalFee={student.classes.monthly_fee}
-                    discountPercentage={(() => {
-                      const d = parseFloat(discountEdit);
-                      return showDiscountEditor && !isNaN(d) ? d : student.discount_percentage;
-                    })()}
-                    showAnnualSavings={true}
-                    showClassName={true}
-                    className={student.classes.name}
-                    hasHadInterview={hasHadInterview}
-                    annuity={student.classes.annuity ?? ((student.classes.monthly_fee || 0) * (student.classes.parcelas || 12))}
-                    parcelas={student.classes.parcelas || 12}
-                  />
-                </div>
                 )}
 
                 {/* Recursos Didáticos Section */}
                 {student.classes && (
-                <div>
-                  <div className="flex items-center space-x-2 mb-3">
-                    <BookOpen className="h-4 w-4 text-purple-600" />
-                    <span className="font-medium text-purple-900">Recursos Didáticos</span>
+                  <div>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <BookOpen className="h-4 w-4 text-purple-600" />
+                      <span className="font-medium text-purple-900">Recursos Didáticos</span>
+                    </div>
+                    <MaterialDidaticoCalculator
+                      materialAnual={student.classes.material_didatico_anual || 0}
+                      materialMensal={student.classes.material_didatico_mes || 0}
+                      discountMaterial={student.discount_material || 0}
+                      hasHadInterview={hasHadInterview}
+                      paymentType={(student as any).material_payment_type || null}
+                      installments={(student as any).material_installments || null}
+                      savedInstallmentValue={(student as any).material_parcela || null}
+                    />
                   </div>
-                  <MaterialDidaticoCalculator
-                    materialAnual={student.classes.material_didatico_anual || 0}
-                    materialMensal={student.classes.material_didatico_mes || 0}
-                    discountMaterial={student.discount_material || 0}
-                    hasHadInterview={hasHadInterview}
-                    paymentType={(student as any).material_payment_type || null}
-                    installments={(student as any).material_installments || null}
-                    savedInstallmentValue={(student as any).material_parcela || null}
-                  />
-                </div>
                 )}
               </CardContent>
             </Card>
@@ -2116,10 +1935,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
           {showRegistrarAtendimento && (
             <section id="registrar-atendimento" className="scroll-mt-28">
-            <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
-              <CardHeader>
-                <CardTitle>Registrar Atendimento</CardTitle>
-              </CardHeader>
+              <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
+                <CardHeader>
+                  <CardTitle>Registrar Atendimento</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <Label htmlFor="discount">Percentual de Desconto (%)</Label>
@@ -2170,7 +1989,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         const monthlyNegotiated = annuityDiscounted / Math.max(1, tuitionInstallments);
                         const savings = originalFee - monthlyNegotiated;
                         const annualSavings = annuityOriginal - annuityDiscounted;
-                        
+
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -2188,7 +2007,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                             <div>
                               <span className="text-gray-600">Economia Anual:</span>
                               <p className="font-semibold text-lg text-green-600">R$ {annualSavings.toFixed(2)}</p>
-                            </div>                            
+                            </div>
                           </div>
                         );
                       })()}
@@ -2246,7 +2065,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                       placeholder="Descreva o atendimento realizado..."
                     />
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleRegisterAttendance}
                     className="w-full bg-orange-500 hover:bg-orange-600"
                   >
@@ -2255,7 +2074,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                 </CardContent>
               </Card>
             </section>
-            )}
+          )}
 
           <section id="agendar-entrevista" className="scroll-mt-28">
             <Card className="overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm">
@@ -2347,7 +2166,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                             .filter(Boolean);
                         }).flat()}
                       </SelectContent>
-                    </Select>                   
+                    </Select>
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="interviewer">Entrevistador</Label>
@@ -2365,25 +2184,25 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                     </Select>
                   </div>
                 </div>
-                
+
                 {/* Checkbox para formato da entrevista */}
                 <div className="flex items-center space-x-2 pt-2 sm:pt-2 mt-1 sm:mt-0">
-                  <Checkbox 
+                  <Checkbox
                     id="formato-entrevista"
                     checked={formatoEntrevista === 'a_distancia'}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setFormatoEntrevista(checked ? 'a_distancia' : 'presencial')
                     }
                   />
-                  <Label 
-                    htmlFor="formato-entrevista" 
+                  <Label
+                    htmlFor="formato-entrevista"
                     className="cursor-pointer text-sm font-normal"
                   >
                     Entrevista a distância
                   </Label>
                 </div>
-                
-                <Button 
+
+                <Button
                   onClick={handleScheduleInterview}
                   className="w-full bg-blue-500 hover:bg-blue-600"
                 >
@@ -2515,10 +2334,10 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                           <SelectItem value="motivos_financeiros">Motivos Financeiros</SelectItem>
                           <SelectItem value="falta_vaga">Falta de Vaga</SelectItem>
                           <SelectItem value="outro">Outro</SelectItem>
-                              </SelectContent>
+                        </SelectContent>
                       </Select>
                     </div>
-                    
+
                     {dropoutReason === 'outro' && (
                       <div>
                         <Label htmlFor="custom-dropout-reason">Especifique o motivo</Label>
@@ -2531,7 +2350,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         />
                       </div>
                     )}
-                    
+
                     {/* Campo de texto opcional para qualquer motivo */}
                     {dropoutReason && (
                       <div>
@@ -2559,7 +2378,7 @@ type ContactAttempt = Tables<'contact_attempts'> & {
                         <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
                         <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
                         <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
-                              </SelectContent>
+                      </SelectContent>
                     </Select>
                   </div>
                 )}
@@ -2708,20 +2527,20 @@ type ContactAttempt = Tables<'contact_attempts'> & {
 
         {/* Modal de Agendamento Manual */}
         {student && (
-            <ManualSchedulingModal
-                open={showSchedulingModal}
-                onOpenChange={setShowSchedulingModal}
-                student={{
-                    id: student.id,
-                    unit_id: student.classes?.unit_id,
-                    class_id: student.class_id,
-                    student_name: student.student_name
-                }}
-                onSuccess={() => {
-                    fetchStudent();
-                    fetchInteractions();
-                }}
-            />
+          <ManualSchedulingModal
+            open={showSchedulingModal}
+            onOpenChange={setShowSchedulingModal}
+            student={{
+              id: student.id,
+              unit_id: student.classes?.unit_id,
+              class_id: student.class_id,
+              student_name: student.student_name
+            }}
+            onSuccess={() => {
+              fetchStudent();
+              fetchInteractions();
+            }}
+          />
         )}
       </div>
 
