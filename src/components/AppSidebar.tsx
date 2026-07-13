@@ -31,7 +31,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { useWhatsappAccess } from '@/hooks/useWhatsappAccess';
 import { getRegistrationLinkForUnit } from '@/utils/registrationUnitGroups';
 
 const menuButtonClass =
@@ -72,7 +71,6 @@ export function AppSidebar() {
   const canAccessAdvancedReports =
     profile?.profile === 'admin' || profile?.profile === 'direcao';
   const canAccessConfig = profile?.profile === 'admin';
-  const { canView: canAccessQualificacao } = useWhatsappAccess();
 
   const gestaoItems: NavItem[] = [
     { id: 'reports', label: 'Painel Operacional', icon: BarChart3 },
@@ -81,9 +79,6 @@ export function AppSidebar() {
       : []),
     { id: 'students', label: 'Escolas', icon: Building2 },
     { id: 'appointments', label: 'Reuniões', icon: Calendar },
-    ...(canAccessQualificacao
-      ? [{ id: 'qualificacao', label: 'Leads (Em Breve)', icon: MessageCircle }]
-      : []),
   ];
 
   const sistemaItems: NavItem[] = canAccessConfig
