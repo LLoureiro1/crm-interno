@@ -42,7 +42,7 @@ const PROFILE_SECTIONS = [
   { id: 'dados-pessoais', label: 'Dados pessoais' },
   { id: 'academico', label: 'Acadêmico' },
   { id: 'proposta', label: 'Proposta' },
-  { id: 'agendar-entrevista', label: 'Agendar Entrevista' },
+  { id: 'agendar-entrevista', label: 'Agendar Reunião' },
   { id: 'contatos', label: 'Contatos' },
   { id: 'atualizar-status', label: 'Atualizar Status' },
   { id: 'adicionar-comentario', label: 'Adicionar Comentário' },

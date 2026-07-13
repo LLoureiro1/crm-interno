@@ -39,7 +39,8 @@ type Availability = {
     name: string;
   };
 };
-export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }: ManualSchedulingModalProps) {
+
+export function ManualSchedulingModal({ open, onOpenChange, student, onSuccess }: ManualSchedulingModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [modality, setModality] = useState<'presencial' | 'a_distancia'>('presencial');
@@ -71,7 +72,7 @@ type Availability = {
     setLoading(true);
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      
+
       // 1. Fetch specific availabilities
       const { data: specificData, error: specificErr } = await supabase
         .from('interviewer_availability')
@@ -153,8 +154,8 @@ type Availability = {
     const interviewerIds = Array.from(new Set(slots.flatMap(s => s.interviewers.map(i => i.id))));
 
     if (interviewerIds.length === 0) {
-        setBookedSlots({});
-        return;
+      setBookedSlots({});
+      return;
     }
 
     try {
@@ -241,10 +242,10 @@ type Availability = {
           const isExcluded = activeExclusions.some(ex => {
             const matchInterviewer = !ex.interviewer_id || ex.interviewer_id === interviewerId;
             if (!matchInterviewer) return false;
-            
+
             // If all day, it is excluded
             if (!ex.start_time || !ex.end_time) return true;
-            
+
             // Time range check
             return time >= ex.start_time.substring(0, 5) && time < ex.end_time.substring(0, 5);
           });
@@ -269,7 +270,7 @@ type Availability = {
 
   const getSlotsForDate = (date: Date) => {
     const rawSlots = getSlotsForDateLocal(date, specificAvailabilities, recurrentAvailabilities, exclusions);
-    
+
     return rawSlots
       .map(slot => {
         const bookedForTime = bookedSlots[slot.time] || [];
@@ -292,11 +293,11 @@ type Availability = {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const formattedDate = format(date, 'dd/MM/yyyy');
-      
+
       // Get interviewer name
-      const interviewerName = specificAvailabilities.find(a => a.interviewer_id === interviewerId)?.profiles?.name || 
-                              recurrentAvailabilities.find(a => a.interviewer_id === interviewerId)?.profiles?.name || 
-                              'Entrevistador';
+      const interviewerName = specificAvailabilities.find(a => a.interviewer_id === interviewerId)?.profiles?.name ||
+        recurrentAvailabilities.find(a => a.interviewer_id === interviewerId)?.profiles?.name ||
+        'Entrevistador';
       const modalityText = modality === 'presencial' ? 'Presencial' : 'A Distância';
 
       // Create appointment
@@ -322,7 +323,7 @@ type Availability = {
           interview_date: dateStr
         })
         .eq('id', student.id);
-        
+
       if (updateError) {
         console.error('Erro ao atualizar status do aluno:', updateError);
       }
@@ -354,122 +355,122 @@ type Availability = {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Agendar Entrevista</DialogTitle>
+          <DialogTitle>Agendar Reunião</DialogTitle>
           <DialogDescription>
             Selecione uma data e horário para agendar a entrevista de {student.student_name}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-4">
-            {!student.unit_id ? (
-                <div className="text-center p-8 text-gray-500">
-                    O aluno precisa estar vinculado a uma unidade para visualizar os horários disponíveis.
-                </div>
-            ) : (
-                <div className="grid md:grid-cols-2 gap-6">
-                    <div className="flex justify-center">
-                        <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            locale={ptBR}
-                            disabled={(date) => {
-                                const isBeforeToday = isBefore(date, startOfToday());
-                                const hasAvailability = availableDates.some(d => isSameDay(d, date));
-                                return isBeforeToday || !hasAvailability;
-                            }}
-                            modifiers={{ available: availableDates }}
-                            modifiersStyles={{
-                                available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' },
-                                selected: { color: 'white', backgroundColor: '#2563eb' }
-                            }}
-                            classNames={{
-                                day_selected: "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700",
-                                day_today: "bg-gray-100 text-gray-900",
-                            }}
-                            className="rounded-md border shadow-sm"
-                        />
-                    </div>
+          {!student.unit_id ? (
+            <div className="text-center p-8 text-gray-500">
+              O aluno precisa estar vinculado a uma unidade para visualizar os horários disponíveis.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={ptBR}
+                  disabled={(date) => {
+                    const isBeforeToday = isBefore(date, startOfToday());
+                    const hasAvailability = availableDates.some(d => isSameDay(d, date));
+                    return isBeforeToday || !hasAvailability;
+                  }}
+                  modifiers={{ available: availableDates }}
+                  modifiersStyles={{
+                    available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--primary)' },
+                    selected: { color: 'white', backgroundColor: '#2563eb' }
+                  }}
+                  classNames={{
+                    day_selected: "bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700",
+                    day_today: "bg-gray-100 text-gray-900",
+                  }}
+                  className="rounded-md border shadow-sm"
+                />
+              </div>
 
-                    <Card className="border shadow-sm">
-                        <CardContent className="p-4 h-[350px]">
-                            <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                {selectedDate 
-                                    ? `Horários em ${format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}` 
-                                    : 'Selecione uma data'}
-                            </h3>
+              <Card className="border shadow-sm">
+                <CardContent className="p-4 h-[350px]">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    {selectedDate
+                      ? `Horários em ${format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}`
+                      : 'Selecione uma data'}
+                  </h3>
 
-                            <div className="mb-4">
-                                <Label className="text-sm font-medium mb-2 block">Modalidade</Label>
-                                <RadioGroup 
-                                    value={modality} 
-                                    onValueChange={(v: 'presencial' | 'a_distancia') => setModality(v)}
-                                    className="flex space-x-4"
-                                >
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="presencial" id="presencial" />
-                                        <Label htmlFor="presencial">Presencial</Label>
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium mb-2 block">Modalidade</Label>
+                    <RadioGroup
+                      value={modality}
+                      onValueChange={(v: 'presencial' | 'a_distancia') => setModality(v)}
+                      className="flex space-x-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="presencial" id="presencial" />
+                        <Label htmlFor="presencial">Presencial</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="a_distancia" id="a_distancia" />
+                        <Label htmlFor="a_distancia">A Distância</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {selectedDate ? (
+                    slots.length > 0 ? (
+                      <ScrollArea className="h-[280px] pr-4">
+                        <div className="space-y-4">
+                          {slots.map(({ time, interviewers }) => (
+                            <div key={time} className="border rounded-lg p-3 bg-gray-50">
+                              <div className="flex items-center mb-2">
+                                <Badge variant="outline" className="bg-white text-sm px-2 py-1">
+                                  {time}
+                                </Badge>
+                                <span className="text-xs text-gray-500 ml-2">
+                                  {interviewers.length} entrevistador(es) livre(s)
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2 pl-2">
+                                {interviewers.map(interviewer => (
+                                  <div key={interviewer.id} className="flex items-center justify-between text-sm bg-white p-2 rounded border">
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-3 w-3 text-gray-400" />
+                                      <span>{interviewer.name}</span>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="a_distancia" id="a_distancia" />
-                                        <Label htmlFor="a_distancia">A Distância</Label>
-                                    </div>
-                                </RadioGroup>
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                                      onClick={() => handleBooking(selectedDate, time, interviewer.id)}
+                                      disabled={bookingLoading}
+                                    >
+                                      Agendar
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-
-                            {selectedDate ? (
-                                slots.length > 0 ? (
-                                    <ScrollArea className="h-[280px] pr-4">
-                                        <div className="space-y-4">
-                                            {slots.map(({ time, interviewers }) => (
-                                                <div key={time} className="border rounded-lg p-3 bg-gray-50">
-                                                    <div className="flex items-center mb-2">
-                                                        <Badge variant="outline" className="bg-white text-sm px-2 py-1">
-                                                            {time}
-                                                        </Badge>
-                                                        <span className="text-xs text-gray-500 ml-2">
-                                                            {interviewers.length} entrevistador(es) livre(s)
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2 pl-2">
-                                                        {interviewers.map(interviewer => (
-                                                            <div key={interviewer.id} className="flex items-center justify-between text-sm bg-white p-2 rounded border">
-                                                                <div className="flex items-center gap-2">
-                                                                    <User className="h-3 w-3 text-gray-400" />
-                                                                    <span>{interviewer.name}</span>
-                                                                </div>
-                                                                <Button 
-                                                                    size="sm" 
-                                                                    className="h-7 text-xs bg-green-600 hover:bg-green-700"
-                                                                    onClick={() => handleBooking(selectedDate, time, interviewer.id)}
-                                                                    disabled={bookingLoading}
-                                                                >
-                                                                    Agendar
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </ScrollArea>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                                        <Clock className="h-8 w-8 mb-2 opacity-20" />
-                                        <p>Sem horários livres</p>
-                                    </div>
-                                )
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                                    <CalendarIcon className="h-8 w-8 mb-2 opacity-20" />
-                                    <p>Escolha um dia</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                        <Clock className="h-8 w-8 mb-2 opacity-20" />
+                        <p>Sem horários livres</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <CalendarIcon className="h-8 w-8 mb-2 opacity-20" />
+                      <p>Escolha um dia</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
