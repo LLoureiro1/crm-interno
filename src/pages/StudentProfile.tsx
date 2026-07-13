@@ -781,7 +781,7 @@ const StudentProfile = () => {
 
   const handleScheduleInterview = async () => {
     if (!interviewDate || !interviewTime || !interviewerId) {
-      toast.error('Preencha todos os campos da entrevista');
+      toast.error('Preencha todos os campos da reunião');
       return;
     }
 
@@ -829,7 +829,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'agendamento_entrevista',
-          comments: `Entrevista agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewerName} (${formatoEntrevista === 'a_distancia' ? 'A distância' : 'Presencial'}). Status automaticamente alterado para "Atendimento Agendado".`,
+          comments: `Reunião agendada para ${formatDateForDisplay(interviewDate)} às ${interviewTime} com ${interviewerName} (${formatoEntrevista === 'a_distancia' ? 'A distância' : 'Presencial'}). Status automaticamente alterado para "Atendimento Agendado".`,
 
         });
 
@@ -845,7 +845,7 @@ const StudentProfile = () => {
           status: 'scheduled' // Assuming a default status for new appointments
         });
 
-      toast.success('Entrevista agendada com sucesso e status atualizado!');
+      toast.success('Reunião agendada com sucesso e status atualizado!');
       fetchStudent();
       fetchInteractions();
       setInterviewDate('');
@@ -860,12 +860,12 @@ const StudentProfile = () => {
 
   const handleCancelInterview = async () => {
     if (!student?.interview_date) {
-      toast.error('Nenhuma entrevista agendada para cancelar');
+      toast.error('Nenhuma reunião agendada para cancelar');
       return;
     }
 
     // Confirmar cancelamento
-    if (!confirm(`Tem certeza que deseja cancelar a entrevista agendada para ${formatDateForDisplay(student.interview_date)}?`)) {
+    if (!confirm(`Tem certeza que deseja cancelar a reunião agendada para ${formatDateForDisplay(student.interview_date)}?`)) {
       return;
     }
 
@@ -912,7 +912,7 @@ const StudentProfile = () => {
           student_id: id,
           user_id: profile?.id,
           interaction_type: 'mudanca_status',
-          comments: `Entrevista cancelada. Status alterado para "Nenhum Agendamento". Entrevista estava agendada para ${formatDateForDisplay(student.interview_date)}.`
+          comments: `Reunião cancelada. Status alterado para "Nenhum Agendamento". Reunião estava agendada para ${formatDateForDisplay(student.interview_date)}.`
         });
 
       if (interactionError) {
@@ -920,12 +920,12 @@ const StudentProfile = () => {
         // Não falha a operação se não conseguir registrar a interação
       }
 
-      toast.success('Entrevista cancelada com sucesso');
+      toast.success('Reunião cancelada com sucesso');
       fetchStudent();
       fetchInteractions();
     } catch (error) {
       console.error('Error canceling interview:', error);
-      toast.error('Erro ao cancelar entrevista');
+      toast.error('Erro ao cancelar reunião');
     }
   };
 
@@ -1695,7 +1695,7 @@ const StudentProfile = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
-                          <span className="font-medium">Data da Entrevista:</span>
+                          <span className="font-medium">Data da Reunião:</span>
                           <p className={isInterviewDay ? 'text-green-600 font-bold' : ''}>
                             {formatDateForDisplay(student.interview_date)}
                             {isInterviewDay && ' (HOJE)'}
@@ -1745,7 +1745,7 @@ const StudentProfile = () => {
                     <div className="col-span-2">
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3" />
-                        <span className="font-medium">Data da Entrevista:</span>
+                        <span className="font-medium">Data da Reunião:</span>
                         <span className="text-gray-500 ml-1">Não agendada</span>
                       </div>
                     </div>
@@ -2081,7 +2081,7 @@ const StudentProfile = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base text-primary">
                   <Calendar className="h-4 w-4" />
-                  <span>Agendar Entrevista</span>
+                  <span>Agendar Reunião</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -2169,7 +2169,7 @@ const StudentProfile = () => {
                     </Select>
                   </div>
                   <div className="col-span-2 sm:col-span-1">
-                    <Label htmlFor="interviewer">Entrevistador</Label>
+                    <Label htmlFor="interviewer">Atendente</Label>
                     <Select value={interviewerId} onValueChange={setInterviewerId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
@@ -2198,7 +2198,7 @@ const StudentProfile = () => {
                     htmlFor="formato-entrevista"
                     className="cursor-pointer text-sm font-normal"
                   >
-                    Entrevista a distância
+                    Reunião a distância
                   </Label>
                 </div>
 
@@ -2207,7 +2207,7 @@ const StudentProfile = () => {
                   className="w-full bg-blue-500 hover:bg-blue-600"
                 >
                   <Clock className="h-4 w-4 mr-2" />
-                  Agendar Entrevista
+                  Agendar Reunião
                 </Button>
               </CardContent>
             </Card>
