@@ -632,294 +632,295 @@ export const ReportsTab = () => {
       </div>
 
       <div className="space-y-6">
-      <div className="flex flex-wrap gap-3">
-        <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
-            <SelectValue placeholder="Selecione a unidade" />
-          </SelectTrigger>
-          <SelectContent side="bottom">
-            <SelectItem value="all">Todas as unidades</SelectItem>
-            {visibleUnits.map(unit => (
-              <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap gap-3">
+          <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+            <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
+              <SelectValue placeholder="Selecione a unidade" />
+            </SelectTrigger>
+            <SelectContent side="bottom">
+              <SelectItem value="all">Todas as unidades</SelectItem>
+              {visibleUnits.map(unit => (
+                <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={selectedSegment} onValueChange={handleSegmentChange}>
-          <SelectTrigger className="w-52 rounded-xl border-gray-200 bg-white shadow-sm">
-            <SelectValue placeholder="Selecione o segmento" />
-          </SelectTrigger>
-          <SelectContent side="bottom">
-            <SelectItem value="all">Todos os segmentos</SelectItem>
-            {availableSegments.map((level) => (
-              <SelectItem key={level} value={level}>
-                {getSegmentLabel(level)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={selectedSegment} onValueChange={handleSegmentChange}>
+            <SelectTrigger className="w-52 rounded-xl border-gray-200 bg-white shadow-sm">
+              <SelectValue placeholder="Selecione o segmento" />
+            </SelectTrigger>
+            <SelectContent side="bottom">
+              <SelectItem value="all">Todos os segmentos</SelectItem>
+              {availableSegments.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {getSegmentLabel(level)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={selectedSeries} onValueChange={setSelectedSeries}>
-          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
-            <SelectValue placeholder="Selecione a série" />
-          </SelectTrigger>
-          <SelectContent side="bottom">
-            <SelectItem value="all">Todas as séries</SelectItem>
-            {filteredSeriesOptions.map(serie => (
-              <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={selectedSeries} onValueChange={setSelectedSeries}>
+            <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
+              <SelectValue placeholder="Selecione a série" />
+            </SelectTrigger>
+            <SelectContent side="bottom">
+              <SelectItem value="all">Todas as séries</SelectItem>
+              {filteredSeriesOptions.map(serie => (
+                <SelectItem key={serie.id} value={serie.id}>{serie.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={dateFilterType} onValueChange={setDateFilterType}>
-          <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent side="bottom">
-            <SelectItem value="default">Selecione o período...</SelectItem>
-            <SelectItem value="all">Todo o período</SelectItem>
-            <SelectItem value="today">Hoje</SelectItem>
-            <SelectItem value="7days">Últimos 7 dias</SelectItem>
-            <SelectItem value="30days">Últimos 30 dias</SelectItem>
-            <SelectItem value="custom">Personalizado</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={dateFilterType} onValueChange={setDateFilterType}>
+            <SelectTrigger className="w-48 rounded-xl border-gray-200 bg-white shadow-sm">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent side="bottom">
+              <SelectItem value="default">Selecione o período...</SelectItem>
+              <SelectItem value="all">Todo o período</SelectItem>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="7days">Últimos 7 dias</SelectItem>
+              <SelectItem value="30days">Últimos 30 dias</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {dateFilterType === 'custom' && (
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <span className="text-sm text-muted-foreground">até</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-        )}
-      </div>
-
-      <section id="kpis" className="scroll-mt-20 space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
-          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Inscrições</CardTitle>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                <Users className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.totalInscricoes}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
-          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Inscritos Hoje</CardTitle>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                <UserPlus className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.inscritosHoje}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
-          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Próxima Prova</CardTitle>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                <ClipboardList className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.alunosProximaProva}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(todayAppointmentsStudents, getAgendamentosLabel())}>
-          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-            <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{getAgendamentosLabel()}</CardTitle>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                <Calendar className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.agendamentosHoje}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
-          <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-            <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Matriculados</CardTitle>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-emerald-700">{reportData.matriculados}</div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      </section>
-
-      <section id="meta" className="scroll-mt-20">
-      {/* Goal Card */}
-      <div className="grid grid-cols-1">
-        <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-          <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
-          <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-            <Target className="h-4 w-4 text-primary" />
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mt-1 flex items-baseline justify-between">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold tabular-nums text-primary">{reportData.globalMatriculados}</span>
-                <span className="text-xl font-medium text-muted-foreground">/ {totalGoal}</span>
-              </div>
-              {totalGoal > 0 && (
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-primary">
-                  {goalPct.toFixed(1).replace('.', ',')}%
-                </span>
-              )}
+          {dateFilterType === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span className="text-sm text-muted-foreground">até</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="flex h-10 w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
             </div>
-            {totalGoal > 0 && (
-              <>
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-500 ease-in-out"
-                    style={{ width: `${goalPct}%` }}
-                  />
-                </div>
-                <div className="mt-2 flex justify-end text-xs text-muted-foreground">
-                  <span>Meta: {totalGoal} matrículas</span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      </section>
+          )}
+        </div>
 
-      <section id="status" className="scroll-mt-20">
-      {/* Status Breakdown */}
-      <Card className="border-0 shadow-sm ring-1 ring-gray-100">
-        <CardHeader>
-          <CardTitle className="text-primary">Alunos por Status</CardTitle>
-          <CardDescription>Distribuição detalhada dos status dos alunos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-            {(() => {
-              const statusOrder = [
-                'nao_confirmado',
-                'confirmado',
-                'ausente',
-                'nenhum_agendamento',
-                'atendimento_agendado',
-                'faltou_ao_atendimento',
-                'atendimento_recentemente',
-                'atendimento_ha_mais_de_uma_semana',
-                'desistente',
-                'matriculado',
-              ];
-              return statusOrder
-                .filter(status => reportData.statusCounts[status] !== undefined)
-                .map(status => {
-                  const style = getStatusCardStyle(status);
-                  return (
-                  <div
-                    key={status}
-                    className={cn(
-                      'cursor-pointer rounded-lg border p-4 text-center transition-shadow hover:shadow-md',
-                      style.card
-                    )}
-                    onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                    <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status]}</div>
-                    <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>{statusLabels[status] || status}</div>
+        <section id="kpis" className="scroll-mt-20 space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
+              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total de Inscrições</CardTitle>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                    <Users className="h-4 w-4 text-blue-600" />
                   </div>
-                );})
-            })()}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.totalInscricoes}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
+              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Inscritos Hoje</CardTitle>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                    <UserPlus className="h-4 w-4 text-blue-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.inscritosHoje}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
+              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Próxima Prova</CardTitle>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                    <ClipboardList className="h-4 w-4 text-blue-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.alunosProximaProva}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(todayAppointmentsStudents, getAgendamentosLabel())}>
+              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{getAgendamentosLabel()}</CardTitle>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.agendamentosHoje}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('matriculados'), 'Alunos Matriculados')}>
+              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Matriculados</CardTitle>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold tabular-nums text-emerald-700">{reportData.matriculados}</div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-      </section>
+        </section>
 
-      <section id="funil" className="scroll-mt-20">
-      <StatusFunnelChart
-        statusCounts={reportData.statusCounts}
-        statusLabels={statusLabels}
-        students={studentsData
-          .filter((s) => !isExcludedFromClassChart(s.status))
-          .map((s) => ({ class_id: s.class_id, status: s.status }))}
-        classes={classesData}
-        unitNames={unitNames}
-        selectedUnit={selectedUnit}
-        selectedSegment={selectedSegment}
-        selectedSeries={selectedSeries}
-        onUnitChange={setSelectedUnit}
-        onSegmentChange={handleSegmentChange}
-        onSeriesChange={setSelectedSeries}
-        visibleUnits={visibleUnits}
-        availableSegments={availableSegments}
-        filteredSeriesOptions={filteredSeriesOptions}
-        onStatusClick={(status, label) =>
-          openDialog(getStudentsByStatus(status), `Alunos com status: ${label}`)
-        }
-        onClassStatusClick={(classId, status, statusLabel, classLabel) =>
-          openDialog(
-            getStudentsByClassAndStatus(classId, status),
-            `${classLabel} · ${statusLabel}`
-          )
-        }
-      />
-      </section>
+        <section id="meta" className="scroll-mt-20">
+          {/* Goal Card */}
+          <div className="grid grid-cols-1">
+            <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
+              <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
+              <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
+                <Target className="h-4 w-4 text-primary" />
+                <CardTitle className="text-sm font-medium text-gray-700">
+                  Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold tabular-nums text-primary">{reportData.globalMatriculados}</span>
+                    <span className="text-xl font-medium text-muted-foreground">/ {totalGoal}</span>
+                  </div>
+                  {totalGoal > 0 && (
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-primary">
+                      {goalPct.toFixed(1).replace('.', ',')}%
+                    </span>
+                  )}
+                </div>
+                {totalGoal > 0 && (
+                  <>
+                    <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500 ease-in-out"
+                        style={{ width: `${goalPct}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 flex justify-end text-xs text-muted-foreground">
+                      <span>Meta: {totalGoal} matrículas</span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
-      {/* Único Dialog global para exibir a tabela de alunos */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{dialogTitle}</DialogTitle>
-          </DialogHeader>
-          <StudentsTable students={dialogStudents} statusLabels={statusLabels} />
-        </DialogContent>
-      </Dialog>
+        <section id="status" className="scroll-mt-20">
+          {/* Status Breakdown */}
+          <Card className="border-0 shadow-sm ring-1 ring-gray-100">
+            <CardHeader>
+              <CardTitle className="text-primary">Escolas por Status</CardTitle>
+              <CardDescription>Distribuição detalhada dos status das escolas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+                {(() => {
+                  const statusOrder = [
+                    'nao_confirmado',
+                    'confirmado',
+                    'ausente',
+                    'nenhum_agendamento',
+                    'atendimento_agendado',
+                    'faltou_ao_atendimento',
+                    'atendimento_recentemente',
+                    'atendimento_ha_mais_de_uma_semana',
+                    'desistente',
+                    'matriculado',
+                  ];
+                  return statusOrder
+                    .filter(status => reportData.statusCounts[status] !== undefined)
+                    .map(status => {
+                      const style = getStatusCardStyle(status);
+                      return (
+                        <div
+                          key={status}
+                          className={cn(
+                            'cursor-pointer rounded-lg border p-4 text-center transition-shadow hover:shadow-md',
+                            style.card
+                          )}
+                          onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
+                          <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status]}</div>
+                          <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>{statusLabels[status] || status}</div>
+                        </div>
+                      );
+                    })
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
-      {showBackToTop && (
-        <Button
-          type="button"
-          onClick={scrollToTop}
-          size="icon"
-          className="fixed bottom-6 right-6 z-30 rounded-full bg-primary shadow-lg hover:bg-primary/90"
-          aria-label="Voltar ao topo"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-      )}
+        <section id="funil" className="scroll-mt-20">
+          <StatusFunnelChart
+            statusCounts={reportData.statusCounts}
+            statusLabels={statusLabels}
+            students={studentsData
+              .filter((s) => !isExcludedFromClassChart(s.status))
+              .map((s) => ({ class_id: s.class_id, status: s.status }))}
+            classes={classesData}
+            unitNames={unitNames}
+            selectedUnit={selectedUnit}
+            selectedSegment={selectedSegment}
+            selectedSeries={selectedSeries}
+            onUnitChange={setSelectedUnit}
+            onSegmentChange={handleSegmentChange}
+            onSeriesChange={setSelectedSeries}
+            visibleUnits={visibleUnits}
+            availableSegments={availableSegments}
+            filteredSeriesOptions={filteredSeriesOptions}
+            onStatusClick={(status, label) =>
+              openDialog(getStudentsByStatus(status), `Alunos com status: ${label}`)
+            }
+            onClassStatusClick={(classId, status, statusLabel, classLabel) =>
+              openDialog(
+                getStudentsByClassAndStatus(classId, status),
+                `${classLabel} · ${statusLabel}`
+              )
+            }
+          />
+        </section>
+
+        {/* Único Dialog global para exibir a tabela de alunos */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{dialogTitle}</DialogTitle>
+            </DialogHeader>
+            <StudentsTable students={dialogStudents} statusLabels={statusLabels} />
+          </DialogContent>
+        </Dialog>
+
+        {showBackToTop && (
+          <Button
+            type="button"
+            onClick={scrollToTop}
+            size="icon"
+            className="fixed bottom-6 right-6 z-30 rounded-full bg-primary shadow-lg hover:bg-primary/90"
+            aria-label="Voltar ao topo"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
