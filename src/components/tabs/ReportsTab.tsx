@@ -836,14 +836,13 @@ export const ReportsTab = () => {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
                 {(() => {
                   const statusOrder = [
-                    'nao_confirmado',
-                    'confirmado',
-                    'ausente',
                     'nenhum_agendamento',
+                    'confirmado',
                     'atendimento_agendado',
                     'faltou_ao_atendimento',
                     'atendimento_recentemente',
                     'atendimento_ha_mais_de_uma_semana',
+                    'cadastro_invalido',
                     'desistente',
                     'matriculado',
                   ];

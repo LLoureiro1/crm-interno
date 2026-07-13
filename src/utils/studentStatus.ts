@@ -1,9 +1,7 @@
 /** Ordem linear para barras (igual à grade «Alunos por Status»). */
 export const STUDENT_STATUS_FUNNEL_ORDER = [
-  'nao_confirmado',
-  'confirmado',
-  'ausente',
   'nenhum_agendamento',
+  'confirmado',
   'atendimento_agendado',
   'faltou_ao_atendimento',
   'atendimento_recentemente',
@@ -18,9 +16,8 @@ export type FunnelStage =
   | { type: 'split'; main: string; marginal: string };
 
 export const STUDENT_STATUS_FUNNEL_STAGES: FunnelStage[] = [
-  { type: 'single', status: 'nao_confirmado' },
+  { type: 'single', status: 'nenhum_agendamento' },
   { type: 'single', status: 'confirmado' },
-  { type: 'split', main: 'nenhum_agendamento', marginal: 'ausente' },
   { type: 'single', status: 'atendimento_agendado' },
   { type: 'single', status: 'faltou_ao_atendimento' },
   { type: 'single', status: 'atendimento_recentemente' },
@@ -31,29 +28,23 @@ export const STUDENT_STATUS_FUNNEL_STAGES: FunnelStage[] = [
 /** Status excluídos do funil de conversão. */
 export const STUDENT_STATUS_FUNNEL_EXCLUDED = [
   'cadastro_invalido',
-  'processo_anos_anteriores',
 ] as const;
 
 export const STUDENT_STATUS_LABELS: Record<string, string> = {
-  nao_confirmado: 'Lead Frio',
-  confirmado: 'Lead Quente',
-  cadastro_invalido: 'Sem Perfil / Inválido',
   nenhum_agendamento: 'Sem Contato',
+  confirmado: 'Contato Realizado',
   atendimento_agendado: 'Reunião Agendada',
-  atendimento_recentemente: 'Proposta Apresentada',
-  atendimento_ha_mais_de_uma_semana: 'Aguardando Retorno',
-  faltou_ao_atendimento: 'Reunião Desmarcada',
-  ausente: 'Sem Resposta',
-  desistente: 'Negociação Perdida',
-  matriculado: 'Parceria Fechada',
-  processo_anos_anteriores: 'Contatos Anteriores',
+  faltou_ao_atendimento: 'Faltou a Reunião',
+  atendimento_recentemente: 'Reunião Recente',
+  atendimento_ha_mais_de_uma_semana: 'Reunião há mais de uma semana',
+  cadastro_invalido: 'Escola Descartada',
+  desistente: 'Desistente',
+  matriculado: 'Fechado',
 };
 
 export const STUDENT_STATUS_COLORS: Record<string, string> = {
-  nao_confirmado: '#94a3b8',
-  confirmado: '#64748b',
-  ausente: '#F87171',
   nenhum_agendamento: '#cbd5e1',
+  confirmado: '#64748b',
   atendimento_agendado: '#64748b',
   faltou_ao_atendimento: '#A78BFA',
   atendimento_recentemente: '#1437cc',
@@ -61,7 +52,6 @@ export const STUDENT_STATUS_COLORS: Record<string, string> = {
   desistente: '#ef4444',
   matriculado: '#22c55e',
   cadastro_invalido: '#000000',
-  processo_anos_anteriores: '#999999',
 };
 
 export type FunnelDataPoint = {

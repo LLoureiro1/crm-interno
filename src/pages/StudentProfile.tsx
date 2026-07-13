@@ -1114,14 +1114,38 @@ const StudentProfile = () => {
       if (error) throw error;
 
       // Add interaction
+      const statusLabelMap: Record<string, string> = {
+        nenhum_agendamento: 'Sem Contato',
+        confirmado: 'Contato Realizado',
+        atendimento_agendado: 'Reunião Agendada',
+        faltou_ao_atendimento: 'Faltou a Reunião',
+        atendimento_recentemente: 'Reunião Recente',
+        atendimento_ha_mais_de_uma_semana: 'Reunião há mais de uma semana',
+        cadastro_invalido: 'Escola Descartada',
+        desistente: 'Desistente',
+        matriculado: 'Fechado'
+      };
+      
+      let commentReason = '';
+      if (newStatus === 'desistente') {
+        commentReason = ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})`;
+      } else if (newStatus === 'cadastro_invalido') {
+        const reasonLabel = invalidReason === 'pequena_demais' ? 'Pequena Demais' : invalidReason === 'instituicao_beneficente' ? 'Instituição Beneficente' : invalidReason;
+        commentReason = ` (Motivo: ${reasonLabel})`;
+      } else if (newStatus === 'matriculado') {
+        commentReason = erpCode.trim() ? ` (Código ERP: ${erpCode.trim()})` : '';
+      }
+
+      const interactionData = {
+        student_id: id,
+        user_id: profile?.id,
+        interaction_type: 'mudanca_status',
+        comments: `Status alterado para: ${statusLabelMap[newStatus] || newStatus}${commentReason}`
+      };
+
       await supabase
         .from('student_interactions')
-        .insert({
-          student_id: id,
-          user_id: profile?.id,
-          interaction_type: 'mudanca_status',
-          comments: `Status alterado para: ${newStatus === 'cadastro_invalido' ? 'Cadastro Inválido' : newStatus}${newStatus === 'desistente' ? ` (Motivo: ${dropoutReason}${dropoutReason === 'outro' && customDropoutReason.trim() ? ` - ${customDropoutReason.trim()}` : ''}${dropoutComment.trim() ? ` - ${dropoutComment.trim()}` : ''})` : newStatus === 'cadastro_invalido' ? ` (Motivo: ${invalidReason === 'cadastro_duplicado' ? 'Cadastro Duplicado' : invalidReason === 'cadastro_de_teste' ? 'Cadastro de Teste' : invalidReason === 'ja_e_aluno' ? 'Já é aluno' : invalidReason})` : newStatus === 'matriculado' ? ` (Código ERP: ${erpCode.trim()})` : ''}`
-        });
+        .insert(interactionData);
 
       toast.success('Status atualizado com sucesso');
       fetchStudent();
@@ -1294,18 +1318,15 @@ const StudentProfile = () => {
 
   const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
     const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-      'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
-      'confirmado': { label: 'Confirmado', variant: 'secondary' },
-      'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
-      'matriculado': { label: 'Matriculado', variant: 'success' },
+      'nenhum_agendamento': { label: 'Sem Contato', variant: 'outline' },
+      'confirmado': { label: 'Contato Realizado', variant: 'secondary' },
+      'atendimento_agendado': { label: 'Reunião Agendada', variant: 'secondary' },
+      'faltou_ao_atendimento': { label: 'Faltou a Reunião', variant: 'purple' },
+      'atendimento_recentemente': { label: 'Reunião Recente', variant: 'default' },
+      'atendimento_ha_mais_de_uma_semana': { label: 'Reunião há mais de uma semana', variant: 'warning' },
+      'cadastro_invalido': { label: 'Escola Descartada', variant: 'cadastro_invalido' },
       'desistente': { label: 'Desistente', variant: 'destructive' },
-      'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
-      'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-      'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
-      'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
-      'ausente': { label: 'Ausente', variant: 'ausente' },
-      'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
+      'matriculado': { label: 'Fechado', variant: 'success' },
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' as const };
@@ -2287,25 +2308,22 @@ const StudentProfile = () => {
                     <SelectContent side="bottom">
                       {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="matriculado">Matriculado</SelectItem>
+                          <SelectItem value="matriculado">Fechado</SelectItem>
                           <SelectItem value="desistente">Desistente</SelectItem>
-                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
+                          <SelectItem value="cadastro_invalido">Escola Descartada</SelectItem>
                         </>
                       ) : (
                         <>
-                          {student.classes?.has_exam && (
-                            <>
-                              <SelectItem value="nao_confirmado">Não Confirmado</SelectItem>
-                              <SelectItem value="confirmado">Confirmado</SelectItem>
-                            </>
-                          )}
-                          <SelectItem value="cadastro_invalido">Cadastro Inválido</SelectItem>
-                          {!hasHadInterview && (
-                            <SelectItem value="nenhum_agendamento">Nenhum Agendamento</SelectItem>
-                          )}
+                          <SelectItem value="nenhum_agendamento">Sem Contato</SelectItem>
+                          <SelectItem value="confirmado">Contato Realizado</SelectItem>
+                          <SelectItem value="atendimento_agendado">Reunião Agendada</SelectItem>
+                          <SelectItem value="faltou_ao_atendimento">Faltou a Reunião</SelectItem>
+                          <SelectItem value="atendimento_recentemente">Reunião Recente</SelectItem>
+                          <SelectItem value="atendimento_ha_mais_de_uma_semana">Reunião há mais de uma semana</SelectItem>
+                          <SelectItem value="cadastro_invalido">Escola Descartada</SelectItem>
                           <SelectItem value="desistente">Desistente</SelectItem>
                           {canUpdateToMatriculado && (
-                            <SelectItem value="matriculado">Matriculado</SelectItem>
+                            <SelectItem value="matriculado">Fechado</SelectItem>
                           )}
                         </>
                       )}
@@ -2375,9 +2393,8 @@ const StudentProfile = () => {
                         <SelectValue placeholder="Selecione o motivo" />
                       </SelectTrigger>
                       <SelectContent side="bottom">
-                        <SelectItem value="cadastro_duplicado">Cadastro Duplicado</SelectItem>
-                        <SelectItem value="cadastro_de_teste">Cadastro de Teste</SelectItem>
-                        <SelectItem value="ja_e_aluno">Já é aluno</SelectItem>
+                        <SelectItem value="pequena_demais">Pequena Demais</SelectItem>
+                        <SelectItem value="instituicao_beneficente">Instituição Beneficente</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -27,17 +27,15 @@ const STORAGE_KEY = 'students_list_filters';
 const CACHE_VERSION = 3; // incrementar quando o shape mudar
 
 export const STATUS_LABELS: Record<string, string> = {
-  nao_confirmado: 'Lead Frio',
-  confirmado: 'Lead Quente',
-  cadastro_invalido: 'Sem Perfil / Inválido',
-  matriculado: 'Parceria Fechada',
-  desistente: 'Negociação Perdida',
   nenhum_agendamento: 'Sem Contato',
+  confirmado: 'Contato Realizado',
   atendimento_agendado: 'Reunião Agendada',
-  faltou_ao_atendimento: 'Reunião Desmarcada',
-  atendimento_recentemente: 'Proposta Apresentada',
-  atendimento_ha_mais_de_uma_semana: 'Aguardando Retorno',
-  ausente: 'Sem Resposta',
+  faltou_ao_atendimento: 'Faltou a Reunião',
+  atendimento_recentemente: 'Reunião Recente',
+  atendimento_ha_mais_de_uma_semana: 'Reunião há mais de uma semana',
+  cadastro_invalido: 'Escola Descartada',
+  desistente: 'Desistente',
+  matriculado: 'Fechado',
 };
 
 export const CONTACT_ATTEMPTS_LABELS: Record<string, string> = {
