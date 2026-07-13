@@ -396,8 +396,7 @@ export const ReportsTab = () => {
     }
 
     if (allStudents) {
-      const currentAcademicYear = getCurrentAcademicYear();
-      const students = allStudents.filter(s => String(s.ano_letivo) === currentAcademicYear);
+      const students = allStudents;
       const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
       setStudentsData(students as Student[]);
 
@@ -450,12 +449,10 @@ export const ReportsTab = () => {
       );
       setTodayAppointmentsStudents(studentsWithAppointmentsToday as Student[]);
 
-      // Count by status
+      // Count by status — sempre exibe totais atuais, independente do filtro de período
       const statusCounts: { [key: string]: number } = {};
-      studentsValid.forEach(student => {
-        if (isActivityInPeriod(student.created_at, student.updated_at)) {
-          statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
-        }
+      students.forEach(student => {
+        statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
       });
 
       setReportData({
@@ -540,29 +537,26 @@ export const ReportsTab = () => {
   );
 
   const statusLabels: { [key: string]: string } = {
-    'nao_confirmado': 'Não Confirmado',
-    'confirmado': 'Confirmado',
-    'cadastro_invalido': 'Cadastro Inválido',
-    'nenhum_agendamento': 'Nenhum Agendamento',
-    'atendimento_agendado': 'Atendimento Agendado',
-    'atendimento_recentemente': 'Atendimento Recente',
-    'atendimento_ha_mais_de_uma_semana': 'Atendimento há mais de uma semana',
-    'faltou_ao_atendimento': 'Faltou ao Atendimento',
-    'ausente': 'Ausente',
+    'nenhum_agendamento': 'Sem Contato',
+    'confirmado': 'Contato Realizado',
+    'atendimento_agendado': 'Reunião Agendada',
+    'faltou_ao_atendimento': 'Faltou a Reunião',
+    'atendimento_recentemente': 'Reunião Recente',
+    'atendimento_ha_mais_de_uma_semana': 'Reunião há mais de uma semana',
+    'cadastro_invalido': 'Escola Descartada',
     'desistente': 'Desistente',
-    'matriculado': 'Matriculado'
+    'matriculado': 'Fechado'
   };
 
   const getStatusCardStyle = (status: string) => {
     const styles: Record<string, { card: string; count: string; label: string }> = {
-      nao_confirmado: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-400', label: 'text-slate-500' },
-      confirmado: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-500', label: 'text-slate-600' },
-      ausente: { card: 'border-red-100 bg-red-50/60', count: 'text-red-400', label: 'text-red-500' },
-      nenhum_agendamento: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-300', label: 'text-slate-400' },
-      atendimento_agendado: { card: 'border-slate-200 bg-slate-100/80', count: 'text-slate-500', label: 'text-slate-600' },
+      nenhum_agendamento: { card: 'border-slate-200 bg-slate-50', count: 'text-slate-400', label: 'text-slate-500' },
+      confirmado: { card: 'border-slate-200 bg-slate-100/80', count: 'text-slate-600', label: 'text-slate-700' },
+      atendimento_agendado: { card: 'border-blue-100 bg-blue-50/60', count: 'text-blue-500', label: 'text-blue-600' },
       faltou_ao_atendimento: { card: 'border-violet-100 bg-violet-50/60', count: 'text-violet-400', label: 'text-violet-500' },
       atendimento_recentemente: { card: 'border-blue-100 bg-blue-50', count: 'text-[#1437cc]', label: 'text-[#1437cc]' },
       atendimento_ha_mais_de_uma_semana: { card: 'border-orange-100 bg-orange-50', count: 'text-orange-500', label: 'text-orange-600' },
+      cadastro_invalido: { card: 'border-gray-200 bg-gray-50', count: 'text-gray-500', label: 'text-gray-600' },
       desistente: { card: 'border-red-100 bg-red-50', count: 'text-red-600', label: 'text-red-600' },
       matriculado: { card: 'border-green-100 bg-green-50', count: 'text-green-500', label: 'text-green-600' },
     };
@@ -847,7 +841,6 @@ export const ReportsTab = () => {
                     'matriculado',
                   ];
                   return statusOrder
-                    .filter(status => reportData.statusCounts[status] !== undefined)
                     .map(status => {
                       const style = getStatusCardStyle(status);
                       return (
@@ -858,7 +851,7 @@ export const ReportsTab = () => {
                             style.card
                           )}
                           onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                          <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status]}</div>
+                          <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status] ?? 0}</div>
                           <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>{statusLabels[status] || status}</div>
                         </div>
                       );
