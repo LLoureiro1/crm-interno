@@ -12,7 +12,7 @@ export type StudentsListFiltersState = {
   statusFilter: string[];
   segmentFilter: string[];
   academicYearFilter: string[];
-  sortField: 'created_at';
+  sortField: 'created_at' | 'total_alunos';
   sortOrder: 'desc' | 'asc';
   contactAttemptsFilter: 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5';
   engagementTierFilter: string[];
@@ -24,7 +24,7 @@ export type StudentsListFiltersState = {
 };
 
 const STORAGE_KEY = 'students_list_filters';
-const CACHE_VERSION = 2; // incrementar quando o shape mudar
+const CACHE_VERSION = 3; // incrementar quando o shape mudar
 
 export const STATUS_LABELS: Record<string, string> = {
   nao_confirmado: 'Lead Frio',
@@ -89,10 +89,6 @@ export function getDefaultAcademicYearFilter(availableYears: string[]): string[]
   return [];
 }
 
-export function isDefaultSort(sortField: string, sortOrder: string): boolean {
-  return sortField === 'created_at' && sortOrder === 'desc';
-}
-
 export function hasNonDefaultFilters(
   state: StudentsListFiltersState,
   defaultAcademicYear: string[]
@@ -112,7 +108,6 @@ export function hasNonDefaultFilters(
   if ((state.attendedByFilter?.length ?? 0) > 0) return true;
   if ((state.cityFilter?.length ?? 0) > 0) return true;
   if (state.studentCountFilter !== null) return true;
-  if (!isDefaultSort(state.sortField, state.sortOrder)) return true;
   return false;
 }
 
@@ -124,8 +119,7 @@ export function hasAdvancedFiltersActive(state: StudentsListFiltersState): boole
     state.emptyEmailFilter !== 'all' ||
     (state.attendedByFilter?.length ?? 0) > 0 ||
     (state.cityFilter?.length ?? 0) > 0 ||
-    state.studentCountFilter !== null ||
-    !isDefaultSort(state.sortField, state.sortOrder)
+    state.studentCountFilter !== null
   );
 }
 

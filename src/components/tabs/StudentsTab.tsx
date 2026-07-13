@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, ExternalLink, X } from 'lucide-react';
+import { Search, Download, Eye, ExternalLink, X, ArrowDown, ArrowUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -61,7 +61,7 @@ export const StudentsTab = () => {
   const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentDialog, setShowStudentDialog] = useState(false);
-  const sortField = 'created_at' as const;
+  const [sortField, setSortField] = useState<'created_at' | 'total_alunos'>(cachedFilters?.sortField ?? 'created_at');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>(cachedFilters?.sortOrder ?? 'desc');
   const [contactAttemptsFilter, setContactAttemptsFilter] = useState<'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5'>(
     cachedFilters?.contactAttemptsFilter ?? 'all'
@@ -305,30 +305,6 @@ export const StudentsTab = () => {
     setAvailableCities(cities.sort((a, b) => a.localeCompare(b, 'pt-BR')));
   };
 
-  const hasClientFilters = cityFilter.length > 0 || studentCountFilter !== null;
-
-  const applyClientFilters = (list: Student[]): Student[] => {
-    let result = list;
-    if (cityFilter.length > 0) {
-      result = result.filter((s) => {
-        const label = [s.city?.trim(), s.estado?.trim()].filter(Boolean).join(' - ');
-        return cityFilter.includes(label);
-      });
-    }
-    if (studentCountFilter !== null) {
-      result = result.filter((s) => {
-        const total = s.total_students_count ?? 0;
-        if (studentCountFilter.op === 'between') return total >= studentCountFilter.value && total <= studentCountFilter.valueTo;
-        if (studentCountFilter.op === 'gt') return total > studentCountFilter.value;
-        if (studentCountFilter.op === 'lt') return total < studentCountFilter.value;
-        if (studentCountFilter.op === 'gte') return total >= studentCountFilter.value;
-        if (studentCountFilter.op === 'lte') return total <= studentCountFilter.value;
-        return true;
-      });
-    }
-    return result;
-  };
-
   const fetchStudentsPage = async () => {
     setListLoading(true);
 
@@ -342,75 +318,141 @@ export const StudentsTab = () => {
         .map(Number)
         .filter((n) => !Number.isNaN(n));
 
-      const baseParams = {
-        p_ano_letivo: years.length > 0 ? years : null,
-        p_statuses: statusFilter.length > 0 ? statusFilter : null,
-        p_exclude_status: statusFilter.length > 0 ? null : 'cadastro_invalido',
-        p_unit_ids: null,
-        p_search: debouncedSearch.trim() || null,
-        p_sort_asc: sortOrder === 'asc',
-        p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
-      };
+      let query = supabase
+        .from('students')
+        .select(`
+          *,
+          units:unit_id (id, name),
+          classes (
+            id, name,
+            units (id, name),
+            series (id, name, level)
+          )
+        `, { count: 'exact' });
 
-      if (hasClientFilters) {
-        // Busca todos os itens em batches para poder aplicar filtro client-side com paginação correta
-        const batchSize = 1000;
-        const maxRows = 50000;
-        const allItems: Student[] = [];
-        for (let offset = 0; offset < maxRows; offset += batchSize) {
-          const { data, error } = await supabase.rpc('list_schools_page', {
-            ...baseParams,
-            p_limit: batchSize,
-            p_offset: offset,
-          });
-          if (error) throw error;
-          const payload = data as { items?: Student[]; total?: number } | null;
-          const chunk = (payload?.items || []) as Student[];
-          allItems.push(...chunk);
-          if (chunk.length < batchSize) break;
+      if (years.length > 0) {
+        query = query.in('ano_letivo', years);
+      }
+
+      if (statusFilter.length > 0) {
+        query = query.in('status', statusFilter as any[]);
+      } else {
+        query = query.neq('status', 'cadastro_invalido');
+      }
+
+      if (debouncedSearch.trim()) {
+        const s = `%${debouncedSearch.trim()}%`;
+        query = query.or(`student_name.ilike.${s},inep_code.ilike.${s},code.ilike.${s},city.ilike.${s},estado.ilike.${s}`);
+      }
+
+      if (emptyEmailFilter === 'com_email') {
+        query = query.not('email', 'is', null).neq('email', '');
+      } else if (emptyEmailFilter === 'sem_email') {
+        query = query.or('email.is.null,email.eq.""');
+      }
+
+      if (allowedUnitIds.length > 0) {
+        query = query.in('unit_id', allowedUnitIds);
+      } else if (!fullAccess && profile?.unit_id) {
+        query = query.eq('unit_id', profile.unit_id);
+      }
+
+      if (cityFilter.length > 0) {
+        const orClauses = cityFilter.map(c => {
+          const [city, uf] = c.split(' - ');
+          if (uf) return `and(city.eq."${city.trim()}",estado.eq."${uf.trim()}")`;
+          return `city.eq."${c.trim()}"`;
+        });
+        query = query.or(orClauses.join(','));
+      }
+
+      if (studentCountFilter) {
+        if (studentCountFilter.op === 'between') {
+          query = query.gte('total_students_count', studentCountFilter.value).lte('total_students_count', studentCountFilter.valueTo);
+        } else if (studentCountFilter.op === 'gt') {
+          query = query.gt('total_students_count', studentCountFilter.value);
+        } else if (studentCountFilter.op === 'lt') {
+          query = query.lt('total_students_count', studentCountFilter.value);
+        } else if (studentCountFilter.op === 'gte') {
+          query = query.gte('total_students_count', studentCountFilter.value);
+        } else if (studentCountFilter.op === 'lte') {
+          query = query.lte('total_students_count', studentCountFilter.value);
         }
-        const filtered = applyClientFilters(allItems);
-        const from = (currentPage - 1) * itemsPerPage;
-        const page = filtered.slice(from, from + itemsPerPage);
-        setStudents(page);
-        setFilteredStudents(page);
-        setTotalCount(filtered.length);
-        const ids = page.map((s) => s.id).filter(Boolean);
-        void fetchAttendedByMap(ids);
-        if (ids.length === 0) { setContactCounts({}); }
-        else {
-          const { data: attempts } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
+      }
+
+      if (sortField === 'total_alunos') {
+        query = query.order('total_students_count', { ascending: sortOrder === 'asc', nullsFirst: false });
+      } else {
+        query = query.order('created_at', { ascending: sortOrder === 'asc', nullsFirst: false });
+      }
+
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      query = query.range(from, to);
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      let finalData = (data as unknown) as Student[];
+      setTotalCount(count || 0);
+
+      // Pos-filtro segment
+      if (segmentFilter.length > 0) {
+        finalData = finalData.filter(s => {
+          if (!s.classes) return false;
+          // check if any class has a series with level in segmentFilter
+          const classes = Array.isArray(s.classes) ? s.classes : [s.classes];
+          return classes.some(c => c.series && segmentFilter.includes(c.series.level));
+        });
+      }
+
+      // Pos-filtro Atendentes
+      const ids = finalData.map((s) => s.id).filter(Boolean);
+      void fetchAttendedByMap(ids);
+      
+      if (attendedByFilter.length > 0) {
+        finalData = finalData.filter((s) => {
+          const attendants = attendedByMap[s.id] || [];
+          return attendedByFilter.some((a) => attendants.includes(a));
+        });
+      }
+
+      // Engagement tier filter (client side based on engagement_score)
+      if (engagementTierFilter.length > 0) {
+        finalData = finalData.filter(s => {
+          const score = s.engagement_score ?? 0;
+          if (engagementTierFilter.includes('alto') && score >= ENGAGEMENT_WEIGHTS.tierHigh) return true;
+          if (engagementTierFilter.includes('medio') && score >= ENGAGEMENT_WEIGHTS.tierMedium && score < ENGAGEMENT_WEIGHTS.tierHigh) return true;
+          if (engagementTierFilter.includes('baixo') && score < ENGAGEMENT_WEIGHTS.tierMedium) return true;
+          return false;
+        });
+      }
+
+      setStudents(finalData);
+      setFilteredStudents(finalData);
+
+      // Contagem de tentativas de contato
+      if (ids.length === 0) { 
+        setContactCounts({}); 
+      } else {
+        const { data: attempts, error: attemptsError } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
+        if (attemptsError) { 
+          setContactCounts({}); 
+        } else {
           const counts: Record<string, number> = {};
           (attempts || []).forEach((a: { student_id: string }) => { counts[a.student_id] = (counts[a.student_id] || 0) + 1; });
           setContactCounts(counts);
-        }
-      } else {
-        const from = (currentPage - 1) * itemsPerPage;
-        const { data, error } = await supabase.rpc('list_schools_page', {
-          ...baseParams,
-          p_limit: itemsPerPage,
-          p_offset: from,
-        });
-        if (error) {
-          console.error('Error fetching students:', error);
-          toast.error(`Erro ao carregar escolas: ${error.message}`);
-          setStudents([]); setFilteredStudents([]); setTotalCount(0);
-          return;
-        }
-        const payload = data as { items?: Student[]; total?: number } | null;
-        const list = (payload?.items || []) as Student[];
-        setStudents(list); setFilteredStudents(list);
-        setTotalCount(Number(payload?.total ?? 0));
-        const ids = list.map((s) => s.id).filter(Boolean);
-        void fetchAttendedByMap(ids);
-        if (ids.length === 0) { setContactCounts({}); }
-        else {
-          const { data: attempts, error: attemptsError } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
-          if (attemptsError) { setContactCounts({}); }
-          else {
-            const counts: Record<string, number> = {};
-            (attempts || []).forEach((a: { student_id: string }) => { counts[a.student_id] = (counts[a.student_id] || 0) + 1; });
-            setContactCounts(counts);
+
+          // Filtro de tentativas (só pode ser feito após calcular as contagens)
+          if (contactAttemptsFilter !== 'all') {
+             const filteredByContact = finalData.filter(s => {
+               const count = counts[s.id] || 0;
+               if (contactAttemptsFilter === 'ge_5') return count >= 5;
+               return count === Number(contactAttemptsFilter);
+             });
+             setStudents(filteredByContact);
+             setFilteredStudents(filteredByContact);
           }
         }
       }
@@ -682,6 +724,7 @@ export const StudentsTab = () => {
     setStatusFilter([]);
     setSegmentFilter([]);
     setAcademicYearFilter(defaultAcademicYear);
+    setSortField('created_at');
     setSortOrder('desc');
     setContactAttemptsFilter('all');
     setEngagementTierFilter([]);
@@ -797,6 +840,8 @@ export const StudentsTab = () => {
                   className="w-full"
                 />
               </div>
+
+
 
               <Button
                 type="button"
@@ -1039,7 +1084,24 @@ export const StudentsTab = () => {
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Escola</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Cidade</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Segmentos</TableHead>
-                  <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Total Alunos</TableHead>
+                  <TableHead 
+                    className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-700 cursor-pointer select-none hover:text-gray-900 transition-colors"
+                    onClick={() => {
+                      if (sortField !== 'total_alunos') {
+                        setSortField('total_alunos');
+                        setSortOrder('desc');
+                      } else {
+                        setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Total Alunos
+                      {sortField === 'total_alunos' && (
+                        sortOrder === 'desc' ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Status</TableHead>
                   <TableHead className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-gray-400">Ações</TableHead>
                 </TableRow>
