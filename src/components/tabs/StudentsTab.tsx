@@ -132,11 +132,14 @@ export const StudentsTab = () => {
     currentPage,
     debouncedSearch,
     statusFilter,
+    segmentFilter,
     academicYearFilter,
     sortOrder,
     emptyEmailFilter,
     emptyPhoneFilter,
     engagementTierFilter,
+    contactAttemptsFilter,
+    attendedByFilter,
     cityFilter,
     studentCountFilter,
     fullAccess,
@@ -316,22 +319,173 @@ export const StudentsTab = () => {
     setAvailableCities(cities.sort((a, b) => a.localeCompare(b, 'pt-BR')));
   };
 
+  const applyCommonStudentFilters = (query: any) => {
+    const years = (academicYearFilter.length > 0
+      ? academicYearFilter
+      : defaultAcademicYear.length > 0
+        ? defaultAcademicYear
+        : [getCurrentAcademicYear()]
+    )
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
+
+    let q = query;
+    if (years.length > 0) q = q.in('ano_letivo', years);
+    if (statusFilter.length > 0) q = q.in('status', statusFilter as any[]);
+    else q = q.neq('status', 'cadastro_invalido');
+
+    if (debouncedSearch.trim()) {
+      const s = `%${debouncedSearch.trim()}%`;
+      q = q.or(`student_name.ilike.${s},inep_code.ilike.${s},code.ilike.${s},city.ilike.${s},estado.ilike.${s}`);
+    }
+    if (emptyEmailFilter === 'com_email') q = q.not('email', 'is', null).neq('email', '');
+    else if (emptyEmailFilter === 'sem_email') q = q.or('email.is.null,email.eq.""');
+    if (emptyPhoneFilter === 'com_telefone') q = q.not('phone', 'is', null).neq('phone', '');
+    else if (emptyPhoneFilter === 'sem_telefone') q = q.or('phone.is.null,phone.eq.""');
+
+    if (allowedUnitIds.length > 0) q = q.in('unit_id', allowedUnitIds);
+    else if (!fullAccess && profile?.unit_id) q = q.eq('unit_id', profile.unit_id);
+
+    if (cityFilter.length > 0) {
+      const orClauses = cityFilter.map((c) => {
+        const [city, uf] = c.split(' - ');
+        if (uf) return `and(city.eq."${city.trim()}",estado.eq."${uf.trim()}")`;
+        return `city.eq."${c.trim()}"`;
+      });
+      q = q.or(orClauses.join(','));
+    }
+
+    if (studentCountFilter) {
+      if (studentCountFilter.op === 'between') {
+        q = q.gte('total_students_count', studentCountFilter.value).lte('total_students_count', studentCountFilter.valueTo);
+      } else if (studentCountFilter.op === 'gt') q = q.gt('total_students_count', studentCountFilter.value);
+      else if (studentCountFilter.op === 'lt') q = q.lt('total_students_count', studentCountFilter.value);
+      else if (studentCountFilter.op === 'gte') q = q.gte('total_students_count', studentCountFilter.value);
+      else if (studentCountFilter.op === 'lte') q = q.lte('total_students_count', studentCountFilter.value);
+    }
+
+    return q;
+  };
+
+  const loadContactAttemptCounts = async (studentIds: string[]): Promise<Record<string, number>> => {
+    const counts: Record<string, number> = {};
+    if (studentIds.length === 0) return counts;
+    const chunkSize = 500;
+    for (let i = 0; i < studentIds.length; i += chunkSize) {
+      const chunk = studentIds.slice(i, i + chunkSize);
+      const { data, error } = await supabase
+        .from('contact_attempts')
+        .select('student_id')
+        .in('student_id', chunk);
+      if (error) {
+        console.error('Erro ao contar contatos:', error);
+        continue;
+      }
+      (data || []).forEach((row) => {
+        counts[row.student_id] = (counts[row.student_id] || 0) + 1;
+      });
+    }
+    return counts;
+  };
+
+  const matchesContactAttemptsFilter = (count: number) => {
+    if (contactAttemptsFilter === 'all') return true;
+    if (contactAttemptsFilter === 'ge_5') return count >= 5;
+    return count === Number(contactAttemptsFilter);
+  };
+
   const fetchStudentsPage = async () => {
     setListLoading(true);
 
     try {
-      const years = (academicYearFilter.length > 0
-        ? academicYearFilter
-        : defaultAcademicYear.length > 0
-          ? defaultAcademicYear
-          : [getCurrentAcademicYear()]
-      )
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+      const orderAsc = sortOrder === 'asc';
 
-      let query = supabase
-        .from('students')
-        .select(`
+      // Quando filtramos por tentativas de contato, precisamos dos IDs completos
+      // (não só da página atual) para o filtro e a paginação ficarem corretos.
+      if (contactAttemptsFilter !== 'all') {
+        const allIds: string[] = [];
+        const pageSizeIds = 1000;
+        let offset = 0;
+        for (;;) {
+          let idQuery = supabase.from('students').select('id');
+          idQuery = applyCommonStudentFilters(idQuery);
+          idQuery = idQuery
+            .order(sortField === 'total_alunos' ? 'total_students_count' : 'created_at', {
+              ascending: orderAsc,
+              nullsFirst: false,
+            })
+            .range(offset, offset + pageSizeIds - 1);
+          const { data, error } = await idQuery;
+          if (error) throw error;
+          const rows = data || [];
+          allIds.push(...rows.map((r) => r.id));
+          if (rows.length < pageSizeIds) break;
+          offset += pageSizeIds;
+        }
+
+        const counts = await loadContactAttemptCounts(allIds);
+        setContactCounts(counts);
+        const matchedIds = allIds.filter((id) => matchesContactAttemptsFilter(counts[id] || 0));
+        setTotalCount(matchedIds.length);
+
+        const from = (currentPage - 1) * itemsPerPage;
+        const pageIds = matchedIds.slice(from, from + itemsPerPage);
+        if (pageIds.length === 0) {
+          setStudents([]);
+          setFilteredStudents([]);
+          return;
+        }
+
+        const { data: pageData, error: pageError } = await supabase
+          .from('students')
+          .select(`
+            *,
+            units:unit_id (id, name),
+            classes (
+              id, name,
+              units (id, name),
+              series (id, name, level)
+            )
+          `)
+          .in('id', pageIds);
+        if (pageError) throw pageError;
+
+        const byId = new Map(((pageData || []) as unknown as Student[]).map((s) => [s.id, s]));
+        let finalData = pageIds.map((id) => byId.get(id)).filter(Boolean) as Student[];
+
+        if (segmentFilter.length > 0) {
+          finalData = finalData.filter((s) => {
+            if (!s.classes) return false;
+            const classes = Array.isArray(s.classes) ? s.classes : [s.classes];
+            return classes.some((c) => c.series && segmentFilter.includes(c.series.level));
+          });
+        }
+
+        void fetchAttendedByMap(finalData.map((s) => s.id));
+
+        if (engagementTierFilter.length > 0) {
+          finalData = finalData.filter((s) => {
+            const score = s.engagement_score ?? 0;
+            if (engagementTierFilter.includes('alto') && score >= ENGAGEMENT_WEIGHTS.tierHigh) return true;
+            if (
+              engagementTierFilter.includes('medio') &&
+              score >= ENGAGEMENT_WEIGHTS.tierMedium &&
+              score < ENGAGEMENT_WEIGHTS.tierHigh
+            ) {
+              return true;
+            }
+            if (engagementTierFilter.includes('baixo') && score < ENGAGEMENT_WEIGHTS.tierMedium) return true;
+            return false;
+          });
+        }
+
+        setStudents(finalData);
+        setFilteredStudents(finalData);
+        return;
+      }
+
+      let query = supabase.from('students').select(
+        `
           *,
           units:unit_id (id, name),
           classes (
@@ -339,68 +493,15 @@ export const StudentsTab = () => {
             units (id, name),
             series (id, name, level)
           )
-        `, { count: 'exact' });
-
-      if (years.length > 0) {
-        query = query.in('ano_letivo', years);
-      }
-
-      if (statusFilter.length > 0) {
-        query = query.in('status', statusFilter as any[]);
-      } else {
-        query = query.neq('status', 'cadastro_invalido');
-      }
-
-      if (debouncedSearch.trim()) {
-        const s = `%${debouncedSearch.trim()}%`;
-        query = query.or(`student_name.ilike.${s},inep_code.ilike.${s},code.ilike.${s},city.ilike.${s},estado.ilike.${s}`);
-      }
-
-      if (emptyEmailFilter === 'com_email') {
-        query = query.not('email', 'is', null).neq('email', '');
-      } else if (emptyEmailFilter === 'sem_email') {
-        query = query.or('email.is.null,email.eq.""');
-      }
-
-      if (emptyPhoneFilter === 'com_telefone') {
-        query = query.not('phone', 'is', null).neq('phone', '');
-      } else if (emptyPhoneFilter === 'sem_telefone') {
-        query = query.or('phone.is.null,phone.eq.""');
-      }
-
-      if (allowedUnitIds.length > 0) {
-        query = query.in('unit_id', allowedUnitIds);
-      } else if (!fullAccess && profile?.unit_id) {
-        query = query.eq('unit_id', profile.unit_id);
-      }
-
-      if (cityFilter.length > 0) {
-        const orClauses = cityFilter.map(c => {
-          const [city, uf] = c.split(' - ');
-          if (uf) return `and(city.eq."${city.trim()}",estado.eq."${uf.trim()}")`;
-          return `city.eq."${c.trim()}"`;
-        });
-        query = query.or(orClauses.join(','));
-      }
-
-      if (studentCountFilter) {
-        if (studentCountFilter.op === 'between') {
-          query = query.gte('total_students_count', studentCountFilter.value).lte('total_students_count', studentCountFilter.valueTo);
-        } else if (studentCountFilter.op === 'gt') {
-          query = query.gt('total_students_count', studentCountFilter.value);
-        } else if (studentCountFilter.op === 'lt') {
-          query = query.lt('total_students_count', studentCountFilter.value);
-        } else if (studentCountFilter.op === 'gte') {
-          query = query.gte('total_students_count', studentCountFilter.value);
-        } else if (studentCountFilter.op === 'lte') {
-          query = query.lte('total_students_count', studentCountFilter.value);
-        }
-      }
+        `,
+        { count: 'exact' }
+      );
+      query = applyCommonStudentFilters(query);
 
       if (sortField === 'total_alunos') {
-        query = query.order('total_students_count', { ascending: sortOrder === 'asc', nullsFirst: false });
+        query = query.order('total_students_count', { ascending: orderAsc, nullsFirst: false });
       } else {
-        query = query.order('created_at', { ascending: sortOrder === 'asc', nullsFirst: false });
+        query = query.order('created_at', { ascending: orderAsc, nullsFirst: false });
       }
 
       const from = (currentPage - 1) * itemsPerPage;
@@ -408,26 +509,22 @@ export const StudentsTab = () => {
       query = query.range(from, to);
 
       const { data, count, error } = await query;
-
       if (error) throw error;
 
       let finalData = (data as unknown) as Student[];
       setTotalCount(count || 0);
 
-      // Pos-filtro segment
       if (segmentFilter.length > 0) {
-        finalData = finalData.filter(s => {
+        finalData = finalData.filter((s) => {
           if (!s.classes) return false;
-          // check if any class has a series with level in segmentFilter
           const classes = Array.isArray(s.classes) ? s.classes : [s.classes];
-          return classes.some(c => c.series && segmentFilter.includes(c.series.level));
+          return classes.some((c) => c.series && segmentFilter.includes(c.series.level));
         });
       }
 
-      // Pos-filtro Atendentes
       const ids = finalData.map((s) => s.id).filter(Boolean);
       void fetchAttendedByMap(ids);
-      
+
       if (attendedByFilter.length > 0) {
         finalData = finalData.filter((s) => {
           const attendants = attendedByMap[s.id] || [];
@@ -435,12 +532,17 @@ export const StudentsTab = () => {
         });
       }
 
-      // Engagement tier filter (client side based on engagement_score)
       if (engagementTierFilter.length > 0) {
-        finalData = finalData.filter(s => {
+        finalData = finalData.filter((s) => {
           const score = s.engagement_score ?? 0;
           if (engagementTierFilter.includes('alto') && score >= ENGAGEMENT_WEIGHTS.tierHigh) return true;
-          if (engagementTierFilter.includes('medio') && score >= ENGAGEMENT_WEIGHTS.tierMedium && score < ENGAGEMENT_WEIGHTS.tierHigh) return true;
+          if (
+            engagementTierFilter.includes('medio') &&
+            score >= ENGAGEMENT_WEIGHTS.tierMedium &&
+            score < ENGAGEMENT_WEIGHTS.tierHigh
+          ) {
+            return true;
+          }
           if (engagementTierFilter.includes('baixo') && score < ENGAGEMENT_WEIGHTS.tierMedium) return true;
           return false;
         });
@@ -449,29 +551,11 @@ export const StudentsTab = () => {
       setStudents(finalData);
       setFilteredStudents(finalData);
 
-      // Contagem de tentativas de contato
-      if (ids.length === 0) { 
-        setContactCounts({}); 
+      if (ids.length === 0) {
+        setContactCounts({});
       } else {
-        const { data: attempts, error: attemptsError } = await supabase.from('contact_attempts').select('student_id').in('student_id', ids);
-        if (attemptsError) { 
-          setContactCounts({}); 
-        } else {
-          const counts: Record<string, number> = {};
-          (attempts || []).forEach((a: { student_id: string }) => { counts[a.student_id] = (counts[a.student_id] || 0) + 1; });
-          setContactCounts(counts);
-
-          // Filtro de tentativas (só pode ser feito após calcular as contagens)
-          if (contactAttemptsFilter !== 'all') {
-             const filteredByContact = finalData.filter(s => {
-               const count = counts[s.id] || 0;
-               if (contactAttemptsFilter === 'ge_5') return count >= 5;
-               return count === Number(contactAttemptsFilter);
-             });
-             setStudents(filteredByContact);
-             setFilteredStudents(filteredByContact);
-          }
-        }
+        const counts = await loadContactAttemptCounts(ids);
+        setContactCounts(counts);
       }
     } catch (e) {
       console.error('Erro ao carregar escolas:', e);
