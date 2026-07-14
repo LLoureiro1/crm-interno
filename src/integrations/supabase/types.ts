@@ -1520,6 +1520,7 @@ export type Database = {
           p_search?: string | null
           p_sort_asc?: boolean
           p_email_filter?: string | null
+          p_phone_filter?: string | null
         }
         Returns: Json
       },

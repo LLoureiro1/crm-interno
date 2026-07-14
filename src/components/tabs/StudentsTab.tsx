@@ -12,6 +12,7 @@ import { StudentDialog } from '@/components/StudentDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Tables } from '@/integrations/supabase/types';
+import type { Database } from '@/integrations/supabase/types';
 import { formatRegistrationTimeForDisplay, getCurrentDate } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -76,6 +77,9 @@ export const StudentsTab = () => {
   const [emptyEmailFilter, setEmptyEmailFilter] = useState<'all' | 'com_email' | 'sem_email'>(
     cachedFilters?.emptyEmailFilter ?? 'all'
   );
+  const [emptyPhoneFilter, setEmptyPhoneFilter] = useState<'all' | 'com_telefone' | 'sem_telefone'>(
+    cachedFilters?.emptyPhoneFilter ?? 'all'
+  );
   const [attendedByFilter, setAttendedByFilter] = useState<string[]>(
     cachedFilters?.attendedByFilter ?? []
   );
@@ -131,6 +135,7 @@ export const StudentsTab = () => {
     academicYearFilter,
     sortOrder,
     emptyEmailFilter,
+    emptyPhoneFilter,
     engagementTierFilter,
     cityFilter,
     studentCountFilter,
@@ -150,7 +155,7 @@ export const StudentsTab = () => {
       return;
     }
     setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, segmentFilter, academicYearFilter, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, attendedByFilter, cityFilter, studentCountFilter]);
+  }, [debouncedSearch, statusFilter, segmentFilter, academicYearFilter, sortOrder, contactAttemptsFilter, engagementTierFilter, emptyEmailFilter, emptyPhoneFilter, attendedByFilter, cityFilter, studentCountFilter]);
 
   useEffect(() => {
     saveStudentsListFilters({
@@ -163,6 +168,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      emptyPhoneFilter,
       attendedByFilter,
       cityFilter,
       studentCountFilter,
@@ -177,6 +183,7 @@ export const StudentsTab = () => {
     contactAttemptsFilter,
     engagementTierFilter,
     emptyEmailFilter,
+    emptyPhoneFilter,
     attendedByFilter,
     cityFilter,
     studentCountFilter,
@@ -355,6 +362,12 @@ export const StudentsTab = () => {
         query = query.or('email.is.null,email.eq.""');
       }
 
+      if (emptyPhoneFilter === 'com_telefone') {
+        query = query.not('phone', 'is', null).neq('phone', '');
+      } else if (emptyPhoneFilter === 'sem_telefone') {
+        query = query.or('phone.is.null,phone.eq.""');
+      }
+
       if (allowedUnitIds.length > 0) {
         query = query.in('unit_id', allowedUnitIds);
       } else if (!fullAccess && profile?.unit_id) {
@@ -529,7 +542,7 @@ export const StudentsTab = () => {
 
     try {
       for (let offset = 0; offset < maxRows; offset += pageSize) {
-        const { data, error } = await supabase.rpc('list_schools_page', {
+        const rpcArgs: Database['public']['Functions']['list_schools_page']['Args'] = {
           p_limit: pageSize,
           p_offset: offset,
           p_ano_letivo: years.length > 0 ? years : null,
@@ -539,7 +552,9 @@ export const StudentsTab = () => {
           p_search: debouncedSearch.trim() || null,
           p_sort_asc: sortOrder === 'asc',
           p_email_filter: emptyEmailFilter === 'all' ? null : emptyEmailFilter,
-        });
+          p_phone_filter: emptyPhoneFilter === 'all' ? null : emptyPhoneFilter,
+        };
+        const { data, error } = await supabase.rpc('list_schools_page', rpcArgs);
         if (error) throw error;
         const payload = data as { items?: Student[]; total?: number } | null;
         const chunk = (payload?.items || []) as Student[];
@@ -606,6 +621,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      emptyPhoneFilter,
       attendedByFilter,
       cityFilter,
       studentCountFilter,
@@ -674,6 +690,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      emptyPhoneFilter,
       attendedByFilter,
       cityFilter,
       studentCountFilter,
@@ -688,6 +705,7 @@ export const StudentsTab = () => {
       contactAttemptsFilter,
       engagementTierFilter,
       emptyEmailFilter,
+      emptyPhoneFilter,
       attendedByFilter,
       cityFilter,
       studentCountFilter,
@@ -719,6 +737,7 @@ export const StudentsTab = () => {
     setContactAttemptsFilter('all');
     setEngagementTierFilter([]);
     setEmptyEmailFilter('all');
+    setEmptyPhoneFilter('all');
     setAttendedByFilter([]);
     setCityFilter([]);
     setStudentCountFilter(null);
@@ -749,6 +768,9 @@ export const StudentsTab = () => {
         break;
       case 'email':
         setEmptyEmailFilter('all');
+        break;
+      case 'phone':
+        setEmptyPhoneFilter('all');
         break;
       case 'attendedBy':
         setAttendedByFilter((prev) => prev.filter((a) => a !== chip.value));
@@ -970,6 +992,20 @@ export const StudentsTab = () => {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="com_email">Com e-mail</SelectItem>
                   <SelectItem value="sem_email">Sem e-mail</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={emptyPhoneFilter}
+                onValueChange={(value) => setEmptyPhoneFilter(value as 'all' | 'com_telefone' | 'sem_telefone')}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Telefone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="com_telefone">Com telefone</SelectItem>
+                  <SelectItem value="sem_telefone">Sem telefone</SelectItem>
                 </SelectContent>
               </Select>
             </div>

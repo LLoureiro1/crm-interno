@@ -17,6 +17,7 @@ export type StudentsListFiltersState = {
   contactAttemptsFilter: 'all' | '0' | '1' | '2' | '3' | '4' | 'ge_5';
   engagementTierFilter: string[];
   emptyEmailFilter: 'all' | 'com_email' | 'sem_email';
+  emptyPhoneFilter: 'all' | 'com_telefone' | 'sem_telefone';
   attendedByFilter: string[];
   cityFilter: string[];
   studentCountFilter: StudentCountFilter;
@@ -24,7 +25,7 @@ export type StudentsListFiltersState = {
 };
 
 const STORAGE_KEY = 'students_list_filters';
-const CACHE_VERSION = 3; // incrementar quando o shape mudar
+const CACHE_VERSION = 4; // incrementar quando o shape mudar
 
 export const STATUS_LABELS: Record<string, string> = {
   nenhum_agendamento: 'Sem Contato',
@@ -57,6 +58,11 @@ export const ENGAGEMENT_TIER_LABELS: Record<string, string> = {
 export const EMAIL_FILTER_LABELS: Record<string, string> = {
   com_email: 'Com e-mail',
   sem_email: 'Sem e-mail',
+};
+
+export const PHONE_FILTER_LABELS: Record<string, string> = {
+  com_telefone: 'Com telefone',
+  sem_telefone: 'Sem telefone',
 };
 
 export const STUDENT_COUNT_OP_LABELS: Record<StudentCountOperator, string> = {
@@ -104,6 +110,7 @@ export function hasNonDefaultFilters(
   if (state.contactAttemptsFilter !== 'all') return true;
   if (state.engagementTierFilter.length > 0) return true;
   if (state.emptyEmailFilter !== 'all') return true;
+  if (state.emptyPhoneFilter !== 'all') return true;
   if ((state.attendedByFilter?.length ?? 0) > 0) return true;
   if ((state.cityFilter?.length ?? 0) > 0) return true;
   if (state.studentCountFilter !== null) return true;
@@ -116,6 +123,7 @@ export function hasAdvancedFiltersActive(state: StudentsListFiltersState): boole
     state.contactAttemptsFilter !== 'all' ||
     (state.engagementTierFilter?.length ?? 0) > 0 ||
     state.emptyEmailFilter !== 'all' ||
+    state.emptyPhoneFilter !== 'all' ||
     (state.attendedByFilter?.length ?? 0) > 0 ||
     (state.cityFilter?.length ?? 0) > 0 ||
     state.studentCountFilter !== null
@@ -133,6 +141,7 @@ export type FilterChip = {
     | 'contactAttempts'
     | 'engagement'
     | 'email'
+    | 'phone'
     | 'attendedBy'
     | 'city'
     | 'studentCount'
@@ -197,6 +206,10 @@ export function buildFilterChips(
 
   if (state.emptyEmailFilter !== 'all') {
     chips.push({ id: `email:${state.emptyEmailFilter}`, type: 'email', value: state.emptyEmailFilter, label: EMAIL_FILTER_LABELS[state.emptyEmailFilter] });
+  }
+
+  if (state.emptyPhoneFilter !== 'all') {
+    chips.push({ id: `phone:${state.emptyPhoneFilter}`, type: 'phone', value: state.emptyPhoneFilter, label: PHONE_FILTER_LABELS[state.emptyPhoneFilter] });
   }
 
   state.attendedByFilter.forEach((attendantId) => {
