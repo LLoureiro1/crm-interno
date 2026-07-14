@@ -33,6 +33,10 @@ import {
   type StudentCountFilter,
   type StudentCountOperator,
 } from '@/utils/studentsListFilters';
+import {
+  STUDENT_STATUS_BADGE_VARIANTS,
+  STUDENT_STATUS_LABELS,
+} from '@/utils/studentStatus';
 
 type Student = Tables<'students'> & {
   units?: Tables<'units'> | null;
@@ -577,25 +581,11 @@ export const StudentsTab = () => {
   };
 
   const getStatusBadge = (status: string, className?: string) => {
-    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-      'nao_confirmado': { label: 'Lead Frio', variant: 'outline' },
-      'confirmado': { label: 'Lead Quente', variant: 'secondary' },
-      'cadastro_invalido': { label: 'Sem Perfil / Inválido', variant: 'cadastro_invalido' },
-      'matriculado': { label: 'Parceria Fechada', variant: 'success' },
-      'desistente': { label: 'Negociação Perdida', variant: 'destructive' },
-      'nenhum_agendamento': { label: 'Sem Contato', variant: 'outline' },
-      'atendimento_agendado': { label: 'Reunião Agendada', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Reunião Desmarcada', variant: 'purple' },
-      'atendimento_recentemente': { label: 'Proposta Apresentada', variant: 'default' },
-      'atendimento_ha_mais_de_uma_semana': { label: 'Aguardando Retorno', variant: 'warning' },
-      'ausente': { label: 'Sem Resposta', variant: 'ausente' },
-      'processo_anos_anteriores': { label: 'Contatos Anteriores', variant: 'processo_anos_anteriores' }
-    };
-
-    const config = statusMap[status] || { label: status, variant: 'outline' as const };
+    const label = STUDENT_STATUS_LABELS[status] || status;
+    const variant = STUDENT_STATUS_BADGE_VARIANTS[status] || 'outline';
     return (
-      <Badge variant={config.variant} className={className} title={config.label}>
-        {config.label}
+      <Badge variant={variant} className={className} title={label}>
+        {label}
       </Badge>
     );
   };

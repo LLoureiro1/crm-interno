@@ -37,6 +37,11 @@ import { EngagementScoreCard } from '@/components/EngagementScoreCard';
 import type { EngagementScoreBreakdown } from '@/utils/engagementScore';
 import { getScoreTier } from '@/utils/engagementScore';
 import { cn } from '@/lib/utils';
+import {
+  STUDENT_STATUS_BADGE_VARIANTS,
+  STUDENT_STATUS_LABELS,
+  STUDENT_STATUS_SELECT_OPTIONS,
+} from '@/utils/studentStatus';
 
 const PROFILE_SECTIONS = [
   { id: 'dados-pessoais', label: 'Dados pessoais' },
@@ -1114,17 +1119,7 @@ const StudentProfile = () => {
       if (error) throw error;
 
       // Add interaction
-      const statusLabelMap: Record<string, string> = {
-        nenhum_agendamento: 'Sem Contato',
-        confirmado: 'Contato Realizado',
-        atendimento_agendado: 'Reunião Agendada',
-        faltou_ao_atendimento: 'Faltou a Reunião',
-        atendimento_recentemente: 'Reunião Recente',
-        atendimento_ha_mais_de_uma_semana: 'Reunião há mais de uma semana',
-        cadastro_invalido: 'Escola Descartada',
-        desistente: 'Desistente',
-        matriculado: 'Fechado'
-      };
+      const statusLabelMap = STUDENT_STATUS_LABELS;
       
       let commentReason = '';
       if (newStatus === 'desistente') {
@@ -1317,19 +1312,8 @@ const StudentProfile = () => {
   };
 
   const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
-    const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-      'nenhum_agendamento': { label: 'Sem Contato', variant: 'outline' },
-      'confirmado': { label: 'Contato Realizado', variant: 'secondary' },
-      'atendimento_agendado': { label: 'Reunião Agendada', variant: 'secondary' },
-      'faltou_ao_atendimento': { label: 'Faltou a Reunião', variant: 'purple' },
-      'atendimento_recentemente': { label: 'Reunião Recente', variant: 'default' },
-      'atendimento_ha_mais_de_uma_semana': { label: 'Reunião há mais de uma semana', variant: 'warning' },
-      'cadastro_invalido': { label: 'Escola Descartada', variant: 'cadastro_invalido' },
-      'desistente': { label: 'Desistente', variant: 'destructive' },
-      'matriculado': { label: 'Fechado', variant: 'success' },
-    };
-
-    const config = statusMap[status] || { label: status, variant: 'outline' as const };
+    const label = STUDENT_STATUS_LABELS[status] || status;
+    const variant = STUDENT_STATUS_BADGE_VARIANTS[status] || 'outline';
 
     if (placement === 'header') {
       const headerTone: Record<string, string> = {
@@ -1345,16 +1329,16 @@ const StudentProfile = () => {
           variant="outline"
           className={cn(
             'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
-            headerTone[config.variant] ?? headerTone.outline
+            headerTone[variant] ?? headerTone.outline
           )}
         >
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-          {config.label}
+          {label}
         </Badge>
       );
     }
 
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={variant}>{label}</Badge>;
   };
 
   if (authLoading) {
@@ -2308,23 +2292,19 @@ const StudentProfile = () => {
                     <SelectContent side="bottom">
                       {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="matriculado">Fechado</SelectItem>
-                          <SelectItem value="desistente">Desistente</SelectItem>
-                          <SelectItem value="cadastro_invalido">Escola Descartada</SelectItem>
+                          <SelectItem value="matriculado">{STUDENT_STATUS_LABELS.matriculado}</SelectItem>
+                          <SelectItem value="desistente">{STUDENT_STATUS_LABELS.desistente}</SelectItem>
+                          <SelectItem value="cadastro_invalido">{STUDENT_STATUS_LABELS.cadastro_invalido}</SelectItem>
                         </>
                       ) : (
                         <>
-                          <SelectItem value="nenhum_agendamento">Sem Contato</SelectItem>
-                          <SelectItem value="confirmado">Contato Realizado</SelectItem>
-                          <SelectItem value="atendimento_agendado">Reunião Agendada</SelectItem>
-                          <SelectItem value="faltou_ao_atendimento">Faltou a Reunião</SelectItem>
-                          <SelectItem value="atendimento_recentemente">Reunião Recente</SelectItem>
-                          <SelectItem value="atendimento_ha_mais_de_uma_semana">Reunião há mais de uma semana</SelectItem>
-                          <SelectItem value="cadastro_invalido">Escola Descartada</SelectItem>
-                          <SelectItem value="desistente">Desistente</SelectItem>
-                          {canUpdateToMatriculado && (
-                            <SelectItem value="matriculado">Fechado</SelectItem>
-                          )}
+                          {STUDENT_STATUS_SELECT_OPTIONS.filter(
+                            (status) => status !== 'matriculado' || canUpdateToMatriculado
+                          ).map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {STUDENT_STATUS_LABELS[status]}
+                            </SelectItem>
+                          ))}
                         </>
                       )}
                     </SelectContent>

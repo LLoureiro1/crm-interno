@@ -38,7 +38,7 @@ import {
   fetchEnrollmentDatesByStudentIds,
   resolveEnrollmentDate,
 } from '@/utils/enrollmentDate';
-import { STUDENT_STATUS_FUNNEL_EXCLUDED } from '@/utils/studentStatus';
+import { normalizeReportStatus, STUDENT_STATUS_FUNNEL_EXCLUDED } from '@/utils/studentStatus';
 import {
   EnrollmentTimelineChart,
   type EnrollmentTimelinePoint,
@@ -795,7 +795,8 @@ export const AdvancedReportsTab = () => {
           } else if (!matchesActivityDateFilter(student.created_at, student.updated_at)) {
             return;
           }
-          statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
+          const reportStatus = normalizeReportStatus(student.status);
+          statusCounts[reportStatus] = (statusCounts[reportStatus] || 0) + 1;
         });
 
         const inscritos = unitStudents.filter((s) =>

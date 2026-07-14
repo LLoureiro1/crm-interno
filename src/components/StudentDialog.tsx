@@ -21,6 +21,11 @@ import type { Tables, Enums } from '@/integrations/supabase/types';
 import { formatDateForDisplay, dateToLocalString } from '@/utils/dateUtils';
 import { ReactivateStudentButton } from '@/components/ui/ReactivateStudentButton';
 import { cn } from '@/lib/utils';
+import {
+  STUDENT_STATUS_BADGE_VARIANTS,
+  STUDENT_STATUS_LABELS,
+  STUDENT_STATUS_SELECT_OPTIONS,
+} from '@/utils/studentStatus';
 
 const CARD_CLASS = 'overflow-hidden border border-slate-200 border-l-4 border-l-primary shadow-sm';
 const CTA_CLASS = 'w-full bg-[#ffac1a] text-white hover:bg-[#e89b0f]';
@@ -163,22 +168,8 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
   };
 
   const getStatusBadge = (status: string, placement: 'header' | 'inline' = 'inline') => {
-      const statusMap: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "purple" | "warning" | "ausente" | "cadastro_invalido" | "processo_anos_anteriores" } } = {
-        'nao_confirmado': { label: 'Não Confirmado', variant: 'outline' },
-        'confirmado': { label: 'Confirmado', variant: 'secondary' },
-        'cadastro_invalido': { label: 'Cadastro Inválido', variant: 'cadastro_invalido' },
-        'matriculado': { label: 'Matriculado', variant: 'success' },
-        'desistente': { label: 'Desistente', variant: 'destructive' },
-        'nenhum_agendamento': { label: 'Nenhum Agendamento', variant: 'outline' },
-        'atendimento_agendado': { label: 'Atendimento Agendado', variant: 'secondary' },
-        'faltou_ao_atendimento': { label: 'Faltou ao Atendimento', variant: 'purple' },
-        'atendimento_recentemente': { label: 'Atendimento Recentemente', variant: 'default' },
-        'atendimento_ha_mais_de_uma_semana': { label: 'Atendimento há mais de uma semana', variant: 'warning' },
-        'ausente': { label: 'Ausente', variant: 'ausente' },
-        'processo_anos_anteriores': { label: 'Processo Anos Anteriores', variant: 'processo_anos_anteriores' }
-      };
-
-      const config = statusMap[status] || { label: status, variant: 'outline' as const };
+      const label = STUDENT_STATUS_LABELS[status] || status;
+      const variant = STUDENT_STATUS_BADGE_VARIANTS[status] || 'outline';
 
       if (placement === 'header') {
         const headerTone: Record<string, string> = {
@@ -194,16 +185,16 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
             variant="outline"
             className={cn(
               'gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider hover:bg-transparent',
-              headerTone[config.variant] ?? headerTone.outline
+              headerTone[variant] ?? headerTone.outline
             )}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-            {config.label}
+            {label}
           </Badge>
         );
       }
 
-      return <Badge variant={config.variant}>{config.label}</Badge>;
+      return <Badge variant={variant}>{label}</Badge>;
     };
 
   return (
@@ -335,25 +326,19 @@ export const StudentDialog = ({ student, open, onClose, onUpdate }: StudentDialo
                     <SelectContent side="bottom">
                       {student.status === 'matriculado' ? (
                         <>
-                          <SelectItem value="matriculado">Parceria Fechada</SelectItem>
-                          <SelectItem value="desistente">Negociação Perdida</SelectItem>
-                          <SelectItem value="cadastro_invalido">Sem Perfil / Inválido</SelectItem>
+                          <SelectItem value="matriculado">{STUDENT_STATUS_LABELS.matriculado}</SelectItem>
+                          <SelectItem value="desistente">{STUDENT_STATUS_LABELS.desistente}</SelectItem>
+                          <SelectItem value="cadastro_invalido">{STUDENT_STATUS_LABELS.cadastro_invalido}</SelectItem>
                         </>
                       ) : (
                         <>
-                          <SelectItem value="nao_confirmado">Lead Frio</SelectItem>
-                          <SelectItem value="confirmado">Lead Quente</SelectItem>
-                          <SelectItem value="nenhum_agendamento">Sem Contato</SelectItem>
-                          <SelectItem value="atendimento_agendado">Reunião Agendada</SelectItem>
-                          <SelectItem value="atendimento_recentemente">Proposta Apresentada</SelectItem>
-                          <SelectItem value="atendimento_ha_mais_de_uma_semana">Aguardando Retorno</SelectItem>
-                          <SelectItem value="faltou_ao_atendimento">Reunião Desmarcada</SelectItem>
-                          <SelectItem value="ausente">Sem Resposta</SelectItem>
-                          <SelectItem value="desistente">Negociação Perdida</SelectItem>
-                          {canUpdateToMatriculado && (
-                            <SelectItem value="matriculado">Parceria Fechada</SelectItem>
-                          )}
-                          <SelectItem value="cadastro_invalido">Sem Perfil / Inválido</SelectItem>
+                          {STUDENT_STATUS_SELECT_OPTIONS.filter(
+                            (status) => status !== 'matriculado' || canUpdateToMatriculado
+                          ).map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {STUDENT_STATUS_LABELS[status]}
+                            </SelectItem>
+                          ))}
                         </>
                       )}
                     </SelectContent>

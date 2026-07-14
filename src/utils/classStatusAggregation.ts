@@ -3,6 +3,7 @@ import {
   STUDENT_STATUS_LABELS,
   STUDENT_STATUS_FUNNEL_EXCLUDED,
   STUDENT_STATUS_FUNNEL_ORDER,
+  normalizeReportStatus,
 } from '@/utils/studentStatus';
 
 /** Status exibidos e contabilizados no gráfico por turma. */
@@ -11,7 +12,7 @@ export const ALL_REPORT_STATUS_ORDER = [...STUDENT_STATUS_FUNNEL_ORDER] as const
 const EXCLUDED_STATUSES = new Set<string>(STUDENT_STATUS_FUNNEL_EXCLUDED);
 
 export function isExcludedFromClassChart(status: string): boolean {
-  return EXCLUDED_STATUSES.has(status);
+  return EXCLUDED_STATUSES.has(normalizeReportStatus(status));
 }
 
 export type ClassSeriesInfo = {
@@ -105,17 +106,18 @@ export function buildClassStatusGroups(
   const countsByClass: Record<string, Record<string, number>> = {};
 
   for (const student of students) {
-    if (isExcludedFromClassChart(student.status)) {
+    const status = normalizeReportStatus(student.status);
+    if (isExcludedFromClassChart(status)) {
       continue;
     }
-    if (statusFilter !== 'all' && student.status !== statusFilter) {
+    if (statusFilter !== 'all' && status !== statusFilter) {
       continue;
     }
     if (!countsByClass[student.class_id]) {
       countsByClass[student.class_id] = {};
     }
     const bucket = countsByClass[student.class_id];
-    bucket[student.status] = (bucket[student.status] ?? 0) + 1;
+    bucket[status] = (bucket[status] ?? 0) + 1;
   }
 
   const rows: ClassStatusRow[] = classes.map((cls) => {

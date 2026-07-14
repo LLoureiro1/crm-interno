@@ -19,16 +19,14 @@ type UnitsStatusOverviewTableProps = {
 };
 
 const STATUS_SHORT_LABELS: Record<string, string> = {
-  nao_confirmado: 'Não Confirmado',
-  confirmado: 'Confirmado',
-  ausente: 'Ausente',
-  nenhum_agendamento: 'Nenhum Agendamento',
-  atendimento_agendado: 'Agendado',
+  nenhum_agendamento: 'Sem Contato',
+  confirmado: 'Contato Realizado',
+  atendimento_agendado: 'Agendada',
   faltou_ao_atendimento: 'Faltou',
   atendimento_recentemente: 'Recente',
   atendimento_ha_mais_de_uma_semana: '+1 Semana',
   desistente: 'Desistente',
-  matriculado: 'Matriculado',
+  matriculado: 'Fechado',
 };
 
 type CountVariant = 'default' | 'desist' | 'matric' | 'meta';

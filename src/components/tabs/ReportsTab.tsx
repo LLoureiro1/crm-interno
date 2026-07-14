@@ -39,11 +39,18 @@ import {
   filterStudentsProximaProva,
   supplementNextExamDatesFromStudents,
 } from '@/utils/nextExamReport';
+import {
+  aggregateReportStatusCounts,
+  normalizeReportStatus,
+  STUDENT_STATUS_LABELS,
+  STUDENT_STATUS_REPORT_ORDER,
+} from '@/utils/studentStatus';
 
 type Unit = Tables<'units'>;
 type Series = Tables<'series'>;
 type Student = Tables<'students'> & {
-  classes: {
+  units?: { id: string; name: string } | null;
+  classes?: {
     id: string;
     name: string;
     unit_id: string;
@@ -53,9 +60,9 @@ type Student = Tables<'students'> & {
       name: string;
       level: string;
       ordenar: number;
-    };
-    units: { id: string; name: string };
-  };
+    } | null;
+    units: { id: string; name: string } | null;
+  } | null;
 };
 
 interface ReportData {
@@ -315,41 +322,56 @@ export const ReportsTab = () => {
 
   const fetchReportData = async () => {
     const filterByUnit = selectedUnit !== 'all';
+    // Escolas B2B podem não ter turma (class_id nullable no import).
+    // Só exige turma quando o filtro de série/segmento depende dela.
+    const needsClassFilter = selectedSeries !== 'all' || selectedSegment !== 'all';
+    const classRelation = needsClassFilter ? 'classes!inner' : 'classes';
 
-    let query = supabase.from('students').select(`
-      *,
-      classes!inner(
-        id,
-        name,
-        unit_id,
-        series_id,
-        series:series_id(id, name, level, ordenar),
-        units!inner(id, name)
-      )
-    `);
+    const buildStudentsQuery = () => {
+      let q = supabase.from('students').select(`
+        *,
+        units:unit_id (id, name),
+        ${classRelation}(
+          id,
+          name,
+          unit_id,
+          series_id,
+          series:series_id(id, name, level, ordenar),
+          units (id, name)
+        )
+      `);
 
-    if (filterByUnit) {
-      query = query.eq('unit_id', selectedUnit);
-    }
-
-    if (selectedSeries !== 'all') {
-      query = query.eq('classes.series_id', selectedSeries);
-    } else if (selectedSegment !== 'all') {
-      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
-      if (seriesIdsInSegment.length > 0) {
-        query = query.in('classes.series_id', seriesIdsInSegment);
-      } else {
-        query = query.eq('classes.series_id', '00000000-0000-0000-0000-000000000000');
+      if (filterByUnit) {
+        q = q.eq('unit_id', selectedUnit);
+      } else if (!fullAccess) {
+        if (allowedUnitIds.length > 0) {
+          q = q.in('unit_id', allowedUnitIds);
+        } else if (profile?.unit_id) {
+          q = q.eq('unit_id', profile.unit_id);
+        }
       }
-    }
+
+      if (selectedSeries !== 'all') {
+        q = q.eq('classes.series_id', selectedSeries);
+      } else if (selectedSegment !== 'all') {
+        const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
+        if (seriesIdsInSegment.length > 0) {
+          q = q.in('classes.series_id', seriesIdsInSegment);
+        } else {
+          q = q.eq('classes.series_id', '00000000-0000-0000-0000-000000000000');
+        }
+      }
+
+      return q;
+    };
 
     let classesQuery = supabase
       .from('classes')
       .select('id, name, unit_id, series_id, series:series_id(id, name, level, ordenar)');
 
-    const allowedUnitIds = getAllowedUnitIdsForChart();
-    if (allowedUnitIds && allowedUnitIds.length > 0) {
-      classesQuery = classesQuery.in('unit_id', allowedUnitIds);
+    const chartUnitIds = getAllowedUnitIdsForChart();
+    if (chartUnitIds && chartUnitIds.length > 0) {
+      classesQuery = classesQuery.in('unit_id', chartUnitIds);
     }
 
     if (selectedSeries !== 'all') {
@@ -363,11 +385,29 @@ export const ReportsTab = () => {
       }
     }
 
-    const [{ data: allStudents, error: studentsError }, { data: allClasses, error: classesError }] =
-      await Promise.all([query, classesQuery]);
+    const pageSize = 1000;
+    const allStudents: Student[] = [];
+    let offset = 0;
+    let studentsError: { message: string } | null = null;
+
+    const classesPromise = classesQuery;
+
+    while (true) {
+      const { data: page, error } = await buildStudentsQuery().range(offset, offset + pageSize - 1);
+      if (error) {
+        studentsError = error;
+        break;
+      }
+      const rows = (page || []) as Student[];
+      allStudents.push(...rows);
+      if (rows.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    const { data: allClasses, error: classesError } = await classesPromise;
 
     if (studentsError) {
-      console.error('Erro ao buscar alunos para relatórios:', studentsError);
+      console.error('Erro ao buscar escolas para relatórios:', studentsError);
       return;
     }
 
@@ -377,7 +417,7 @@ export const ReportsTab = () => {
 
     if (allClasses) {
       const allowedSet =
-        allowedUnitIds && allowedUnitIds.length > 0 ? new Set(allowedUnitIds) : null;
+        chartUnitIds && chartUnitIds.length > 0 ? new Set(chartUnitIds) : null;
       const visibleClassRows = allClasses
         .filter(
           (row) =>
@@ -395,76 +435,72 @@ export const ReportsTab = () => {
       setClassesData([]);
     }
 
-    if (allStudents) {
-      const students = allStudents;
-      const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
-      setStudentsData(students as Student[]);
+    const students = allStudents;
+    const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
+    setStudentsData(students);
 
-      const today = getCurrentDate();
+    const today = getCurrentDate();
 
-      const totalInscricoes = studentsValid.filter(s =>
-        s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
-      ).length;
+    const totalInscricoes = studentsValid.filter(s =>
+      s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
+    ).length;
 
-      const inscritosHoje = studentsValid.filter(s =>
-        s.status !== 'processo_anos_anteriores' && getDateYYYYMMDD(s.created_at) === today
-      ).length;
+    const inscritosHoje = studentsValid.filter(s =>
+      s.status !== 'processo_anos_anteriores' && getDateYYYYMMDD(s.created_at) === today
+    ).length;
 
-      const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
-        studentsValid,
-        filterByUnit ? selectedUnit : undefined
-      );
-      setNextExamDatesByUnit(datesByUnit);
+    const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
+      studentsValid,
+      filterByUnit ? selectedUnit : undefined
+    );
+    setNextExamDatesByUnit(datesByUnit);
 
-      const matriculados = students.filter(
-        (s) => s.status === 'matriculado' && isActivityInPeriod(s.created_at, s.updated_at)
-      ).length;
+    const matriculados = students.filter(
+      (s) => s.status === 'matriculado' && isActivityInPeriod(s.created_at, s.updated_at)
+    ).length;
 
-      const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
+    const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
 
-      // Agendamentos no período selecionado, alinhados ao filtro de unidade/série e ano letivo atual
-      let appQuery = supabase.from('appointments').select('*');
-      if (dateFilterType === 'default' || dateFilterType === 'today') {
-        appQuery = appQuery.eq('appointment_date', today);
-      } else if (dateFilterType === '7days') {
-        const sevenDaysAgo = new Date(today + 'T00:00:00');
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
-      } else if (dateFilterType === '30days') {
-        const thirtyDaysAgo = new Date(today + 'T00:00:00');
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
-      } else if (dateFilterType === 'custom' && customStartDate && customEndDate) {
-        appQuery = appQuery.gte('appointment_date', customStartDate).lte('appointment_date', customEndDate);
-      }
-      const { data: appointments } = await appQuery;
-
-      const filteredAppointments = (appointments || []).filter(app =>
-        students.some(s => s.id === app.student_id)
-      );
-      const agendamentosHoje = filteredAppointments.length;
-
-      const studentsWithAppointmentsToday = students.filter(s =>
-        filteredAppointments.some(app => app.student_id === s.id)
-      );
-      setTodayAppointmentsStudents(studentsWithAppointmentsToday as Student[]);
-
-      // Count by status — sempre exibe totais atuais, independente do filtro de período
-      const statusCounts: { [key: string]: number } = {};
-      students.forEach(student => {
-        statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
-      });
-
-      setReportData({
-        totalInscricoes,
-        inscritosHoje,
-        alunosProximaProva,
-        agendamentosHoje,
-        matriculados,
-        globalMatriculados,
-        statusCounts
-      });
+    // Agendamentos no período selecionado, alinhados ao filtro de unidade/série
+    let appQuery = supabase.from('appointments').select('*');
+    if (dateFilterType === 'default' || dateFilterType === 'today') {
+      appQuery = appQuery.eq('appointment_date', today);
+    } else if (dateFilterType === '7days') {
+      const sevenDaysAgo = new Date(today + 'T00:00:00');
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
+    } else if (dateFilterType === '30days') {
+      const thirtyDaysAgo = new Date(today + 'T00:00:00');
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
+    } else if (dateFilterType === 'custom' && customStartDate && customEndDate) {
+      appQuery = appQuery.gte('appointment_date', customStartDate).lte('appointment_date', customEndDate);
     }
+    const { data: appointments } = await appQuery;
+
+    const filteredAppointments = (appointments || []).filter(app =>
+      students.some(s => s.id === app.student_id)
+    );
+    const agendamentosHoje = filteredAppointments.length;
+
+    const studentsWithAppointmentsToday = students.filter(s =>
+      filteredAppointments.some(app => app.student_id === s.id)
+    );
+    setTodayAppointmentsStudents(studentsWithAppointmentsToday);
+
+    // Conta pelos enums do banco, agregando legados na nomenclatura B2B do painel
+    // (ex.: nao_confirmado/ausente → nenhum_agendamento = Sem Contato)
+    const statusCounts = aggregateReportStatusCounts(students);
+
+    setReportData({
+      totalInscricoes,
+      inscritosHoje,
+      alunosProximaProva,
+      agendamentosHoje,
+      matriculados,
+      globalMatriculados,
+      statusCounts
+    });
   };
 
   const getFilteredStudents = (filterType: string) => {
@@ -486,14 +522,15 @@ export const ReportsTab = () => {
     }
   };
 
+  // Alinha ao statusCounts: totais atuais, com aliases de nomenclatura
   const getStudentsByStatus = (status: string) => {
-    return studentsData.filter(
-      (s) => s.status === status && isActivityInPeriod(s.created_at, s.updated_at)
-    );
+    return studentsData.filter((s) => normalizeReportStatus(s.status) === status);
   };
 
   const getStudentsByClassAndStatus = (classId: string, status: string) => {
-    return studentsData.filter((s) => s.class_id === classId && s.status === status);
+    return studentsData.filter(
+      (s) => s.class_id === classId && normalizeReportStatus(s.status) === status
+    );
   };
 
   const unitNames = useMemo(
@@ -506,8 +543,7 @@ export const ReportsTab = () => {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Nome do Aluno</TableHead>
-          <TableHead>Responsável</TableHead>
+          <TableHead>Escola</TableHead>
           <TableHead>Telefone</TableHead>
           <TableHead>Turma</TableHead>
           <TableHead>Unidade</TableHead>
@@ -525,10 +561,11 @@ export const ReportsTab = () => {
                 {student.student_name}
               </Link>
             </TableCell>
-            <TableCell>{student.responsible_name}</TableCell>
-            <TableCell>{student.phone}</TableCell>
-            <TableCell>{student.classes.name}</TableCell>
-            <TableCell>{student.classes.units.name}</TableCell>
+            <TableCell>{student.phone || '—'}</TableCell>
+            <TableCell>{student.classes?.name || '—'}</TableCell>
+            <TableCell>
+              {student.classes?.units?.name || student.units?.name || '—'}
+            </TableCell>
             <TableCell>{statusLabels[student.status] || student.status}</TableCell>
           </TableRow>
         ))}
@@ -536,17 +573,7 @@ export const ReportsTab = () => {
     </Table>
   );
 
-  const statusLabels: { [key: string]: string } = {
-    'nenhum_agendamento': 'Sem Contato',
-    'confirmado': 'Contato Realizado',
-    'atendimento_agendado': 'Reunião Agendada',
-    'faltou_ao_atendimento': 'Faltou a Reunião',
-    'atendimento_recentemente': 'Reunião Recente',
-    'atendimento_ha_mais_de_uma_semana': 'Reunião há mais de uma semana',
-    'cadastro_invalido': 'Escola Descartada',
-    'desistente': 'Desistente',
-    'matriculado': 'Fechado'
-  };
+  const statusLabels = STUDENT_STATUS_LABELS;
 
   const getStatusCardStyle = (status: string) => {
     const styles: Record<string, { card: string; count: string; label: string }> = {
@@ -828,35 +855,31 @@ export const ReportsTab = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-                {(() => {
-                  const statusOrder = [
-                    'nenhum_agendamento',
-                    'confirmado',
-                    'atendimento_agendado',
-                    'faltou_ao_atendimento',
-                    'atendimento_recentemente',
-                    'atendimento_ha_mais_de_uma_semana',
-                    'cadastro_invalido',
-                    'desistente',
-                    'matriculado',
-                  ];
-                  return statusOrder
-                    .map(status => {
-                      const style = getStatusCardStyle(status);
-                      return (
-                        <div
-                          key={status}
-                          className={cn(
-                            'cursor-pointer rounded-lg border p-4 text-center transition-shadow hover:shadow-md',
-                            style.card
-                          )}
-                          onClick={() => openDialog(getStudentsByStatus(status), `Alunos com Status: ${statusLabels[status] || status}`)}>
-                          <div className={cn('text-2xl font-bold tabular-nums', style.count)}>{reportData.statusCounts[status] ?? 0}</div>
-                          <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>{statusLabels[status] || status}</div>
-                        </div>
-                      );
-                    })
-                })()}
+                {STUDENT_STATUS_REPORT_ORDER.map((status) => {
+                  const style = getStatusCardStyle(status);
+                  return (
+                    <div
+                      key={status}
+                      className={cn(
+                        'cursor-pointer rounded-lg border p-4 text-center transition-shadow hover:shadow-md',
+                        style.card
+                      )}
+                      onClick={() =>
+                        openDialog(
+                          getStudentsByStatus(status),
+                          `Escolas com Status: ${statusLabels[status] || status}`
+                        )
+                      }
+                    >
+                      <div className={cn('text-2xl font-bold tabular-nums', style.count)}>
+                        {reportData.statusCounts[status] ?? 0}
+                      </div>
+                      <div className={cn('mt-1 text-xs font-semibold leading-snug', style.label)}>
+                        {statusLabels[status] || status}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -867,8 +890,8 @@ export const ReportsTab = () => {
             statusCounts={reportData.statusCounts}
             statusLabels={statusLabels}
             students={studentsData
-              .filter((s) => !isExcludedFromClassChart(s.status))
-              .map((s) => ({ class_id: s.class_id, status: s.status }))}
+              .filter((s) => s.class_id && !isExcludedFromClassChart(s.status))
+              .map((s) => ({ class_id: s.class_id as string, status: s.status }))}
             classes={classesData}
             unitNames={unitNames}
             selectedUnit={selectedUnit}
