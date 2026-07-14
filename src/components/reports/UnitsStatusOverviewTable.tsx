@@ -21,6 +21,7 @@ type UnitsStatusOverviewTableProps = {
 const STATUS_SHORT_LABELS: Record<string, string> = {
   nenhum_agendamento: 'Sem Contato',
   confirmado: 'Contato Realizado',
+  portfolio_enviado: 'Portfólio',
   atendimento_agendado: 'Agendada',
   faltou_ao_atendimento: 'Faltou',
   atendimento_recentemente: 'Recente',

@@ -11,9 +11,7 @@ export const TAB_LABELS: Record<string, string> = {
 
 export const REPORT_SECTIONS = [
   { id: 'kpis', label: 'KPIs' },
-  { id: 'meta', label: 'Meta' },
   { id: 'status', label: 'Status' },
-  { id: 'funil', label: 'Funil' },
 ] as const;
 
 export type ReportSectionId = (typeof REPORT_SECTIONS)[number]['id'];

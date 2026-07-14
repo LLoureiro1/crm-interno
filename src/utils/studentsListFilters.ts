@@ -29,6 +29,7 @@ const CACHE_VERSION = 3; // incrementar quando o shape mudar
 export const STATUS_LABELS: Record<string, string> = {
   nenhum_agendamento: 'Sem Contato',
   confirmado: 'Contato Realizado',
+  portfolio_enviado: 'Portfólio Enviado',
   atendimento_agendado: 'Reunião Agendada',
   faltou_ao_atendimento: 'Faltou a Reunião',
   atendimento_recentemente: 'Reunião Recente',

@@ -6,12 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, UserPlus, ClipboardList, CheckCircle2, Users, Calendar, Target, ArrowUp } from 'lucide-react';
+import { BarChart3, CheckCircle2, Users, Calendar, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 import { getCurrentDate } from '@/utils/dateUtils';
 import {
-  getDateYYYYMMDD,
   isActivityInReportPeriod,
   isCreatedInReportPeriod,
   type ReportDateFilterState,
@@ -29,16 +28,6 @@ import {
   getSeriesIdsForSegment,
   sortSegments,
 } from '@/utils/educationLevel';
-import { StatusFunnelChart } from '@/components/reports/StatusFunnelChart';
-import {
-  isExcludedFromClassChart,
-  type ReportClassRow,
-} from '@/utils/classStatusAggregation';
-import {
-  buildEarliestExamDatesByUnit,
-  filterStudentsProximaProva,
-  supplementNextExamDatesFromStudents,
-} from '@/utils/nextExamReport';
 import {
   aggregateReportStatusCounts,
   normalizeReportStatus,
@@ -67,17 +56,14 @@ type Student = Tables<'students'> & {
 
 interface ReportData {
   totalInscricoes: number;
-  inscritosHoje: number;
-  alunosProximaProva: number;
   agendamentosHoje: number;
   matriculados: number;
-  globalMatriculados: number;
   statusCounts: { [key: string]: number };
 }
 
 export const ReportsTab = () => {
   const { profile } = useAuth();
-  const { fullAccess, allowedUnitIds, getVisibleUnits } = useUnitAccess();
+  const { fullAccess, allowedUnitIds, getVisibleUnits, loading: unitAccessLoading } = useUnitAccess();
   const { setReportsActiveSection, reportsScrollToSectionRef } = useDashboardNav();
   const [units, setUnits] = useState<Unit[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
@@ -121,30 +107,13 @@ export const ReportsTab = () => {
     setSelectedSeries('all');
   };
 
-  // Função para calcular o ano letivo atual
-  const getCurrentAcademicYear = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12
-
-    // Se é agosto ou depois, o ano letivo é o próximo ano
-    if (currentMonth >= 8) {
-      return String(currentYear + 1);
-    }
-    // Caso contrário, é o ano atual
-    return String(currentYear);
-  };
   const [reportData, setReportData] = useState<ReportData>({
     totalInscricoes: 0,
-    inscritosHoje: 0,
-    alunosProximaProva: 0,
     agendamentosHoje: 0,
     matriculados: 0,
-    globalMatriculados: 0,
     statusCounts: {}
   });
   const [studentsData, setStudentsData] = useState<Student[]>([]);
-  const [classesData, setClassesData] = useState<ReportClassRow[]>([]);
   const [todayAppointmentsStudents, setTodayAppointmentsStudents] = useState<Student[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState<string>('');
@@ -160,8 +129,9 @@ export const ReportsTab = () => {
   }, []);
 
   useEffect(() => {
+    if (unitAccessLoading) return;
     fetchReportData();
-  }, [selectedUnit, selectedSegment, selectedSeries, fullAccess, allowedUnitIds, dateFilterType, customStartDate, customEndDate]);
+  }, [selectedUnit, selectedSegment, selectedSeries, fullAccess, allowedUnitIds, unitAccessLoading, dateFilterType, customStartDate, customEndDate, series]);
 
   useEffect(() => {
     const navOffset = 64;
@@ -240,106 +210,26 @@ export const ReportsTab = () => {
 
   const visibleUnits = useMemo(() => getVisibleUnits(units), [units, getVisibleUnits]);
 
-  const totalGoal = useMemo(() => {
-    if (units.length === 0) return 0;
-
-    if (selectedUnit !== 'all') {
-      return units.find((u) => u.id === selectedUnit)?.student_goal || 0;
-    }
-
-    let scopedUnitIds: string[] | null = null;
-    if (fullAccess) {
-      scopedUnitIds = null;
-    } else if (allowedUnitIds.length > 0) {
-      scopedUnitIds = allowedUnitIds;
-    } else {
-      scopedUnitIds = visibleUnits.map((u) => u.id);
-    }
-
-    if (scopedUnitIds && scopedUnitIds.length > 0) {
-      return units
-        .filter((u) => scopedUnitIds!.includes(u.id))
-        .reduce((acc, u) => acc + (u.student_goal || 0), 0);
-    }
-
-    return units.reduce((acc, u) => acc + (u.student_goal || 0), 0);
-  }, [units, selectedUnit, fullAccess, allowedUnitIds, visibleUnits]);
-
-  /** Unidades cujo bloco «Por turma» pode ser exibido. */
-  const getAllowedUnitIdsForChart = (): string[] | null => {
-    if (selectedUnit !== 'all') {
-      return [selectedUnit];
-    }
-    if (fullAccess) {
-      return null;
-    }
-    if (allowedUnitIds.length > 0) {
-      return allowedUnitIds;
-    }
-    return visibleUnits.map((u) => u.id);
-  };
-
-  // Guardar as próximas datas de prova por unidade para alinhar contagem e lista
-  const [nextExamDatesByUnit, setNextExamDatesByUnit] = useState<Record<string, string>>({});
-
-  // Obtém o mapa de próxima prova por unidade e totaliza alunos alinhados a esse critério
-  const getNextExamStudentInfoAggregated = async (
-    students: Student[],
-    unitId?: string
-  ): Promise<{ count: number; datesByUnit: Record<string, string> }> => {
-    try {
-      const today = getCurrentDate();
-      const unitIds = unitId
-        ? [unitId]
-        : Array.from(new Set(students.map((s) => s.unit_id ?? s.classes?.unit_id).filter(Boolean) as string[]));
-
-      if (unitIds.length === 0) {
-        return { count: 0, datesByUnit: {} };
-      }
-
-      const { data: upcomingDates, error } = await supabase
-        .from('exam_dates')
-        .select('unit_id, exam_date')
-        .gte('exam_date', today)
-        .in('unit_id', unitIds)
-        .order('exam_date', { ascending: true });
-
-      if (error) {
-        console.error('Erro ao buscar datas de prova por unidade:', error);
-        return { count: 0, datesByUnit: {} };
-      }
-
-      const fromTable = buildEarliestExamDatesByUnit(upcomingDates ?? []);
-      const datesByUnit = supplementNextExamDatesFromStudents(students, fromTable, today);
-      const count = filterStudentsProximaProva(students, datesByUnit).length;
-
-      return { count, datesByUnit };
-    } catch (error) {
-      console.error('Erro ao agregar alunos por próxima prova de unidade:', error);
-      return { count: 0, datesByUnit: {} };
-    }
-  };
-
   const fetchReportData = async () => {
     const filterByUnit = selectedUnit !== 'all';
-    // Escolas B2B podem não ter turma (class_id nullable no import).
-    // Só exige turma quando o filtro de série/segmento depende dela.
     const needsClassFilter = selectedSeries !== 'all' || selectedSegment !== 'all';
-    const classRelation = needsClassFilter ? 'classes!inner' : 'classes';
 
     const buildStudentsQuery = () => {
-      let q = supabase.from('students').select(`
-        *,
-        units:unit_id (id, name),
-        ${classRelation}(
-          id,
-          name,
-          unit_id,
-          series_id,
-          series:series_id(id, name, level, ordenar),
-          units (id, name)
-        )
-      `);
+      // Sem filtro de série/segmento: não faz join em classes (escolas B2B sem class_id).
+      let q = needsClassFilter
+        ? supabase.from('students').select(`
+            id, status, unit_id, created_at, updated_at, class_id, phone, student_name,
+            units:unit_id(id, name),
+            classes!inner(
+              id, name, unit_id, series_id,
+              series:series_id(id, name, level, ordenar),
+              units(id, name)
+            )
+          `)
+        : supabase.from('students').select(`
+            id, status, unit_id, created_at, updated_at, class_id, phone, student_name,
+            units:unit_id(id, name)
+          `);
 
       if (filterByUnit) {
         q = q.eq('unit_id', selectedUnit);
@@ -365,35 +255,15 @@ export const ReportsTab = () => {
       return q;
     };
 
-    let classesQuery = supabase
-      .from('classes')
-      .select('id, name, unit_id, series_id, series:series_id(id, name, level, ordenar)');
-
-    const chartUnitIds = getAllowedUnitIdsForChart();
-    if (chartUnitIds && chartUnitIds.length > 0) {
-      classesQuery = classesQuery.in('unit_id', chartUnitIds);
-    }
-
-    if (selectedSeries !== 'all') {
-      classesQuery = classesQuery.eq('series_id', selectedSeries);
-    } else if (selectedSegment !== 'all') {
-      const seriesIdsInSegment = getSeriesIdsForSegment(series, selectedSegment);
-      if (seriesIdsInSegment.length > 0) {
-        classesQuery = classesQuery.in('series_id', seriesIdsInSegment);
-      } else {
-        classesQuery = classesQuery.eq('series_id', '00000000-0000-0000-0000-000000000000');
-      }
-    }
-
     const pageSize = 1000;
     const allStudents: Student[] = [];
     let offset = 0;
     let studentsError: { message: string } | null = null;
 
-    const classesPromise = classesQuery;
-
     while (true) {
-      const { data: page, error } = await buildStudentsQuery().range(offset, offset + pageSize - 1);
+      const { data: page, error } = await buildStudentsQuery()
+        .order('id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
       if (error) {
         studentsError = error;
         break;
@@ -404,114 +274,67 @@ export const ReportsTab = () => {
       offset += pageSize;
     }
 
-    const { data: allClasses, error: classesError } = await classesPromise;
-
     if (studentsError) {
       console.error('Erro ao buscar escolas para relatórios:', studentsError);
       return;
     }
 
-    if (classesError) {
-      console.error('Erro ao buscar turmas para relatórios:', classesError);
-    }
-
-    if (allClasses) {
-      const allowedSet =
-        chartUnitIds && chartUnitIds.length > 0 ? new Set(chartUnitIds) : null;
-      const visibleClassRows = allClasses
-        .filter(
-          (row) =>
-            row.series && (!allowedSet || allowedSet.has(row.unit_id))
-        )
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-          unit_id: row.unit_id,
-          series_id: row.series_id,
-          series: row.series as ReportClassRow['series'],
-        }));
-      setClassesData(visibleClassRows);
-    } else {
-      setClassesData([]);
-    }
-
     const students = allStudents;
-    const studentsValid = students.filter(s => s.status !== 'cadastro_invalido');
+    const studentsValid = students.filter((s) => s.status !== 'cadastro_invalido');
     setStudentsData(students);
 
     const today = getCurrentDate();
-
-    const totalInscricoes = studentsValid.filter(s =>
-      s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
+    const totalInscricoes = studentsValid.filter(
+      (s) => s.status !== 'processo_anos_anteriores' && isDateInPeriod(s.created_at)
     ).length;
-
-    const inscritosHoje = studentsValid.filter(s =>
-      s.status !== 'processo_anos_anteriores' && getDateYYYYMMDD(s.created_at) === today
-    ).length;
-
-    const { count: alunosProximaProva, datesByUnit } = await getNextExamStudentInfoAggregated(
-      studentsValid,
-      filterByUnit ? selectedUnit : undefined
-    );
-    setNextExamDatesByUnit(datesByUnit);
-
     const matriculados = students.filter(
       (s) => s.status === 'matriculado' && isActivityInPeriod(s.created_at, s.updated_at)
     ).length;
+    const statusCounts = aggregateReportStatusCounts(students);
 
-    const globalMatriculados = students.filter(s => s.status === 'matriculado').length;
+    // Contagens imediatamente — não bloqueia em agendamentos
+    setReportData((prev) => ({
+      ...prev,
+      totalInscricoes,
+      matriculados,
+      statusCounts,
+    }));
 
-    // Agendamentos no período selecionado, alinhados ao filtro de unidade/série
-    let appQuery = supabase.from('appointments').select('*');
+    let appQuery = supabase.from('appointments').select('id, student_id, appointment_date');
     if (dateFilterType === 'default' || dateFilterType === 'today') {
       appQuery = appQuery.eq('appointment_date', today);
     } else if (dateFilterType === '7days') {
       const sevenDaysAgo = new Date(today + 'T00:00:00');
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      appQuery = appQuery.gte('appointment_date', sevenDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
+      appQuery = appQuery
+        .gte('appointment_date', sevenDaysAgo.toISOString().substring(0, 10))
+        .lte('appointment_date', today);
     } else if (dateFilterType === '30days') {
       const thirtyDaysAgo = new Date(today + 'T00:00:00');
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      appQuery = appQuery.gte('appointment_date', thirtyDaysAgo.toISOString().substring(0, 10)).lte('appointment_date', today);
+      appQuery = appQuery
+        .gte('appointment_date', thirtyDaysAgo.toISOString().substring(0, 10))
+        .lte('appointment_date', today);
     } else if (dateFilterType === 'custom' && customStartDate && customEndDate) {
       appQuery = appQuery.gte('appointment_date', customStartDate).lte('appointment_date', customEndDate);
     }
+
+    const studentIds = new Set(students.map((s) => s.id));
     const { data: appointments } = await appQuery;
-
-    const filteredAppointments = (appointments || []).filter(app =>
-      students.some(s => s.id === app.student_id)
+    const filteredAppointments = (appointments || []).filter((app) => studentIds.has(app.student_id));
+    setTodayAppointmentsStudents(
+      students.filter((s) => filteredAppointments.some((app) => app.student_id === s.id))
     );
-    const agendamentosHoje = filteredAppointments.length;
-
-    const studentsWithAppointmentsToday = students.filter(s =>
-      filteredAppointments.some(app => app.student_id === s.id)
-    );
-    setTodayAppointmentsStudents(studentsWithAppointmentsToday);
-
-    // Conta pelos enums do banco, agregando legados na nomenclatura B2B do painel
-    // (ex.: nao_confirmado/ausente → nenhum_agendamento = Sem Contato)
-    const statusCounts = aggregateReportStatusCounts(students);
-
-    setReportData({
-      totalInscricoes,
-      inscritosHoje,
-      alunosProximaProva,
-      agendamentosHoje,
-      matriculados,
-      globalMatriculados,
-      statusCounts
-    });
+    setReportData((prev) => ({
+      ...prev,
+      agendamentosHoje: filteredAppointments.length,
+    }));
   };
 
   const getFilteredStudents = (filterType: string) => {
     switch (filterType) {
       case 'total':
         return studentsData.filter(s => s.status !== 'cadastro_invalido' && isDateInPeriod(s.created_at));
-      case 'inscritos_hoje':
-        const todayStr = getCurrentDate();
-        return studentsData.filter(s => s.status !== 'cadastro_invalido' && getDateYYYYMMDD(s.created_at) === todayStr);
-      case 'proxima_prova':
-        return filterStudentsProximaProva(studentsData, nextExamDatesByUnit);
       case 'matriculados':
         return studentsData.filter(
           (s) =>
@@ -526,17 +349,6 @@ export const ReportsTab = () => {
   const getStudentsByStatus = (status: string) => {
     return studentsData.filter((s) => normalizeReportStatus(s.status) === status);
   };
-
-  const getStudentsByClassAndStatus = (classId: string, status: string) => {
-    return studentsData.filter(
-      (s) => s.class_id === classId && normalizeReportStatus(s.status) === status
-    );
-  };
-
-  const unitNames = useMemo(
-    () => Object.fromEntries(units.map((u) => [u.id, u.name])),
-    [units]
-  );
 
   // Extraído para fora do componente principal para evitar recriação
   const StudentsTable = ({ students, statusLabels }: { students: Student[], statusLabels: { [key: string]: string } }) => (
@@ -583,6 +395,7 @@ export const ReportsTab = () => {
       faltou_ao_atendimento: { card: 'border-violet-100 bg-violet-50/60', count: 'text-violet-400', label: 'text-violet-500' },
       atendimento_recentemente: { card: 'border-blue-100 bg-blue-50', count: 'text-[#1437cc]', label: 'text-[#1437cc]' },
       atendimento_ha_mais_de_uma_semana: { card: 'border-orange-100 bg-orange-50', count: 'text-orange-500', label: 'text-orange-600' },
+      portfolio_enviado: { card: 'border-sky-100 bg-sky-50', count: 'text-sky-500', label: 'text-sky-600' },
       cadastro_invalido: { card: 'border-gray-200 bg-gray-50', count: 'text-gray-500', label: 'text-gray-600' },
       desistente: { card: 'border-red-100 bg-red-50', count: 'text-red-600', label: 'text-red-600' },
       matriculado: { card: 'border-green-100 bg-green-50', count: 'text-green-500', label: 'text-green-600' },
@@ -606,17 +419,9 @@ export const ReportsTab = () => {
     return 'Agendamentos Hoje';
   };
 
-  const goalPct =
-    totalGoal > 0
-      ? Math.min((reportData.globalMatriculados / totalGoal) * 100, 100)
-      : 0;
-  const goalRingRadius = 16;
-  const goalRingCirc = 2 * Math.PI * goalRingRadius;
-  const goalRingOffset = goalRingCirc - (goalPct / 100) * goalRingCirc;
-
   return (
     <div className="relative -mt-2 md:-mt-4 lg:-mt-6">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary shadow-sm">
             <BarChart3 className="h-5 w-5 text-primary-foreground" />
@@ -624,30 +429,6 @@ export const ReportsTab = () => {
           <div>
             <h2 className="text-xl font-bold text-primary">Painel Operacional</h2>
             <p className="text-sm text-muted-foreground">Visão geral das inscrições e status dos alunos</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2.5 shadow-sm">
-          <svg className="h-10 w-10 shrink-0" viewBox="0 0 40 40" aria-hidden>
-            <circle cx="20" cy="20" r={goalRingRadius} fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-200" />
-            <circle
-              cx="20"
-              cy="20"
-              r={goalRingRadius}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeDasharray={goalRingCirc}
-              strokeDashoffset={goalRingOffset}
-              strokeLinecap="round"
-              className="text-primary"
-              transform="rotate(-90 20 20)"
-            />
-          </svg>
-          <div>
-            <p className="text-lg font-bold tabular-nums leading-none text-primary">
-              {reportData.globalMatriculados}/{totalGoal}
-            </p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Meta Anual</p>
           </div>
         </div>
       </div>
@@ -726,49 +507,18 @@ export const ReportsTab = () => {
         </div>
 
         <section id="kpis" className="scroll-mt-20 space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-3">
             <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('total'), 'Total de Inscrições')}>
               <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
                 <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total de Inscrições</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total de Escolas</CardTitle>
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
                     <Users className="h-4 w-4 text-blue-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.totalInscricoes}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('inscritos_hoje'), 'Inscritos Hoje')}>
-              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Inscritos Hoje</CardTitle>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                    <UserPlus className="h-4 w-4 text-blue-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.inscritosHoje}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="h-full cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDialog(getFilteredStudents('proxima_prova'), 'Alunos com Próxima Prova')}>
-              <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-                <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Próxima Prova</CardTitle>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                    <ClipboardList className="h-4 w-4 text-blue-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold tabular-nums text-gray-900">{reportData.alunosProximaProva}</div>
                 </CardContent>
               </Card>
             </div>
@@ -792,7 +542,7 @@ export const ReportsTab = () => {
               <Card className="relative h-full overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
                 <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Matriculados</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Fechados</CardTitle>
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   </div>
@@ -805,49 +555,7 @@ export const ReportsTab = () => {
           </div>
         </section>
 
-        <section id="meta" className="scroll-mt-20">
-          {/* Goal Card */}
-          <div className="grid grid-cols-1">
-            <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-gray-100">
-              <div className="absolute left-0 top-0 h-full w-1.5 bg-primary" />
-              <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-                <Target className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-medium text-gray-700">
-                  Progresso da Meta Anual de Novas Matrículas (Total Matriculados vs Meta)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-1 flex items-baseline justify-between">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold tabular-nums text-primary">{reportData.globalMatriculados}</span>
-                    <span className="text-xl font-medium text-muted-foreground">/ {totalGoal}</span>
-                  </div>
-                  {totalGoal > 0 && (
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-primary">
-                      {goalPct.toFixed(1).replace('.', ',')}%
-                    </span>
-                  )}
-                </div>
-                {totalGoal > 0 && (
-                  <>
-                    <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-500 ease-in-out"
-                        style={{ width: `${goalPct}%` }}
-                      />
-                    </div>
-                    <div className="mt-2 flex justify-end text-xs text-muted-foreground">
-                      <span>Meta: {totalGoal} matrículas</span>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
         <section id="status" className="scroll-mt-20">
-          {/* Status Breakdown */}
           <Card className="border-0 shadow-sm ring-1 ring-gray-100">
             <CardHeader>
               <CardTitle className="text-primary">Escolas por Status</CardTitle>
@@ -885,37 +593,6 @@ export const ReportsTab = () => {
           </Card>
         </section>
 
-        <section id="funil" className="scroll-mt-20">
-          <StatusFunnelChart
-            statusCounts={reportData.statusCounts}
-            statusLabels={statusLabels}
-            students={studentsData
-              .filter((s) => s.class_id && !isExcludedFromClassChart(s.status))
-              .map((s) => ({ class_id: s.class_id as string, status: s.status }))}
-            classes={classesData}
-            unitNames={unitNames}
-            selectedUnit={selectedUnit}
-            selectedSegment={selectedSegment}
-            selectedSeries={selectedSeries}
-            onUnitChange={setSelectedUnit}
-            onSegmentChange={handleSegmentChange}
-            onSeriesChange={setSelectedSeries}
-            visibleUnits={visibleUnits}
-            availableSegments={availableSegments}
-            filteredSeriesOptions={filteredSeriesOptions}
-            onStatusClick={(status, label) =>
-              openDialog(getStudentsByStatus(status), `Alunos com status: ${label}`)
-            }
-            onClassStatusClick={(classId, status, statusLabel, classLabel) =>
-              openDialog(
-                getStudentsByClassAndStatus(classId, status),
-                `${classLabel} · ${statusLabel}`
-              )
-            }
-          />
-        </section>
-
-        {/* Único Dialog global para exibir a tabela de alunos */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>

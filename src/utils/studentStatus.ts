@@ -2,6 +2,7 @@
 export const STUDENT_STATUS_FUNNEL_ORDER = [
   'nenhum_agendamento',
   'confirmado',
+  'portfolio_enviado',
   'atendimento_agendado',
   'faltou_ao_atendimento',
   'atendimento_recentemente',
@@ -14,6 +15,7 @@ export const STUDENT_STATUS_FUNNEL_ORDER = [
 export const STUDENT_STATUS_REPORT_ORDER = [
   'nenhum_agendamento',
   'confirmado',
+  'portfolio_enviado',
   'atendimento_agendado',
   'faltou_ao_atendimento',
   'atendimento_recentemente',
@@ -58,6 +60,7 @@ export type FunnelStage =
 export const STUDENT_STATUS_FUNNEL_STAGES: FunnelStage[] = [
   { type: 'single', status: 'nenhum_agendamento' },
   { type: 'single', status: 'confirmado' },
+  { type: 'single', status: 'portfolio_enviado' },
   { type: 'single', status: 'atendimento_agendado' },
   { type: 'single', status: 'faltou_ao_atendimento' },
   { type: 'single', status: 'atendimento_recentemente' },
@@ -79,6 +82,7 @@ export const STUDENT_STATUS_LABELS: Record<string, string> = {
   faltou_ao_atendimento: 'Faltou a Reunião',
   atendimento_recentemente: 'Reunião Recente',
   atendimento_ha_mais_de_uma_semana: 'Reunião há mais de uma semana',
+  portfolio_enviado: 'Portfólio Enviado',
   cadastro_invalido: 'Escola Descartada',
   desistente: 'Desistente',
   matriculado: 'Fechado',
@@ -92,6 +96,7 @@ export const STUDENT_STATUS_LABELS: Record<string, string> = {
 export const STUDENT_STATUS_SELECT_OPTIONS = [
   'nenhum_agendamento',
   'confirmado',
+  'portfolio_enviado',
   'atendimento_agendado',
   'faltou_ao_atendimento',
   'atendimento_recentemente',
@@ -111,6 +116,7 @@ export const STUDENT_STATUS_BADGE_VARIANTS: Record<
   faltou_ao_atendimento: 'purple',
   atendimento_recentemente: 'default',
   atendimento_ha_mais_de_uma_semana: 'warning',
+  portfolio_enviado: 'secondary',
   cadastro_invalido: 'cadastro_invalido',
   desistente: 'destructive',
   matriculado: 'success',
@@ -126,6 +132,7 @@ export const STUDENT_STATUS_COLORS: Record<string, string> = {
   faltou_ao_atendimento: '#A78BFA',
   atendimento_recentemente: '#1437cc',
   atendimento_ha_mais_de_uma_semana: '#f97316',
+  portfolio_enviado: '#0ea5e9',
   desistente: '#ef4444',
   matriculado: '#22c55e',
   cadastro_invalido: '#000000',

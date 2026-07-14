@@ -1609,6 +1609,7 @@ export type Database = {
         | "atendimento_recentemente"
         | "atendimento_ha_mais_de_uma_semana"
         | "faltou_ao_atendimento"
+        | "portfolio_enviado"
         | "desistente"
         | "matriculado"
         | "ausente"
@@ -1803,6 +1804,7 @@ export const Constants = {
         "atendimento_recentemente",
         "atendimento_ha_mais_de_uma_semana",
         "faltou_ao_atendimento",
+        "portfolio_enviado",
         "desistente",
         "matriculado",
         "ausente",
