@@ -26,7 +26,7 @@ function LoginCard({ children }: { children: ReactNode }) {
       <CardHeader className="space-y-3 pb-4 text-center">
         <img
           src="/logo_apogeu_nobg.png"
-          alt="Rede de Ensino Apogeu"
+          alt="CRM Interno"
           className="mx-auto h-12 w-auto object-contain"
         />
         <div>
