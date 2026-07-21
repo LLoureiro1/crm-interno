@@ -30,6 +30,7 @@ import {
   getReportPeriodBounds,
   isActivityInReportPeriod,
   isCreatedInReportPeriod,
+  isDateInReportPeriod,
   type ReportDateFilterState,
   shouldApplyDateFilter,
 } from '@/utils/reportDateFilter';
@@ -1150,12 +1151,7 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const studentIds = ((studentsData || []) as Array<{
-        id: string;
-        created_at: string | null;
-        updated_at: string | null;
-      }>)
-        .filter((s) => matchesActivityDateFilter(s.created_at, s.updated_at))
+      const studentIds = ((studentsData || []) as Array<{ id: string }>)
         .map((s) => s.id);
       if (studentIds.length === 0) {
         setContactsByAttendant([]);
@@ -1165,7 +1161,7 @@ export const AdvancedReportsTab = () => {
       // Buscar tentativas de contato dos alunos filtrados, agrupadas por atendente
       const { data: attempts, error: attemptsError } = await supabase
         .from('contact_attempts')
-        .select(`attempted_by, student_id, profiles!contact_attempts_attempted_by_fkey (name)`)
+        .select(`attempted_by, student_id, attempted_at, profiles!contact_attempts_attempted_by_fkey (name)`)
         .in('student_id', studentIds);
 
       if (attemptsError) {
@@ -1174,8 +1170,12 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
+      const filteredAttempts = (attempts || []).filter((a: any) =>
+        isDateInReportPeriod(a.attempted_at, dateFilter)
+      );
+
       const byAttendant = new Map<string, { name: string; total: number }>();
-      (attempts || []).forEach((a: any) => {
+      filteredAttempts.forEach((a: any) => {
         const id = a.attempted_by || 'desconhecido';
         const name = a.profiles?.name || 'Atendente desconhecido';
         if (!byAttendant.has(id)) byAttendant.set(id, { name, total: 0 });
@@ -1882,7 +1882,7 @@ export const AdvancedReportsTab = () => {
       // IDs de alunos filtrados (excluindo estados indesejados)
       let studentsQuery = supabase
         .from('students')
-        .select('id, status, created_at, updated_at');
+        .select('id, status');
 
       studentsQuery = applyFilters(studentsQuery)
         .not('status', 'in', '(cadastro_invalido,processo_anos_anteriores)');
@@ -1895,12 +1895,7 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
-      const studentIds = ((studentsData || []) as Array<{
-        id: string;
-        created_at: string | null;
-        updated_at: string | null;
-      }>)
-        .filter((s) => matchesActivityDateFilter(s.created_at, s.updated_at))
+      const studentIds = ((studentsData || []) as Array<{ id: string }>)
         .map((s) => s.id);
       if (studentIds.length === 0) {
         setContactsByChannel([]);
@@ -1911,7 +1906,7 @@ export const AdvancedReportsTab = () => {
       // Buscar tentativas de contato para os alunos filtrados
       const { data: attempts, error: attemptsError } = await supabase
         .from('contact_attempts')
-        .select('student_id, channel, reason, succeeded')
+        .select('student_id, channel, reason, succeeded, attempted_at')
         .in('student_id', studentIds);
 
       if (attemptsError) {
@@ -1921,11 +1916,15 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
+      const filteredAttempts = (attempts || []).filter((a: any) =>
+        isDateInReportPeriod(a.attempted_at, dateFilter)
+      );
+
       // Agregação por canal e motivo
       const byChannelMap = new Map<string, { total: number; succeeded: number }>();
       const byReasonMap = new Map<string, { total: number; succeeded: number }>();
 
-      (attempts || []).forEach((a: any) => {
+      filteredAttempts.forEach((a: any) => {
         const ch = String(a.channel);
         const rsn = a.reason ? String(a.reason) : 'sem_motivo';
         const succ = a.succeeded ? 1 : 0;
@@ -1991,7 +1990,7 @@ export const AdvancedReportsTab = () => {
       // Buscar tentativas para esses alunos
       const { data: attempts, error: attemptsError } = await supabase
         .from('contact_attempts')
-        .select('student_id')
+        .select('student_id, attempted_at')
         .in('student_id', enrolledIds);
 
       if (attemptsError) {
@@ -2000,9 +1999,13 @@ export const AdvancedReportsTab = () => {
         return;
       }
 
+      const filteredAttempts = (attempts || []).filter((a: any) =>
+        isDateInReportPeriod(a.attempted_at, dateFilter)
+      );
+
       const counts = new Map<string, number>();
       enrolledIds.forEach((id: string) => counts.set(id, 0));
-      (attempts || []).forEach((a: any) => {
+      filteredAttempts.forEach((a: any) => {
         const prev = counts.get(a.student_id) || 0;
         counts.set(a.student_id, prev + 1);
       });
@@ -2585,7 +2588,14 @@ export const AdvancedReportsTab = () => {
               return (
                 <ProgressBarRow
                   key={item.channel}
-                  label={item.channel}
+                  label={
+                    {
+                      phone: 'Ligação',
+                      whatsapp: 'WhatsApp',
+                      email: 'Email',
+                      in_person: 'Presencial',
+                    }[item.channel] || item.channel
+                  }
                   value={item.total}
                   percentage={(item.total / maxTotal) * 100}
                 />
@@ -2603,7 +2613,22 @@ export const AdvancedReportsTab = () => {
               return (
                 <ProgressBarRow
                   key={item.reason}
-                  label={item.reason}
+                  label={
+                    {
+                      primeiro_contato: 'Primeiro Contato',
+                      envio_portfolio: 'Envio de Portfólio',
+                      followup_portfolio: 'Follow-up pós envio de portfólio',
+                      agendar_reuniao: 'Agendar Reunião',
+                      reagendar_reuniao: 'Reagendar Reunião',
+                      followup_reuniao: 'Follow-up pós reunião',
+                      agendamento: 'Agendamento',
+                      reagendamento: 'Reagendamento',
+                      confirmacao_prova: 'Confirmação de Prova',
+                      convidar_ausentes: 'Convidar Ausentes',
+                      followup_pos_atendimento: 'Follow-up Pós Atendimento',
+                      sem_motivo: 'Sem motivo',
+                    }[item.reason] || item.reason
+                  }
                   value={`${item.succeeded}/${item.total}`}
                   percentage={(item.total / maxTotal) * 100}
                 />
