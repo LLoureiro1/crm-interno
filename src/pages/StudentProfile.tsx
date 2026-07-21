@@ -358,8 +358,8 @@ const StudentProfile = () => {
   // Helpers e estrutura para histórico unificado
   const channelLabel = (ch?: Enums<'contact_channel'> | null) =>
     ch === 'phone' ? 'Ligação' : ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : ch === 'in_person' ? 'Presencial' : '';
-  const reasonLabel = (r?: Enums<'contact_reason'> | null) =>
-    r === 'agendamento' ? 'Agendamento' : r === 'reagendamento' ? 'Reagendamento' : r === 'confirmacao_prova' ? 'Confirmação de Prova' : r === 'convidar_ausentes' ? 'Convidar Ausentes' : r === 'followup_pos_atendimento' ? 'Follow-up Pós Atendimento' : '';
+  const reasonLabel = (r?: Enums<'contact_reason'> | string | null) =>
+    r === 'primeiro_contato' ? 'Primeiro Contato' : r === 'envio_portfolio' ? 'Envio de Portfólio' : r === 'followup_portfolio' ? 'Follow-up pós envio de portfólio' : r === 'agendar_reuniao' ? 'Agendar Reunião' : r === 'reagendar_reuniao' ? 'Reagendar Reunião' : r === 'followup_reuniao' ? 'Follow-up pós reunião' : '';
 
   type UnifiedItem = {
     id: string;
@@ -2246,11 +2246,12 @@ const StudentProfile = () => {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent side="bottom">
-                        <SelectItem value="agendamento">Agendamento</SelectItem>
-                        <SelectItem value="reagendamento">Reagendamento</SelectItem>
-                        <SelectItem value="confirmacao_prova">Confirmação de Prova</SelectItem>
-                        <SelectItem value="convidar_ausentes">Convidar Ausentes</SelectItem>
-                        <SelectItem value="followup_pos_atendimento">Follow-up Pós Atendimento</SelectItem>
+                        <SelectItem value="primeiro_contato">Primeiro Contato</SelectItem>
+                        <SelectItem value="envio_portfolio">Envio de Portfólio</SelectItem>
+                        <SelectItem value="followup_portfolio">Follow-up pós envio de portfólio</SelectItem>
+                        <SelectItem value="agendar_reuniao">Agendar Reunião</SelectItem>
+                        <SelectItem value="reagendar_reuniao">Reagendar Reunião</SelectItem>
+                        <SelectItem value="followup_reuniao">Follow-up pós reunião</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
